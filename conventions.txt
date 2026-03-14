@@ -1,0 +1,42 @@
+Bread C++ Conventions (captured from Context/PeanutButterUltima style)
+
+1) Naming
+- Parameters use p-prefix and PascalCase words.
+  Example: pSource, pLength, pErrorMessage
+- Local variables use a-prefix and PascalCase words.
+  Example: aIndex, aTileValue, aMixed
+- Member fields use m-prefix and PascalCase words.
+  Example: mTiles, mGlyphs
+- Types (classes/structs/enums) use PascalCase.
+  Example: Glyph, BreadCore
+- Constants use UPPER_SNAKE_CASE for global inline constexpr values.
+  Example: SB_L1_LENGTH, EB_MAX_LENGTH
+
+2) Headers and namespace
+- Every header uses include guards.
+- Namespace comments close with the namespace name.
+  Example: }  // namespace bread
+- Prefer lightweight includes in headers (<cstddef>, <cstdint>, <array>).
+
+3) Constants
+- Use inline constexpr for library-wide constants.
+- Use static_assert for layout/length invariants.
+- Keep sizes in std::size_t unless protocol explicitly needs fixed integer widths.
+
+4) Arrays and memory model
+- Prefer fixed-size storage over std::vector for core crypto/state structures.
+- Use std::array<T, N> for value-semantics fixed-size data.
+- Use C arrays (unsigned char mBytes[N]) where raw byte buffers are needed.
+- Avoid heap allocation in hot paths unless unavoidable.
+
+5) API shape and defensive checks
+- Use explicit buffer-oriented signatures for low-level operations.
+  Example: unsigned char* pPasswordBytes
+- Validate index bounds before writes/reads.
+- Keep behavior deterministic and simple (no hidden resizing or implicit ownership).
+
+6) Style details
+- Two-space indentation.
+- Place short constructors inline when trivial.
+- Keep helper routines small and direct.
+- Use const where practical for read-only inputs and locals.

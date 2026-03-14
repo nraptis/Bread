@@ -1,0 +1,18 @@
+byte_matrix_benchmark_report.txt
+kMatrixWidth=128, kMatrixHeight=128, kTrials=50, kIterations=50
+
+Function                  Best(ns)       Worst(ns)            Mean(ns)          Mean/iter(ns)
+----------------------------------------------------------------------------------------------
+RotateRight                 483875          887750           731383.38              14627.6675
+RotateLeft                  512584          581584           551729.20              11034.5840
+FlipH                       219917          237417           225366.77               4507.3355
+FlipV                       182583          193083           186925.02               3738.5005
+RollRight                   755083          859208           790646.88              15812.9375
+RollLeft                    758959          840625           796626.10              15932.5220
+RollUp                      731709          830833           769925.97              15398.5195
+RollDown                    837500          944250           876721.95              17534.4390
+RotateRowBytes                6167            6375             6231.23                124.6245
+RotateColBytes                6875            7209             7044.75                140.8950
+SwapRows                      3333            3541             3392.75                 67.8550
+SwapCols                      3292            3541             3375.00                 67.5000
+
