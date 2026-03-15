@@ -1,9 +1,14 @@
 #include "src/games/minigames/MatchThreeSwapStreaks.hpp"
 
+#include "src/games/engine/GamePlayDirector.hpp"
+
 namespace bread::games {
 
 MatchThreeSwapStreaks::MatchThreeSwapStreaks(bread::rng::Counter* pCounter)
-    : GameBoard(pCounter, kRequiredToNotExist, kStreak) {}
+    : GameBoard(pCounter, nullptr), GameBoard_Swap(), GameBoard_Streak() {
+  SetPasswordExpander(&mOwnedPasswordExpander);
+  SetGamePlayDirector(GamePlayDirector::BejeweledStyle());
+}
 
 void MatchThreeSwapStreaks::Seed(unsigned char* pPassword, int pPasswordLength) {
   InitializeSeed(pPassword, pPasswordLength);
@@ -38,10 +43,7 @@ bool MatchThreeSwapStreaks::AttemptMove() {
 
       if (aX + 1 < kGridWidth && mGrid[aX + 1][aY] != nullptr) {
         SwapTiles(aX, aY, aX + 1, aY);
-        MatchesBegin();
-        (void)MatchCheckStreak(aX, aY);
-        (void)MatchCheckStreak(aX + 1, aY);
-        if (HasPendingMatches()) {
+        if (HasAnyMatches()) {
           (void)MoveListPush(aX, aY, true, 1);
         }
         SwapTiles(aX, aY, aX + 1, aY);
@@ -49,10 +51,7 @@ bool MatchThreeSwapStreaks::AttemptMove() {
 
       if (aY + 1 < kGridHeight && mGrid[aX][aY + 1] != nullptr) {
         SwapTiles(aX, aY, aX, aY + 1);
-        MatchesBegin();
-        (void)MatchCheckStreak(aX, aY);
-        (void)MatchCheckStreak(aX, aY + 1);
-        if (HasPendingMatches()) {
+        if (HasAnyMatches()) {
           (void)MoveListPush(aX, aY, false, 1);
         }
         SwapTiles(aX, aY, aX, aY + 1);
@@ -62,7 +61,6 @@ bool MatchThreeSwapStreaks::AttemptMove() {
 
   const int aPick = MoveListPickIndex();
   if (aPick < 0) {
-    MatchesBegin();
     return false;
   }
 
@@ -73,10 +71,7 @@ bool MatchThreeSwapStreaks::AttemptMove() {
   const int aOtherY = aHorizontal ? aY : (aY + mMoveListDir[aPick]);
 
   SwapTiles(aX, aY, aOtherX, aOtherY);
-  MatchesBegin();
-  (void)MatchCheckStreak(aX, aY);
-  (void)MatchCheckStreak(aOtherX, aOtherY);
-  return HasPendingMatches();
+  return HasAnyMatches();
 }
 
 }  // namespace bread::games

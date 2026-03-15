@@ -1,9 +1,14 @@
 #include "src/games/minigames/MatchThreeTapStreaks.hpp"
 
+#include "src/games/engine/GamePlayDirector.hpp"
+
 namespace bread::games {
 
 MatchThreeTapStreaks::MatchThreeTapStreaks(bread::rng::Counter* pCounter)
-    : GameBoard(pCounter, kRequiredToExist, kStreak) {}
+    : GameBoard(pCounter, nullptr), GameBoard_Tap(), GameBoard_Streak() {
+  SetPasswordExpander(&mOwnedPasswordExpander);
+  SetGamePlayDirector(GamePlayDirector::CollapseStyle());
+}
 
 void MatchThreeTapStreaks::Seed(unsigned char* pPassword, int pPasswordLength) {
   InitializeSeed(pPassword, pPasswordLength);
@@ -13,29 +18,31 @@ void MatchThreeTapStreaks::Seed(unsigned char* pPassword, int pPasswordLength) {
 
 bool MatchThreeTapStreaks::AttemptMove() {
   MoveListClear();
-  bool aVisited[kGridSize] = {};
+  for (int aIndex = 0; aIndex < kGridSize; ++aIndex) {
+    mVisited[aIndex] = 0U;
+  }
 
   for (int aY = 0; aY < kGridHeight; ++aY) {
     for (int aX = 0; aX < kGridWidth; ++aX) {
       const int aFlat = aY * kGridWidth + aX;
-      if (aVisited[aFlat] || mGrid[aX][aY] == nullptr) {
+      if (mVisited[aFlat] != 0U || mGrid[aX][aY] == nullptr) {
         continue;
       }
 
       MatchesBegin();
-      (void)MatchCheckStreak(aX, aY);
+      (void)MatchMark(aX, aY);
       if (HasPendingMatches()) {
         (void)MoveListPush(aX, aY, true, 0);
         for (int aMY = 0; aMY < kGridHeight; ++aMY) {
           for (int aMX = 0; aMX < kGridWidth; ++aMX) {
             GameTile* aTile = mGrid[aMX][aMY];
             if (aTile != nullptr && aTile->mIsMatched) {
-              aVisited[aMY * kGridWidth + aMX] = true;
+              mVisited[aMY * kGridWidth + aMX] = 1U;
             }
           }
         }
       } else {
-        aVisited[aFlat] = true;
+        mVisited[aFlat] = 1U;
       }
     }
   }
@@ -47,7 +54,7 @@ bool MatchThreeTapStreaks::AttemptMove() {
   }
 
   MatchesBegin();
-  (void)MatchCheckStreak(mMoveListX[aPick], mMoveListY[aPick]);
+  (void)MatchMark(mMoveListX[aPick], mMoveListY[aPick]);
   return HasPendingMatches();
 }
 

@@ -3,24 +3,80 @@
 #include <algorithm>
 #include <cstring>
 
+#include "src/games/engine/GamePlayDirector.hpp"
+#include "src/games/engine/GamePowerUp.hpp"
+
 namespace bread::games {
 
 namespace {
-constexpr int kVeryLargeEnsureIterations = 1 << 20;
+constexpr int kVeryLargeEnsureIterations = 4096;
+
+GamePowerUp_ZoneBomb gZoneBomb;
+GamePowerUp_Rocket gRocket;
+GamePowerUp_ColorBomb gColorBomb;
+GamePowerUp_CrossBomb gCrossBomb;
+GamePowerUp_PlasmaBeamH gPlasmaBeamH;
+GamePowerUp_PlasmaBeamV gPlasmaBeamV;
+GamePowerUp_PlasmaBeamQuad gPlasmaBeamQuad;
+GamePowerUp_Nuke gNuke;
+GamePowerUp_CornerBomb gCornerBomb;
+GamePowerUp_VerticalBombs gVerticalBombs;
+GamePowerUp_HorizontalBombs gHorizontalBombs;
+
+GamePowerUpType SelectPowerUpType(unsigned char pSeedByte) {
+  const unsigned char aPick = static_cast<unsigned char>(pSeedByte % 11U);
+  if (aPick == 0U) {
+    return GamePowerUpType::kZoneBomb;
+  }
+  if (aPick == 1U) {
+    return GamePowerUpType::kRocket;
+  }
+  if (aPick == 2U) {
+    return GamePowerUpType::kColorBomb;
+  }
+  if (aPick == 3U) {
+    return GamePowerUpType::kCrossBomb;
+  }
+  if (aPick == 4U) {
+    return GamePowerUpType::kPlasmaBeamH;
+  }
+  if (aPick == 5U) {
+    return GamePowerUpType::kPlasmaBeamV;
+  }
+  if (aPick == 6U) {
+    return GamePowerUpType::kPlasmaBeamQuad;
+  }
+  if (aPick == 7U) {
+    return GamePowerUpType::kNuke;
+  }
+  if (aPick == 8U) {
+    return GamePowerUpType::kCornerBomb;
+  }
+  if (aPick == 9U) {
+    return GamePowerUpType::kVerticalBombs;
+  }
+  return GamePowerUpType::kHorizontalBombs;
 }
 
+}  // namespace
+
 GameBoard::GameBoard(bread::rng::Counter* pCounter,
-                     MatchRequiredMode pMatchRequiredMode,
-                     MatchTypeMode pMatchType)
+                     bread::expansion::key_expansion::PasswordExpander* pPasswordExpander)
     : mGrid{},
       mCounter(pCounter),
-      mTypeCount(4),
-      mMatchRequiredMode(pMatchRequiredMode),
-      mMatchType(pMatchType),
-      mBuffer{},
-      mBufferLength(0),
-      mGetCursor(0),
-      mPutCursor(0),
+      mFastRand(pPasswordExpander, bread::fast_rand::FastRandWrapMode::kWrapXOR),
+      mGamePlayDirector(nullptr),
+      mPlayTypeMode(kTap),
+      mIsCascading(true),
+      mSeedBuffer{},
+      mResultBuffer(nullptr),
+      mResultBufferWriteIndex(0U),
+      mCataclysmWriteIndex(0U),
+      mApocalypseWriteIndex(0U),
+      mResultBufferWriteProgress(0U),
+      mResultBufferReadIndex(0U),
+      mResultBufferLength(0U),
+      mSeedBytesRemaining(0U),
       mHasPendingMatches(false),
       mSuccessfulMoveCount(0),
       mBrokenCount(0),
@@ -29,18 +85,19 @@ GameBoard::GameBoard(bread::rng::Counter* pCounter,
       mMoveListHorizontal{},
       mMoveListDir{},
       mMoveListCount(0),
-      mMatchCheckStack{},
-      mMatchComponent{},
-      mMatchVisited{} {
+      mExploreListX{},
+      mExploreListY{},
+      mExploreListCount(0),
+      mMatchListX{},
+      mMatchListY{},
+      mStackX{},
+      mStackY{},
+      mComponentX{},
+      mComponentY{},
+      mVisited{},
+      mRuntimeStats{} {
   std::memset(mGrid, 0, sizeof(mGrid));
-  std::memset(mBuffer, 0, sizeof(mBuffer));
-  std::memset(mMatchCheckStack, 0, sizeof(mMatchCheckStack));
-  std::memset(mMatchComponent, 0, sizeof(mMatchComponent));
-  std::memset(mMatchVisited, 0, sizeof(mMatchVisited));
-  std::memset(mMoveListX, 0, sizeof(mMoveListX));
-  std::memset(mMoveListY, 0, sizeof(mMoveListY));
-  std::memset(mMoveListHorizontal, 0, sizeof(mMoveListHorizontal));
-  std::memset(mMoveListDir, 0, sizeof(mMoveListDir));
+  std::memset(mSeedBuffer, 0, sizeof(mSeedBuffer));
 }
 
 GameBoard::~GameBoard() {
@@ -53,6 +110,8 @@ void GameBoard::InitializeSeed(unsigned char* pPassword, int pPasswordLength) {
   mSuccessfulMoveCount = 0;
   mBrokenCount = 0;
   mMoveListCount = 0;
+  mExploreListCount = 0;
+  mRuntimeStats = RuntimeStats{};
 
   if (pPassword == nullptr || pPasswordLength <= 0) {
     pPasswordLength = 1;
@@ -60,86 +119,220 @@ void GameBoard::InitializeSeed(unsigned char* pPassword, int pPasswordLength) {
     pPassword = &aFallback;
   }
 
-  mBufferLength = std::max(1, std::min(kSeedBufferCapacity, pPasswordLength));
-  mGetCursor = 0;
-  mPutCursor = 0;
-  std::memset(mBuffer, 0, sizeof(mBuffer));
-  std::memcpy(mBuffer, pPassword, static_cast<std::size_t>(mBufferLength));
+  mResultBuffer = mSeedBuffer;
+  mResultBufferLength = static_cast<unsigned int>(std::min(pPasswordLength, kSeedBufferCapacity));
+  mResultBufferReadIndex = 0U;
+  mResultBufferWriteIndex = 0U;
+  mCataclysmWriteIndex = 0U;
+  mApocalypseWriteIndex = 0U;
+  mResultBufferWriteProgress = 0U;
+  mSeedBytesRemaining = mResultBufferLength;
+
+  if (mCounter != nullptr) {
+    mCounter->Seed(pPassword, pPasswordLength);
+    mCounter->Get(mSeedBuffer, static_cast<int>(mResultBufferLength));
+  } else {
+    for (unsigned int aIndex = 0U; aIndex < mResultBufferLength; ++aIndex) {
+      mSeedBuffer[aIndex] = pPassword[static_cast<std::size_t>(aIndex) % static_cast<std::size_t>(pPasswordLength)];
+    }
+  }
+  mFastRand.SetSeedBuffer(mSeedBuffer, static_cast<int>(mResultBufferLength));
+  mFastRand.Seed(pPassword, pPasswordLength);
+}
+
+void GameBoard::SetCounter(bread::rng::Counter* pCounter) {
+  mCounter = pCounter;
+}
+
+void GameBoard::SetPasswordExpander(bread::expansion::key_expansion::PasswordExpander* pPasswordExpander) {
+  mFastRand.SetPasswordExpander(pPasswordExpander);
 }
 
 void GameBoard::SetTypeCount(int pTypeCount) {
-  if (pTypeCount <= 1) {
-    mTypeCount = 2;
-  } else {
-    mTypeCount = pTypeCount;
+  (void)pTypeCount;
+}
+
+void GameBoard::SetPlayTypeMode(PlayTypeMode pPlayTypeMode) {
+  mPlayTypeMode = pPlayTypeMode;
+}
+
+void GameBoard::SetIsCascading(bool pIsCascading) {
+  mIsCascading = pIsCascading;
+}
+
+void GameBoard::SetGamePlayDirector(GamePlayDirector* pGamePlayDirector) {
+  mGamePlayDirector = pGamePlayDirector;
+}
+
+bool GameBoard::ResolveBoardState_PostSpawn() {
+  if (mGamePlayDirector == nullptr) {
+    return false;
   }
+  return mGamePlayDirector->ResolveBoardState_PostSpawn(this);
+}
+
+bool GameBoard::ResolveBoardState_PostTopple() {
+  if (mGamePlayDirector == nullptr) {
+    return false;
+  }
+  return mGamePlayDirector->ResolveBoardState_PostTopple(this);
+}
+
+void GameBoard::RecordGameStateOverflowCatastrophic() {
+  ++mRuntimeStats.mGameStateOverflowCatastrophic;
+}
+
+void GameBoard::RecordGameStateOverflowCataclysmic() {
+  ++mRuntimeStats.mGameStateOverflowCataclysmic;
+}
+
+void GameBoard::RecordGameStateOverflowApocalypse() {
+  ++mRuntimeStats.mGameStateOverflowApocalypse;
+}
+
+bool GameBoard::MatchMark(int /*pGridX*/, int /*pGridY*/) {
+  return false;
+}
+
+GameBoard_Slide::GameBoard_Slide() {
+  SetPlayTypeMode(kSlide);
+}
+
+GameBoard_Swap::GameBoard_Swap() {
+  SetPlayTypeMode(kSwap);
+}
+
+GameBoard_Tap::GameBoard_Tap() {
+  SetPlayTypeMode(kTap);
+  SetIsCascading(false);
 }
 
 bool GameBoard::SeedCanDequeue() const {
-  return (mGetCursor >= 0) && (mGetCursor < mBufferLength);
+  return mResultBuffer != nullptr && mResultBufferLength > 0U && mSeedBytesRemaining > 0U;
 }
 
 unsigned char GameBoard::SeedDequeue() {
   if (!SeedCanDequeue()) {
     return 0U;
   }
-  const unsigned char aByte = mBuffer[mGetCursor];
-  ++mGetCursor;
+  const unsigned char aByte = mResultBuffer[mResultBufferReadIndex];
+  mResultBufferReadIndex = (mResultBufferReadIndex + 1U) % mResultBufferLength;
+  --mSeedBytesRemaining;
   return aByte;
 }
 
 void GameBoard::EnqueueByte(unsigned char pByte) {
-  if (mBufferLength <= 0) {
+  if (mResultBuffer == nullptr || mResultBufferLength == 0U) {
+    return;
+  }
+  mResultBuffer[mResultBufferWriteIndex] = pByte;
+  mResultBufferWriteIndex = (mResultBufferWriteIndex + 1U) % mResultBufferLength;
+  ++mResultBufferWriteProgress;
+}
+
+void GameBoard::ShuffleSeedBuffer() {
+  if (mResultBufferLength <= 1U) {
     return;
   }
 
-  mBuffer[mPutCursor] = pByte;
-  ++mPutCursor;
-  if (mPutCursor >= mBufferLength) {
-    mPutCursor = 0;
+  for (unsigned int aIndex = mResultBufferLength - 1U; aIndex > 0U; --aIndex) {
+    const unsigned int aSwapIndex = static_cast<unsigned int>(GetRand(static_cast<int>(aIndex + 1U)));
+    const unsigned char aTemp = mSeedBuffer[aIndex];
+    mSeedBuffer[aIndex] = mSeedBuffer[aSwapIndex];
+    mSeedBuffer[aSwapIndex] = aTemp;
   }
 }
 
-unsigned char GameBoard::NextTypeByte() {
-  if (mCounter == nullptr) {
+void GameBoard::DragonAttack() {
+  bool aAny = false;
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      GameTile* aTile = mGrid[aX][aY];
+      if (aTile == nullptr || aTile->mIsMatched) {
+        continue;
+      }
+      if (GetRand(3) == 0) {
+        aTile->mIsMatched = true;
+        aAny = true;
+      }
+    }
+  }
+  if (aAny) {
+    mHasPendingMatches = true;
+  }
+}
+
+void GameBoard::RiddlerAttack() {
+  for (int aRow = 0; aRow + 1 < kGridHeight; aRow += 2) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      GameTile* aA = mGrid[aX][aRow];
+      GameTile* aB = mGrid[aX][aRow + 1];
+      mGrid[aX][aRow] = aB;
+      mGrid[aX][aRow + 1] = aA;
+      if (aB != nullptr) {
+        aB->mGridX = aX;
+        aB->mGridY = aRow;
+      }
+      if (aA != nullptr) {
+        aA->mGridX = aX;
+        aA->mGridY = aRow + 1;
+      }
+    }
+  }
+
+  for (int aCol = 0; aCol + 1 < kGridWidth; aCol += 2) {
+    for (int aY = 0; aY < kGridHeight; ++aY) {
+      GameTile* aA = mGrid[aCol][aY];
+      GameTile* aB = mGrid[aCol + 1][aY];
+      mGrid[aCol][aY] = aB;
+      mGrid[aCol + 1][aY] = aA;
+      if (aB != nullptr) {
+        aB->mGridX = aCol;
+        aB->mGridY = aY;
+      }
+      if (aA != nullptr) {
+        aA->mGridX = aCol + 1;
+        aA->mGridY = aY;
+      }
+    }
+  }
+
+  InvalidateMatches();
+  InvalidateNew();
+}
+
+unsigned char GameBoard::GetRand(int pMax) {
+  if (pMax <= 0 || mResultBufferLength == 0U) {
     return 0U;
   }
-  return mCounter->Get();
+
+  const unsigned char aByte = mFastRand.Get();
+  mRuntimeStats.mPasswordExpanderWraps = mFastRand.WrapCount();
+  return static_cast<unsigned char>(static_cast<int>(aByte) % pMax);
+}
+
+unsigned char GameBoard::NextTypeByte() {
+  return GetRand(256);
 }
 
 void GameBoard::Get(unsigned char* pDestination, int pDestinationLength) {
   if (pDestination == nullptr || pDestinationLength <= 0) {
     return;
   }
-
-  if (mBufferLength <= 0) {
+  if (mResultBuffer == nullptr || mResultBufferLength == 0U) {
     std::memset(pDestination, 0, static_cast<std::size_t>(pDestinationLength));
     return;
   }
 
-  if (mGetCursor >= mBufferLength || mGetCursor < 0) {
-    mGetCursor = 0;
-  }
-
   int aOffset = 0;
   while (aOffset < pDestinationLength) {
-    const int aToEnd = mBufferLength - mGetCursor;
-    const int aTake = std::min(pDestinationLength - aOffset, aToEnd);
-    std::memcpy(pDestination + aOffset, mBuffer + static_cast<std::ptrdiff_t>(mGetCursor),
+    const unsigned int aToEnd = mResultBufferLength - mResultBufferReadIndex;
+    const int aTake = std::min(pDestinationLength - aOffset, static_cast<int>(aToEnd));
+    std::memcpy(pDestination + aOffset, mResultBuffer + static_cast<std::ptrdiff_t>(mResultBufferReadIndex),
                 static_cast<std::size_t>(aTake));
-    mGetCursor += aTake;
+    mResultBufferReadIndex = (mResultBufferReadIndex + static_cast<unsigned int>(aTake)) % mResultBufferLength;
     aOffset += aTake;
-
-    if (mGetCursor >= mBufferLength) {
-      mGetCursor = 0;
-    }
   }
-}
-
-unsigned char GameBoard::Get() {
-  unsigned char aValue = 0U;
-  Get(&aValue, 1);
-  return aValue;
 }
 
 int GameBoard::SuccessfulMoveCount() const {
@@ -150,15 +343,23 @@ int GameBoard::BrokenCount() const {
   return mBrokenCount;
 }
 
+GameBoard::RuntimeStats GameBoard::GetRuntimeStats() const {
+  return mRuntimeStats;
+}
+
 GameTile* GameBoard::GenerateTile(int pGridX, int pGridY) {
   if (!SeedCanDequeue()) {
     return nullptr;
   }
-  const unsigned char aTypeSource = NextTypeByte();
-  const int aTypeCount = (mTypeCount <= 0) ? 1 : mTypeCount;
-  const unsigned char aType = static_cast<unsigned char>(aTypeSource % static_cast<unsigned char>(aTypeCount));
+  const unsigned char aTypeByte = NextTypeByte();
+  const unsigned char aType = static_cast<unsigned char>(aTypeByte % static_cast<unsigned char>(kTypeCount));
   const unsigned char aByte = SeedDequeue();
-  return new GameTile(pGridX, pGridY, aByte, aType);
+  GamePowerUpType aPowerUpType = GamePowerUpType::kNone;
+  if (aTypeByte < kPowerUpSpawnChance) {
+    aPowerUpType = SelectPowerUpType(aByte);
+    ++mRuntimeStats.mPowerUpSpawned;
+  }
+  return new GameTile(pGridX, pGridY, aByte, aType, aPowerUpType);
 }
 
 void GameBoard::ClearBoard() {
@@ -181,6 +382,18 @@ bool GameBoard::HasAnyTiles() const {
   return false;
 }
 
+int GameBoard::ActiveTileCount() const {
+  int aCount = 0;
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      if (mGrid[aX][aY] != nullptr) {
+        ++aCount;
+      }
+    }
+  }
+  return aCount;
+}
+
 bool GameBoard::Empty() const {
   return !HasAnyTiles();
 }
@@ -200,24 +413,70 @@ void GameBoard::InvalidateMatches() {
   MatchesBegin();
 }
 
-bool GameBoard::IsMatchStreak(int pGridX, int pGridY) {
-  return MatchCheckStreak(pGridX, pGridY);
+void GameBoard::InvalidateToppleFlags() {
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      GameTile* aTile = mGrid[aX][aY];
+      if (aTile != nullptr) {
+        aTile->mDidTopple = false;
+      }
+    }
+  }
 }
 
-bool GameBoard::IsMatchIsland(int pGridX, int pGridY) {
-  return MatchCheckIsland(pGridX, pGridY);
+void GameBoard::ToppleStep() {
+  InvalidateToppleFlags();
+
+  for (int aX = 0; aX < kGridWidth; ++aX) {
+    int aWriteY = kGridHeight - 1;
+    for (int aY = kGridHeight - 1; aY >= 0; --aY) {
+      GameTile* aTile = mGrid[aX][aY];
+      if (aTile == nullptr) {
+        continue;
+      }
+      if (aY != aWriteY) {
+        mGrid[aX][aWriteY] = aTile;
+        mGrid[aX][aY] = nullptr;
+        aTile->mGridX = aX;
+        aTile->mGridY = aWriteY;
+        aTile->mIsNew = false;
+        aTile->mDidTopple = true;
+      }
+      --aWriteY;
+    }
+
+    for (int aY = aWriteY; aY >= 0; --aY) {
+      mGrid[aX][aY] = GenerateTile(aX, aY);
+      if (mGrid[aX][aY] != nullptr) {
+        mGrid[aX][aY]->mIsNew = true;
+        mGrid[aX][aY]->mDidTopple = true;
+      }
+    }
+  }
+}
+
+bool GameBoard::CascadeStep() {
+  MatchesBegin();
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      GameTile* aTile = mGrid[aX][aY];
+      if (aTile == nullptr || !aTile->mDidTopple) {
+        continue;
+      }
+      (void)MatchMark(aX, aY);
+    }
+  }
+  return HasPendingMatches();
+}
+
+void GameBoard::Cascade() {
+  (void)CascadeStep();
 }
 
 bool GameBoard::HasAnyMatches() {
-  InvalidateMatches();
   for (int aY = 0; aY < kGridHeight; ++aY) {
     for (int aX = 0; aX < kGridWidth; ++aX) {
-      if (mMatchType == kIsland) {
-        (void)IsMatchIsland(aX, aY);
-      } else {
-        (void)IsMatchStreak(aX, aY);
-      }
-      if (HasPendingMatches()) {
+      if (IsMatch(aX, aY)) {
         return true;
       }
     }
@@ -225,12 +484,107 @@ bool GameBoard::HasAnyMatches() {
   return false;
 }
 
+bool GameBoard::HasAnyLegalMove() {
+  if (mPlayTypeMode == kTap) {
+    return HasAnyMatches();
+  }
+
+  if (mPlayTypeMode == kSwap) {
+    for (int aY = 0; aY < kGridHeight; ++aY) {
+      for (int aX = 0; aX < kGridWidth; ++aX) {
+        if (mGrid[aX][aY] == nullptr) {
+          continue;
+        }
+
+        if (aX + 1 < kGridWidth && mGrid[aX + 1][aY] != nullptr) {
+          GameTile* aA = mGrid[aX][aY];
+          GameTile* aB = mGrid[aX + 1][aY];
+          mGrid[aX][aY] = aB;
+          mGrid[aX + 1][aY] = aA;
+          const bool aAny = HasAnyMatches();
+          mGrid[aX][aY] = aA;
+          mGrid[aX + 1][aY] = aB;
+          if (aAny) {
+            return true;
+          }
+        }
+
+        if (aY + 1 < kGridHeight && mGrid[aX][aY + 1] != nullptr) {
+          GameTile* aA = mGrid[aX][aY];
+          GameTile* aB = mGrid[aX][aY + 1];
+          mGrid[aX][aY] = aB;
+          mGrid[aX][aY + 1] = aA;
+          const bool aAny = HasAnyMatches();
+          mGrid[aX][aY] = aA;
+          mGrid[aX][aY + 1] = aB;
+          if (aAny) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  if (mPlayTypeMode == kSlide) {
+    for (int aRow = 0; aRow < kGridHeight; ++aRow) {
+      for (int aAmount = 1; aAmount <= (kGridWidth - 1); ++aAmount) {
+        const int aDir = -aAmount;
+        SlideRow(aRow, aDir);
+        const bool aAny = HasAnyMatches();
+        SlideRow(aRow, -aDir);
+        if (aAny) {
+          return true;
+        }
+      }
+    }
+    for (int aCol = 0; aCol < kGridWidth; ++aCol) {
+      for (int aAmount = 1; aAmount <= (kGridHeight - 1); ++aAmount) {
+        const int aDir = -aAmount;
+        SlideColumn(aCol, aDir);
+        const bool aAny = HasAnyMatches();
+        SlideColumn(aCol, -aDir);
+        if (aAny) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  return false;
+}
+
+bool GameBoard::IsMatch(int /*pGridX*/, int /*pGridY*/) {
+  return false;
+}
+
+int GameBoard::GetMatches() {
+  InvalidateMatches();
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      (void)MatchMark(aX, aY);
+    }
+  }
+
+  int aCount = 0;
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      const GameTile* aTile = mGrid[aX][aY];
+      if (aTile != nullptr && aTile->mIsMatched) {
+        ++aCount;
+      }
+    }
+  }
+  return aCount;
+}
+
 void GameBoard::MoveListClear() {
   mMoveListCount = 0;
 }
 
 bool GameBoard::MoveListPush(int pX, int pY, bool pHorizontal, int pDir) {
-  if (mMoveListCount < 0 || mMoveListCount >= static_cast<int>(8 * 8 * 4)) {
+  if (mMoveListCount < 0 || mMoveListCount >= kMoveListCapacity) {
     return false;
   }
   mMoveListX[mMoveListCount] = pX;
@@ -241,14 +595,67 @@ bool GameBoard::MoveListPush(int pX, int pY, bool pHorizontal, int pDir) {
   return true;
 }
 
-int GameBoard::MoveListPickIndex() const {
+int GameBoard::MoveListPickIndex() {
   if (mMoveListCount <= 0) {
     return -1;
   }
-  if (mCounter == nullptr) {
-    return 0;
+  return static_cast<int>(GetRand(mMoveListCount));
+}
+
+void GameBoard::ShuffleAllTiles() {
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      GameTile* aTile = mGrid[aX][aY];
+      if (aTile == nullptr) {
+        continue;
+      }
+      aTile->mType = static_cast<unsigned char>(GetRand(kTypeCount));
+      aTile->mIsNew = false;
+      aTile->mDidTopple = false;
+    }
   }
-  return static_cast<int>(mCounter->Get() % static_cast<unsigned char>(mMoveListCount));
+}
+
+void GameBoard::ApocalypseScenario() {
+  if (mResultBuffer == nullptr || mResultBufferLength == 0U) {
+    return;
+  }
+
+  for (unsigned int aIndex = 0U; aIndex < mResultBufferLength; ++aIndex) {
+    mResultBuffer[aIndex] = mSeedBuffer[aIndex % static_cast<unsigned int>(kSeedBufferCapacity)];
+  }
+
+  unsigned int aLeft = 0U;
+  unsigned int aRight = mResultBufferLength - 1U;
+  while (aLeft < aRight) {
+    const unsigned char aTemp = mResultBuffer[aLeft];
+    mResultBuffer[aLeft] = mResultBuffer[aRight];
+    mResultBuffer[aRight] = aTemp;
+    ++aLeft;
+    --aRight;
+  }
+
+  mResultBufferReadIndex = 0U;
+  mResultBufferWriteIndex = 0U;
+  mCataclysmWriteIndex = 0U;
+  mApocalypseWriteIndex = 0U;
+  mResultBufferWriteProgress = 0U;
+}
+
+void GameBoard::ShuffleXY(int* pListX, int* pListY, int pCount) {
+  if (pListX == nullptr || pListY == nullptr || pCount <= 1 || pCount > 255) {
+    return;
+  }
+
+  for (int aIndex = pCount - 1; aIndex > 0; --aIndex) {
+    const int aSwapIndex = static_cast<int>(GetRand(aIndex + 1));
+    const int aTempX = pListX[aIndex];
+    const int aTempY = pListY[aIndex];
+    pListX[aIndex] = pListX[aSwapIndex];
+    pListY[aIndex] = pListY[aSwapIndex];
+    pListX[aSwapIndex] = aTempX;
+    pListY[aSwapIndex] = aTempY;
+  }
 }
 
 void GameBoard::MatchesBegin() {
@@ -267,143 +674,90 @@ bool GameBoard::HasPendingMatches() const {
   return mHasPendingMatches;
 }
 
-bool GameBoard::MatchCheckStreak(int pGridX, int pGridY) {
-  if (pGridX < 0 || pGridX >= kGridWidth || pGridY < 0 || pGridY >= kGridHeight) {
-    return false;
-  }
-  GameTile* aCenter = mGrid[pGridX][pGridY];
-  if (aCenter == nullptr) {
-    return false;
-  }
-
-  const unsigned char aType = aCenter->mType;
-  bool aMatched = false;
-
-  int aLeft = pGridX;
-  while (aLeft > 0 && mGrid[aLeft - 1][pGridY] != nullptr && mGrid[aLeft - 1][pGridY]->mType == aType) {
-    --aLeft;
-  }
-  int aRight = pGridX;
-  while (aRight + 1 < kGridWidth && mGrid[aRight + 1][pGridY] != nullptr &&
-         mGrid[aRight + 1][pGridY]->mType == aType) {
-    ++aRight;
-  }
-  if ((aRight - aLeft + 1) >= 3) {
-    for (int aX = aLeft; aX <= aRight; ++aX) {
-      GameTile* aTile = mGrid[aX][pGridY];
-      if (aTile != nullptr) {
-        aTile->mIsMatched = true;
-      }
-    }
-    aMatched = true;
-  }
-
-  int aTop = pGridY;
-  while (aTop > 0 && mGrid[pGridX][aTop - 1] != nullptr && mGrid[pGridX][aTop - 1]->mType == aType) {
-    --aTop;
-  }
-  int aBottom = pGridY;
-  while (aBottom + 1 < kGridHeight && mGrid[pGridX][aBottom + 1] != nullptr &&
-         mGrid[pGridX][aBottom + 1]->mType == aType) {
-    ++aBottom;
-  }
-  if ((aBottom - aTop + 1) >= 3) {
-    for (int aY = aTop; aY <= aBottom; ++aY) {
-      GameTile* aTile = mGrid[pGridX][aY];
-      if (aTile != nullptr) {
-        aTile->mIsMatched = true;
-      }
-    }
-    aMatched = true;
-  }
-
-  if (aMatched) {
-    mHasPendingMatches = true;
-  }
-  return aMatched;
-}
-
-bool GameBoard::MatchCheckIsland(int pGridX, int pGridY) {
-  if (pGridX < 0 || pGridX >= kGridWidth || pGridY < 0 || pGridY >= kGridHeight) {
-    return false;
-  }
-  GameTile* aCenter = mGrid[pGridX][pGridY];
-  if (aCenter == nullptr) {
-    return false;
-  }
-
-  std::memset(mMatchVisited, 0, sizeof(mMatchVisited));
-  int aStackSize = 0;
-  int aComponentSize = 0;
-  const int aStartIndex = pGridY * kGridWidth + pGridX;
-  const unsigned char aType = aCenter->mType;
-
-  mMatchCheckStack[aStackSize++] = aStartIndex;
-  mMatchVisited[aStartIndex] = true;
-
-  while (aStackSize > 0) {
-    const int aIndex = mMatchCheckStack[--aStackSize];
-    mMatchComponent[aComponentSize++] = aIndex;
-
-    const int aX = aIndex % kGridWidth;
-    const int aY = aIndex / kGridWidth;
-
-    const int aNX[4] = {aX - 1, aX + 1, aX, aX};
-    const int aNY[4] = {aY, aY, aY - 1, aY + 1};
-
-    for (int aDir = 0; aDir < 4; ++aDir) {
-      if (aNX[aDir] < 0 || aNX[aDir] >= kGridWidth || aNY[aDir] < 0 || aNY[aDir] >= kGridHeight) {
-        continue;
-      }
-      const int aNeighbor = aNY[aDir] * kGridWidth + aNX[aDir];
-      if (mMatchVisited[aNeighbor]) {
-        continue;
-      }
-      GameTile* aTile = mGrid[aNX[aDir]][aNY[aDir]];
-      if (aTile != nullptr && aTile->mType == aType) {
-        mMatchVisited[aNeighbor] = true;
-        mMatchCheckStack[aStackSize++] = aNeighbor;
-      }
-    }
-  }
-
-  if (aComponentSize < 3) {
-    return false;
-  }
-
-  for (int aIndex = 0; aIndex < aComponentSize; ++aIndex) {
-    const int aFlat = mMatchComponent[aIndex];
-    const int aX = aFlat % kGridWidth;
-    const int aY = aFlat / kGridWidth;
-    GameTile* aTile = mGrid[aX][aY];
-    if (aTile != nullptr) {
-      aTile->mIsMatched = true;
-    }
-  }
-  mHasPendingMatches = true;
-  return true;
-}
-
 int GameBoard::MatchesCommit() {
-  int aCommitted = 0;
+  int aMatchCount = 0;
   for (int aY = 0; aY < kGridHeight; ++aY) {
     for (int aX = 0; aX < kGridWidth; ++aX) {
       GameTile* aTile = mGrid[aX][aY];
       if (aTile == nullptr || !aTile->mIsMatched) {
         continue;
       }
-      EnqueueByte(aTile->mByte);
-      mGrid[aX][aY] = nullptr;
-      delete aTile;
-      ++aCommitted;
+      if (aMatchCount >= kGridSize) {
+        continue;
+      }
+      mMatchListX[aMatchCount] = aX;
+      mMatchListY[aMatchCount] = aY;
+      ++aMatchCount;
     }
+  }
+
+  ShuffleXY(mMatchListX, mMatchListY, aMatchCount);
+
+  int aCommitted = 0;
+  for (int aIndex = 0; aIndex < aMatchCount; ++aIndex) {
+    const int aX = mMatchListX[aIndex];
+    const int aY = mMatchListY[aIndex];
+    GameTile* aTile = mGrid[aX][aY];
+    if (aTile == nullptr || !aTile->mIsMatched) {
+      continue;
+    }
+    EnqueueByte(aTile->mByte);
+    mGrid[aX][aY] = nullptr;
+    delete aTile;
+    ++aCommitted;
   }
   mHasPendingMatches = false;
   return aCommitted;
 }
 
+bool GameBoard::TriggerMatchedPowerUps() {
+  bool aTriggered = false;
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      GameTile* aTile = mGrid[aX][aY];
+      if (aTile == nullptr || !aTile->mIsMatched) {
+        continue;
+      }
+      if (aTile->mPowerUpType == GamePowerUpType::kNone) {
+        continue;
+      }
+
+      const GamePowerUpType aPowerUpType = aTile->mPowerUpType;
+      aTile->mPowerUpType = GamePowerUpType::kNone;
+      if (aPowerUpType == GamePowerUpType::kZoneBomb) {
+        gZoneBomb.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kRocket) {
+        gRocket.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kColorBomb) {
+        gColorBomb.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kCrossBomb) {
+        gCrossBomb.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kPlasmaBeamH) {
+        gPlasmaBeamH.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kPlasmaBeamV) {
+        gPlasmaBeamV.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kPlasmaBeamQuad) {
+        gPlasmaBeamQuad.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kNuke) {
+        gNuke.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kCornerBomb) {
+        gCornerBomb.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kVerticalBombs) {
+        gVerticalBombs.Apply(this, aX, aY);
+      } else if (aPowerUpType == GamePowerUpType::kHorizontalBombs) {
+        gHorizontalBombs.Apply(this, aX, aY);
+      }
+      ++mRuntimeStats.mPowerUpConsumed;
+      aTriggered = true;
+    }
+  }
+  return aTriggered;
+}
+
 void GameBoard::Match() {
   if (HasPendingMatches()) {
+    while (TriggerMatchedPowerUps()) {
+    }
     (void)MatchesCommit();
   }
 }
@@ -412,7 +766,6 @@ void GameBoard::SlideRow(int pRowIndex, int pAmount) {
   if (pRowIndex < 0 || pRowIndex >= kGridHeight || pAmount == 0) {
     return;
   }
-
   int aShift = pAmount % kGridWidth;
   if (aShift < 0) {
     aShift += kGridWidth;
@@ -425,7 +778,6 @@ void GameBoard::SlideRow(int pRowIndex, int pAmount) {
   for (int aX = 0; aX < kGridWidth; ++aX) {
     aTemp[(aX + aShift) % kGridWidth] = mGrid[aX][pRowIndex];
   }
-
   for (int aX = 0; aX < kGridWidth; ++aX) {
     mGrid[aX][pRowIndex] = aTemp[aX];
     if (mGrid[aX][pRowIndex] != nullptr) {
@@ -439,7 +791,6 @@ void GameBoard::SlideColumn(int pColumnIndex, int pAmount) {
   if (pColumnIndex < 0 || pColumnIndex >= kGridWidth || pAmount == 0) {
     return;
   }
-
   int aShift = pAmount % kGridHeight;
   if (aShift < 0) {
     aShift += kGridHeight;
@@ -452,7 +803,6 @@ void GameBoard::SlideColumn(int pColumnIndex, int pAmount) {
   for (int aY = 0; aY < kGridHeight; ++aY) {
     aTemp[(aY + aShift) % kGridHeight] = mGrid[pColumnIndex][aY];
   }
-
   for (int aY = 0; aY < kGridHeight; ++aY) {
     mGrid[pColumnIndex][aY] = aTemp[aY];
     if (mGrid[pColumnIndex][aY] != nullptr) {
@@ -463,49 +813,17 @@ void GameBoard::SlideColumn(int pColumnIndex, int pAmount) {
 }
 
 void GameBoard::Topple() {
-  for (int aX = 0; aX < kGridWidth; ++aX) {
-    int aWriteY = kGridHeight - 1;
-
-    for (int aY = kGridHeight - 1; aY >= 0; --aY) {
-      GameTile* aTile = mGrid[aX][aY];
-      if (aTile == nullptr) {
-        continue;
-      }
-      if (aY != aWriteY) {
-        mGrid[aX][aWriteY] = aTile;
-        mGrid[aX][aY] = nullptr;
-        aTile->mGridX = aX;
-        aTile->mGridY = aWriteY;
-        aTile->mIsNew = false;
-      }
-      --aWriteY;
-    }
-
-    for (int aY = aWriteY; aY >= 0; --aY) {
-      mGrid[aX][aY] = GenerateTile(aX, aY);
-      if (mGrid[aX][aY] != nullptr) {
-        mGrid[aX][aY]->mIsNew = true;
-      }
-    }
-  }
-
-  if (mMatchRequiredMode == kRequiredToNotExist) {
-    if (mMatchType == kIsland) {
-      Topple_EnsureNoMatchesExistIsland();
-    } else {
-      Topple_EnsureNoMatchesExistStreak();
-    }
-  } else {
-    if (mMatchType == kIsland) {
-      Topple_EnsureMatchesExistIsland();
-    } else {
-      Topple_EnsureMatchesExistStreak();
-    }
+  ++mRuntimeStats.mTopple;
+  ToppleStep();
+  if (!ResolveBoardState_PostTopple()) {
+    ++mBrokenCount;
+    RecordGameStateOverflowCatastrophic();
   }
   InvalidateNew();
 }
 
 void GameBoard::Stuck() {
+  ++mRuntimeStats.mStuck;
   MatchesBegin();
   for (int aY = 0; aY < kGridHeight; ++aY) {
     for (int aX = 0; aX < kGridWidth; ++aX) {
@@ -531,251 +849,129 @@ void GameBoard::Spawn() {
     }
   }
 
-  if (mMatchRequiredMode == kRequiredToNotExist) {
-    if (mMatchType == kIsland) {
-      Spawn_EnsureNoMatchesExistIsland();
-    } else {
-      Spawn_EnsureNoMatchesExistStreak();
-    }
+  if (!ResolveBoardState_PostSpawn()) {
+    ++mBrokenCount;
+    RecordGameStateOverflowCatastrophic();
   }
+  InvalidateMatches();
   InvalidateNew();
-}
-
-void GameBoard::Spawn_EnsureNoMatchesExistStreak() {
-  const int aTypeCount = (mTypeCount <= 0) ? 1 : mTypeCount;
-  bool aResolved = false;
-
-  for (int aLoop = 0; aLoop < kVeryLargeEnsureIterations; ++aLoop) {
-    bool aSuccess = true;
-    InvalidateMatches();
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      for (int aY = 0; aY < kGridHeight; ++aY) {
-        if (IsMatchStreak(aX, aY)) {
-          GameTile* aTile = mGrid[aX][aY];
-          if (aTile != nullptr) {
-            aTile->mType = static_cast<unsigned char>(NextTypeByte() % static_cast<unsigned char>(aTypeCount));
-            aSuccess = false;
-          }
-        }
-      }
-    }
-    if (aSuccess) {
-      aResolved = true;
-      break;
-    }
-  }
-  if (!aResolved) {
-    ++mBrokenCount;
-  }
-  InvalidateMatches();
-}
-
-void GameBoard::Spawn_EnsureNoMatchesExistIsland() {
-  const int aTypeCount = (mTypeCount <= 0) ? 1 : mTypeCount;
-  bool aResolved = false;
-
-  for (int aLoop = 0; aLoop < kVeryLargeEnsureIterations; ++aLoop) {
-    bool aSuccess = true;
-    InvalidateMatches();
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      for (int aY = 0; aY < kGridHeight; ++aY) {
-        if (IsMatchIsland(aX, aY)) {
-          GameTile* aTile = mGrid[aX][aY];
-          if (aTile != nullptr) {
-            aTile->mType = static_cast<unsigned char>(NextTypeByte() % static_cast<unsigned char>(aTypeCount));
-            aSuccess = false;
-          }
-        }
-      }
-    }
-    if (aSuccess) {
-      aResolved = true;
-      break;
-    }
-  }
-  if (!aResolved) {
-    ++mBrokenCount;
-  }
-  InvalidateMatches();
-}
-
-void GameBoard::Topple_EnsureNoMatchesExistStreak() {
-  const int aTypeCount = (mTypeCount <= 0) ? 1 : mTypeCount;
-  bool aResolved = false;
-
-  for (int aLoop = 0; aLoop < kVeryLargeEnsureIterations; ++aLoop) {
-    bool aSuccess = true;
-    InvalidateMatches();
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      for (int aY = 0; aY < kGridHeight; ++aY) {
-        GameTile* aTile = mGrid[aX][aY];
-        if (aTile == nullptr || !aTile->mIsNew) {
-          continue;
-        }
-        if (IsMatchStreak(aX, aY)) {
-          aTile->mType = static_cast<unsigned char>(NextTypeByte() % static_cast<unsigned char>(aTypeCount));
-          aSuccess = false;
-        }
-      }
-    }
-    if (aSuccess) {
-      aResolved = true;
-      break;
-    }
-  }
-  if (!aResolved) {
-    ++mBrokenCount;
-  }
-  InvalidateMatches();
-}
-
-void GameBoard::Topple_EnsureNoMatchesExistIsland() {
-  const int aTypeCount = (mTypeCount <= 0) ? 1 : mTypeCount;
-  bool aResolved = false;
-
-  for (int aLoop = 0; aLoop < kVeryLargeEnsureIterations; ++aLoop) {
-    bool aSuccess = true;
-    InvalidateMatches();
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      for (int aY = 0; aY < kGridHeight; ++aY) {
-        GameTile* aTile = mGrid[aX][aY];
-        if (aTile == nullptr || !aTile->mIsNew) {
-          continue;
-        }
-        if (IsMatchIsland(aX, aY)) {
-          aTile->mType = static_cast<unsigned char>(NextTypeByte() % static_cast<unsigned char>(aTypeCount));
-          aSuccess = false;
-        }
-      }
-    }
-    if (aSuccess) {
-      aResolved = true;
-      break;
-    }
-  }
-  if (!aResolved) {
-    ++mBrokenCount;
-  }
-  InvalidateMatches();
-}
-
-void GameBoard::Topple_EnsureMatchesExistStreak() {
-  const int aTypeCount = (mTypeCount <= 0) ? 1 : mTypeCount;
-  bool aResolved = false;
-
-  for (int aLoop = 0; aLoop < kVeryLargeEnsureIterations; ++aLoop) {
-    if (HasAnyMatches()) {
-      aResolved = true;
-      InvalidateMatches();
-      break;
-    }
-
-    const unsigned char aType = static_cast<unsigned char>(NextTypeByte() % static_cast<unsigned char>(aTypeCount));
-    bool aApplied = false;
-    for (int aY = 0; aY < kGridHeight && !aApplied; ++aY) {
-      for (int aX = 0; aX <= kGridWidth - 3; ++aX) {
-        if (mGrid[aX][aY] != nullptr && mGrid[aX + 1][aY] != nullptr && mGrid[aX + 2][aY] != nullptr) {
-          mGrid[aX][aY]->mType = aType;
-          mGrid[aX + 1][aY]->mType = aType;
-          mGrid[aX + 2][aY]->mType = aType;
-          aApplied = true;
-          break;
-        }
-      }
-    }
-    if (!aApplied) {
-      aResolved = true;
-      break;
-    }
-  }
-  if (!aResolved) {
-    ++mBrokenCount;
-  }
-  InvalidateMatches();
-}
-
-void GameBoard::Topple_EnsureMatchesExistIsland() {
-  const int aTypeCount = (mTypeCount <= 0) ? 1 : mTypeCount;
-  bool aResolved = false;
-
-  for (int aLoop = 0; aLoop < kVeryLargeEnsureIterations; ++aLoop) {
-    if (HasAnyMatches()) {
-      aResolved = true;
-      InvalidateMatches();
-      break;
-    }
-
-    const unsigned char aType = static_cast<unsigned char>(NextTypeByte() % static_cast<unsigned char>(aTypeCount));
-    bool aApplied = false;
-    for (int aY = 0; aY < kGridHeight && !aApplied; ++aY) {
-      for (int aX = 0; aX <= kGridWidth - 3; ++aX) {
-        if (mGrid[aX][aY] != nullptr && mGrid[aX + 1][aY] != nullptr && mGrid[aX + 2][aY] != nullptr) {
-          mGrid[aX][aY]->mType = aType;
-          mGrid[aX + 1][aY]->mType = aType;
-          mGrid[aX + 2][aY]->mType = aType;
-          aApplied = true;
-          break;
-        }
-      }
-    }
-    if (!aApplied) {
-      aResolved = true;
-      break;
-    }
-  }
-  if (!aResolved) {
-    ++mBrokenCount;
-  }
-  InvalidateMatches();
 }
 
 bool GameBoard::MakeMoves() {
   return AttemptMove();
 }
 
+bool GameBoard::PlayMainLoop() {
+  const bool aMoveApplied = MakeMoves();
+  if (!aMoveApplied) {
+    Stuck();
+  } else {
+    ++mSuccessfulMoveCount;
+  }
+
+  if (ActiveTileCount() < kGridSize) {
+    Stuck();
+    return false;
+  }
+
+  if (GetRand(256) == 64U && GetRand(256) < 10U) {
+    ++mRuntimeStats.mDragonAttack;
+    DragonAttack();
+  }
+  if (GetRand(256) == 64U && GetRand(256) < 10U) {
+    ++mRuntimeStats.mRiddlerAttack;
+    RiddlerAttack();
+  }
+
+  int aResolveLoopCount = 0;
+  bool aFirstMatchInTurn = true;
+  while (HasAnyMatches()) {
+    const unsigned int aWriteProgressBefore = mResultBufferWriteProgress;
+    ++aResolveLoopCount;
+    if (aFirstMatchInTurn) {
+      if (aMoveApplied) {
+        ++mRuntimeStats.mUserMatch;
+      }
+      aFirstMatchInTurn = false;
+    } else {
+      ++mRuntimeStats.mCascadeMatch;
+    }
+    Match();
+    Topple();
+    Cascade();
+
+    if (mResultBufferWriteProgress == aWriteProgressBefore) {
+      break;
+    }
+
+    if (!mIsCascading) {
+      break;
+    }
+
+    if (ActiveTileCount() < kGridSize) {
+      Stuck();
+      return false;
+    }
+
+    if (aResolveLoopCount > kVeryLargeEnsureIterations) {
+      ++mBrokenCount;
+      RecordGameStateOverflowCatastrophic();
+      Stuck();
+      break;
+    }
+  }
+
+  if (Empty()) {
+    Spawn();
+  }
+  return true;
+}
+
 void GameBoard::Play() {
-  if (mBufferLength <= 0) {
+  if (mResultBufferLength == 0U) {
     return;
   }
 
-  mGetCursor = 0;
-  mPutCursor = 0;
+  mResultBufferReadIndex = 0U;
+  mResultBufferWriteIndex = 0U;
+  mCataclysmWriteIndex = 0U;
+  mApocalypseWriteIndex = 0U;
+  mResultBufferWriteProgress = 0U;
+  ShuffleSeedBuffer();
+  mFastRand.SetSeedBuffer(mSeedBuffer, static_cast<int>(mResultBufferLength));
   Spawn();
 
-  const int aMaxTurns = std::max(256, mBufferLength * 8);
-  int aTurn = 0;
-  int aNoGetProgressCount = 0;
-  int aPrevGetCursor = mGetCursor;
+  int aSuspendedLoop = 0;
+  while (mResultBufferWriteProgress < mResultBufferLength && aSuspendedLoop < kSuspendedThreshold) {
+    mCataclysmWriteIndex = mResultBufferWriteIndex;
 
-  while (mGetCursor < mBufferLength && aTurn < aMaxTurns) {
-    ++aTurn;
-
-    // Moves mutate board state; matches are current board facts.
-    const bool aMoveApplied = MakeMoves();
-    if (!aMoveApplied) {
-      Stuck();
-    } else {
-      ++mSuccessfulMoveCount;
-      Match();
+    int aLockedLoop = 0;
+    while (aLockedLoop < kMaxLockedThreshold) {
+      if (!PlayMainLoop()) {
+        return;
+      }
+      if (mResultBufferWriteIndex != mCataclysmWriteIndex) {
+        break;
+      }
+      ++aLockedLoop;
     }
 
-    Topple();
-    if (mGetCursor == aPrevGetCursor) {
-      ++aNoGetProgressCount;
-    } else {
-      aNoGetProgressCount = 0;
-      aPrevGetCursor = mGetCursor;
+    if (mResultBufferWriteIndex != mCataclysmWriteIndex) {
+      aSuspendedLoop = 0;
+      continue;
     }
-    if (aNoGetProgressCount >= 128) {
-      break;
-    }
-    if (Empty()) {
-      break;
-    }
+
+    RecordGameStateOverflowCataclysmic();
+    ShuffleAllTiles();
+    InvalidateMatches();
+    InvalidateNew();
+    ++aSuspendedLoop;
   }
 
-  if (!Empty()) {
-    Stuck();
+  if (aSuspendedLoop >= kSuspendedThreshold) {
+    RecordGameStateOverflowApocalypse();
+    ApocalypseScenario();
+    return;
   }
 }
 

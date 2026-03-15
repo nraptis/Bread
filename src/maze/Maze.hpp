@@ -1,37 +1,55 @@
 #ifndef BREAD_SRC_MAZE_MAZE_HPP_
 #define BREAD_SRC_MAZE_MAZE_HPP_
 
-#include "src/expansion/key_expansion/PasswordExpander.hpp"
-#include "src/rng/Counter.hpp"
+#include <cstdint>
+
+#include "src/core/Bread.hpp"
 #include "src/rng/Digest.hpp"
+
+namespace bread::fast_rand {
+class FastRand;
+}
+
+namespace bread::rng {
+class Counter;
+}
 
 namespace bread::maze {
 
 class Maze : public bread::rng::Digest {
  public:
+  struct RuntimeStats {
+    std::uint64_t mIsRobot = 0U;
+    std::uint64_t mIsDolphin = 0U;
+    std::uint64_t mFlush = 0U;
+    std::uint64_t mEmptyFlush = 0U;
+  };
+
   static constexpr int kGridWidth = 32;
   static constexpr int kGridHeight = 32;
   static constexpr int kGridSize = kGridWidth * kGridHeight;
   static constexpr int kGridShift = 5;
   static constexpr int kGridMask = kGridWidth - 1;
-  static constexpr int kSeedBufferCapacity = 100000000;
+  static constexpr int kSeedBufferCapacity = PASSWORD_EXPANDED_SIZE;
 
-  Maze(bread::expansion::key_expansion::PasswordExpander* pPasswordExpander,
-       bread::rng::Counter* pCounter);
+  Maze();
   ~Maze() override = default;
 
   using bread::rng::Digest::Get;
-  void Seed(unsigned char* pPassword, int pPasswordLength) override;
+  virtual void Seed(unsigned char* pPassword, int pPasswordLength) override = 0;
   void Get(unsigned char* pDestination, int pDestinationLength) override;
   unsigned char Get();
 
-  void Build();
   bool FindPath(int pStartX, int pStartY, int pEndX, int pEndY);
+  RuntimeStats GetRuntimeStats() const;
   int PathLength() const;
   bool PathNode(int pIndex, int* pOutX, int* pOutY) const;
   bool IsWall(int pX, int pY) const;
+  bool IsEdge(int pX, int pY) const;
+  bool IsConnected_Slow(int pX1, int pY1, int pX2, int pY2) const;
+  bool IsConnectedToEdge(int pX, int pY) const;
 
- private:
+ protected:
   static int AbsInt(int pValue);
   int ToX(int pIndex) const;
   int ToY(int pIndex) const;
@@ -39,6 +57,30 @@ class Maze : public bread::rng::Digest {
   bool IsWalkable(int pX, int pY) const;
   int HeuristicCostByIndex(int pIndex, int pEndX, int pEndY) const;
   int ToIndex(int pX, int pY) const;
+  void InitializeSeedBuffer(unsigned char* pPassword, int pPasswordLength, bread::rng::Counter* pCounter);
+  bool SeedCanDequeue() const;
+  unsigned char SeedDequeue();
+  void EnqueueByte(unsigned char pByte);
+  void ShuffleSeedBuffer(bread::fast_rand::FastRand* pFastRand);
+  void ClearWalls();
+  void ClearByteCells();
+  void SetWall(int pX, int pY, bool pIsWall);
+  void SetByteCell(int pX, int pY, unsigned char pByte, bool pIsByte);
+  void Flush();
+
+  int mIsWall[kGridWidth][kGridHeight];
+  int mIsByte[kGridWidth][kGridHeight];
+  unsigned char mByte[kGridWidth][kGridHeight];
+  unsigned char mSeedBuffer[kSeedBufferCapacity];
+  unsigned char* mResultBuffer;
+  unsigned int mResultBufferReadIndex;
+  unsigned int mResultBufferWriteIndex;
+  unsigned int mResultBufferLength;
+  unsigned int mSeedBytesRemaining;
+  std::uint64_t mResultBufferWriteProgress;
+  RuntimeStats mRuntimeStats;
+
+ private:
   bool OpenNodeLess(int pPosA, int pPosB) const;
   void SwapOpenNodes(int pPosA, int pPosB);
   void HeapifyUp(int pPos);
@@ -50,33 +92,6 @@ class Maze : public bread::rng::Digest {
   bool IsInOpenList(int pIndex) const;
   void ReconstructPath(int pEndIndex);
 
-  int NextByte();
-  int NextIndex(int pLimit);
-  void FillStackAllCoords();
-  void ShuffleStack();
-  void SetInitialWalls();
-  int CollectOpenComponents(bool pMarkLabels, int* pComponentLabel, int* pComponentCount, bool* pTouchesEdge);
-  bool OpenWallForEnclosedComponent(int pComponentId, const int* pComponentLabel);
-  bool OpenWallToMergeComponents(const int* pComponentLabel, int pComponentCount);
-  void EnsureSimpleCornerPath();
-  void EncodeMazeToBuffer();
-
-  int mWall[kGridWidth][kGridHeight];
-
-  int mStackX[kGridSize];
-  int mStackY[kGridSize];
-  int mStackCount;
-
-  int mSafeX[kGridSize];
-  int mSafeY[kGridSize];
-  unsigned char mSafeByte[kGridSize];
-  int mSafeCount;
-
-  int mRobotX;
-  int mRobotY;
-  int mCheeseX;
-  int mCheeseY;
-
   int mPathX[kGridSize];
   int mPathY[kGridSize];
   int mPathLength;
@@ -84,19 +99,10 @@ class Maze : public bread::rng::Digest {
   int mParentY[kGridSize];
   int mGScore[kGridSize];
   int mFScore[kGridSize];
-
   int mOpenHeap[kGridSize];
   int mOpenHeapCount;
   short mOpenHeapPosByIndex[kGridSize];
   unsigned char mNodeStateByIndex[kGridSize];
-
-  bread::expansion::key_expansion::PasswordExpander* mPasswordExpander;
-  bread::rng::Counter* mCounter;
-
-  unsigned char mBuffer[kSeedBufferCapacity];
-  int mBufferLength;
-  int mGetCursor;
-  int mPutCursor;
 };
 
 }  // namespace bread::maze

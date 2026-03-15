@@ -4,6 +4,19 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${ROOT_DIR}/build_release"
 
+read_constant_int() {
+  local constant_name="$1"
+  awk -v target="${constant_name}" '
+    $0 ~ ("inline constexpr int " target " = ") {
+      match($0, /-?[0-9]+/)
+      if (RSTART > 0) {
+        print substr($0, RSTART, RLENGTH)
+      }
+      exit
+    }
+  ' "${ROOT_DIR}/tests/common/Tests.hpp"
+}
+
 detect_jobs() {
   if command -v nproc >/dev/null 2>&1; then
     nproc
@@ -44,6 +57,10 @@ cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
 
 echo "[STEP] Building Release"
 cmake --build "${BUILD_DIR}" -j"$(detect_jobs)"
+
+trials="$(read_constant_int TEST_LOOP_COUNT)"
+password_bytes="$(read_constant_int GAME_TEST_DATA_LENGTH)"
+echo "[INFO] trials=${trials} password_bytes=${password_bytes}"
 
 echo "[STEP] Running benchmark_counter_predictability_all"
 MEASURE_LOG="${BUILD_DIR}/predictability_all_release.log"

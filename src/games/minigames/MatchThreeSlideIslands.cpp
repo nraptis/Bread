@@ -1,9 +1,14 @@
 #include "src/games/minigames/MatchThreeSlideIslands.hpp"
 
+#include "src/games/engine/GamePlayDirector.hpp"
+
 namespace bread::games {
 
 MatchThreeSlideIslands::MatchThreeSlideIslands(bread::rng::Counter* pCounter)
-    : GameBoard(pCounter, kRequiredToNotExist, kIsland) {}
+    : GameBoard(pCounter, nullptr), GameBoard_Slide(), GameBoard_Island() {
+  SetPasswordExpander(&mOwnedPasswordExpander);
+  SetGamePlayDirector(GamePlayDirector::BejeweledStyle());
+}
 
 void MatchThreeSlideIslands::Seed(unsigned char* pPassword, int pPasswordLength) {
   InitializeSeed(pPassword, pPasswordLength);
@@ -18,11 +23,7 @@ bool MatchThreeSlideIslands::AttemptMove() {
     for (int aAmount = 1; aAmount <= 7; ++aAmount) {
       const int aDir = -aAmount;
       SlideRow(aRow, aDir);
-      MatchesBegin();
-      for (int aX = 0; aX < kGridWidth; ++aX) {
-        (void)MatchCheckIsland(aX, aRow);
-      }
-      if (HasPendingMatches()) {
+      if (HasAnyMatches()) {
         (void)MoveListPush(aRow, 0, true, aDir);
       }
       SlideRow(aRow, -aDir);
@@ -33,11 +34,7 @@ bool MatchThreeSlideIslands::AttemptMove() {
     for (int aAmount = 1; aAmount <= 7; ++aAmount) {
       const int aDir = -aAmount;
       SlideColumn(aCol, aDir);
-      MatchesBegin();
-      for (int aY = 0; aY < kGridHeight; ++aY) {
-        (void)MatchCheckIsland(aCol, aY);
-      }
-      if (HasPendingMatches()) {
+      if (HasAnyMatches()) {
         (void)MoveListPush(aCol, 0, false, aDir);
       }
       SlideColumn(aCol, -aDir);
@@ -46,24 +43,15 @@ bool MatchThreeSlideIslands::AttemptMove() {
 
   const int aPick = MoveListPickIndex();
   if (aPick < 0) {
-    MatchesBegin();
     return false;
   }
 
   if (mMoveListHorizontal[aPick]) {
     SlideRow(mMoveListX[aPick], mMoveListDir[aPick]);
-    MatchesBegin();
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      (void)MatchCheckIsland(aX, mMoveListX[aPick]);
-    }
   } else {
     SlideColumn(mMoveListX[aPick], mMoveListDir[aPick]);
-    MatchesBegin();
-    for (int aY = 0; aY < kGridHeight; ++aY) {
-      (void)MatchCheckIsland(mMoveListX[aPick], aY);
-    }
   }
-  return HasPendingMatches();
+  return HasAnyMatches();
 }
 
 }  // namespace bread::games

@@ -1,0 +1,48 @@
+[INFO] run_game_perseverance_tests started at Sat Mar 14 19:13:18 EDT 2026
+[INFO] output file: /Users/magneto/Desktop/Codex Playground/Bread/run_game_perseverance_tests_output.txt
+[INFO] knobs from tests/common/Tests.hpp:
+8:inline constexpr int REPEATABILITY_LOOP_COUNT = 1;
+10:inline constexpr bool REPEATABILITY_ENABLED = true;
+12:inline constexpr int GAME_TEST_DATA_LENGTH = 8192 * 10;
+
+[STEP] Configuring Release build (optimized)
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+[STEP] Building game_perseverance_tests
+[  3%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderA.cpp.o
+[  9%] Building CXX object CMakeFiles/bread_core.dir/src/core/Glyph.cpp.o
+[ 12%] Building CXX object CMakeFiles/bread_core.dir/src/core/BreadCore.cpp.o
+[ 15%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderC.cpp.o
+[ 18%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderB.cpp.o
+[ 18%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/password_inflation/Inflater_Twenty.cpp.o
+[ 21%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderH.cpp.o
+[ 25%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderG.cpp.o
+[ 37%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordBalloonerA.cpp.o
+[ 37%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderD.cpp.o
+[ 37%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderE.cpp.o
+[ 37%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderF.cpp.o
+[ 40%] Building CXX object CMakeFiles/bread_core.dir/src/counters/ARIA256Counter.cpp.o
+[ 43%] Building CXX object CMakeFiles/bread_core.dir/src/counters/AESCounter.cpp.o
+[ 46%] Building CXX object CMakeFiles/bread_core.dir/src/counters/ChaCha20Counter.cpp.o
+[ 50%] Building CXX object CMakeFiles/bread_core.dir/src/counters/MersenneCounter.cpp.o
+[ 53%] Building CXX object CMakeFiles/bread_core.dir/src/matrices/FastMatrix.cpp.o
+[ 56%] Building CXX object CMakeFiles/bread_core.dir/src/maze/Maze.cpp.o
+[ 59%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GamePlayDirector.cpp.o
+[ 62%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GameBoard.cpp.o
+[ 65%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GamePowerUp.cpp.o
+[ 68%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GameBoard_Island.cpp.o
+[ 71%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GameBoard_Streak.cpp.o
+[ 75%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeTapIslands.cpp.o
+[ 78%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeTapStreaks.cpp.o
+[ 81%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeSwapIslands.cpp.o
+[ 84%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeSwapStreaks.cpp.o
+[ 87%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeSlideIslands.cpp.o
+[ 90%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeSlideStreaks.cpp.o
+[ 93%] Linking CXX static library libbread_core.a
+[ 93%] Built target bread_core
+[ 96%] Building CXX object CMakeFiles/game_perseverance_tests.dir/tests/perseverance/Games_perseverance_tests.cpp.o
+[100%] Linking CXX executable game_perseverance_tests
+[100%] Built target game_perseverance_tests
+
+[STEP] Running game_perseverance_tests

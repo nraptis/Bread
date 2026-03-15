@@ -3,11 +3,11 @@
 #include <memory>
 
 #include "src/counters/MersenneCounter.hpp"
-#include "src/maze/Maze.hpp"
+#include "src/maze/MazeRobotCheese.hpp"
 
 int main() {
   MersenneCounter aCounter;
-  std::unique_ptr<bread::maze::Maze> aMaze = std::make_unique<bread::maze::Maze>(nullptr, &aCounter);
+  std::unique_ptr<bread::maze::Maze> aMaze = std::make_unique<bread::maze::MazeRobotCheese>(nullptr, &aCounter);
 
   std::array<unsigned char, 8> aSeed = {{1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U}};
   aMaze->Seed(aSeed.data(), static_cast<int>(aSeed.size()));

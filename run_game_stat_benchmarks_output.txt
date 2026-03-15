@@ -1,0 +1,146 @@
+[INFO] run_game_stat_benchmarks started at Sat Mar 14 22:11:55 EDT 2026
+[INFO] output file: /Users/magneto/Desktop/Codex Playground/Bread/run_game_stat_benchmarks_output.txt
+[INFO] knobs from tests/common/Tests.hpp:
+7:inline constexpr int TEST_LOOP_COUNT = 10000;
+8:inline constexpr bool BENCHMARK_ENABLED = true;
+11:inline constexpr int TEST_SEED_GLOBAL = 2;
+12:inline constexpr int GAME_TEST_DATA_LENGTH = 9216 + 9216;
+16:  return pLocalSeed + TEST_SEED_GLOBAL;
+[INFO] trials=10000 password_bytes=9216
+
+[STEP] Cleaning build directories
+[STEP] Configuring Release build (optimized)
+-- The CXX compiler identification is AppleClang 17.0.0.17000013
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+[STEP] Building Release
+[  1%] Building CXX object CMakeFiles/bread_core.dir/src/core/Glyph.cpp.o
+[  2%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderB.cpp.o
+[  5%] Building CXX object CMakeFiles/bread_core.dir/src/core/BreadCore.cpp.o
+[  6%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderH.cpp.o
+[  7%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderD.cpp.o
+[  7%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordBalloonerA.cpp.o
+[  7%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderA.cpp.o
+[  8%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderF.cpp.o
+[ 10%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderE.cpp.o
+[ 11%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderC.cpp.o
+[ 12%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/key_expansion/PasswordExpanderG.cpp.o
+[ 13%] Building CXX object CMakeFiles/bread_core.dir/src/expansion/password_inflation/Inflater_Twenty.cpp.o
+[ 14%] Building CXX object CMakeFiles/bread_core.dir/src/counters/AESCounter.cpp.o
+[ 15%] Building CXX object CMakeFiles/bread_core.dir/src/counters/ARIA256Counter.cpp.o
+[ 16%] Building CXX object CMakeFiles/bread_core.dir/src/counters/ChaCha20Counter.cpp.o
+[ 17%] Building CXX object CMakeFiles/bread_core.dir/src/fast_rand/FastRand.cpp.o
+[ 18%] Building CXX object CMakeFiles/bread_core.dir/src/counters/MersenneCounter.cpp.o
+[ 20%] Building CXX object CMakeFiles/bread_core.dir/src/maze/Maze.cpp.o
+[ 21%] Building CXX object CMakeFiles/bread_core.dir/src/matrices/FastMatrix.cpp.o
+[ 22%] Building CXX object CMakeFiles/bread_core.dir/src/maze/MazeDolphinSharks.cpp.o
+[ 23%] Building CXX object CMakeFiles/bread_core.dir/src/maze/MazeRobotCheese.cpp.o
+[ 24%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GameBoard.cpp.o
+[ 25%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GamePowerUp.cpp.o
+[ 26%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GamePlayDirector.cpp.o
+[ 27%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GameBoard_Island.cpp.o
+[ 28%] Building CXX object CMakeFiles/bread_core.dir/src/games/engine/GameBoard_Streak.cpp.o
+[ 30%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeTapIslands.cpp.o
+[ 31%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeTapStreaks.cpp.o
+[ 32%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeSwapIslands.cpp.o
+[ 33%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeSwapStreaks.cpp.o
+[ 34%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeSlideIslands.cpp.o
+[ 35%] Building CXX object CMakeFiles/bread_core.dir/src/games/minigames/MatchThreeSlideStreaks.cpp.o
+[ 36%] Linking CXX static library libbread_core.a
+[ 36%] Built target bread_core
+[ 38%] Building CXX object CMakeFiles/maze_pathfinding_tests.dir/tests/round_trip/Maze_pathfinding_tests.cpp.o
+[ 38%] Building CXX object CMakeFiles/fast_matrix_round_trip_tests.dir/tests/round_trip/FastMatrix_round_trip_tests.cpp.o
+[ 40%] Building CXX object CMakeFiles/benchmark_counter_uniformity_all.dir/tests/benchmark/Benchmark_CounterUniformityAll.cpp.o
+[ 41%] Building CXX object CMakeFiles/benchmark_counter_speed_comparison.dir/tests/benchmark/Benchmark_CounterSpeedComparison.cpp.o
+[ 42%] Building CXX object CMakeFiles/maze_path_finding.dir/tests/quality/MazePathFinding.cpp.o
+[ 43%] Building CXX object CMakeFiles/bread_main.dir/src/core/main.cpp.o
+[ 44%] Building CXX object CMakeFiles/benchmark_counter_uniformity_baseline.dir/tests/benchmark/Benchmark_CounterUniformityBaseline.cpp.o
+[ 46%] Building CXX object CMakeFiles/benchmark_games_speed_repeatability.dir/tests/benchmark/Benchmark_Games_Speed_Repeatability.cpp.o
+[ 46%] Building CXX object CMakeFiles/benchmark_password_expander_quality_speed.dir/tests/benchmark/Benchmark_PasswordExpanders_QualityAndSpeed.cpp.o
+[ 48%] Building CXX object CMakeFiles/password_extender_quality.dir/tests/quality/PasswordExtenderQuality.cpp.o
+[ 48%] Building CXX object CMakeFiles/benchmark_counter_predictability_all.dir/tests/benchmark/Benchmark_CounterPredictabilityAll.cpp.o
+[ 50%] Building CXX object CMakeFiles/benchmark_counters_matrix_tests.dir/tests/benchmark/Benchmark_CountersAndMatrix.cpp.o
+[ 51%] Linking CXX executable benchmark_counters_matrix_tests
+[ 52%] Linking CXX executable benchmark_password_expander_quality_speed
+[ 53%] Linking CXX executable bread_main
+[ 54%] Linking CXX executable benchmark_counter_speed_comparison
+[ 55%] Linking CXX executable benchmark_counter_uniformity_all
+[ 56%] Linking CXX executable maze_pathfinding_tests
+[ 57%] Linking CXX executable fast_matrix_round_trip_tests
+[ 58%] Linking CXX executable benchmark_counter_uniformity_baseline
+[ 60%] Linking CXX executable maze_path_finding
+[ 61%] Linking CXX executable benchmark_counter_predictability_all
+[ 61%] Built target benchmark_password_expander_quality_speed
+[ 61%] Built target benchmark_counters_matrix_tests
+[ 61%] Built target bread_main
+[ 61%] Built target maze_pathfinding_tests
+[ 61%] Built target benchmark_counter_speed_comparison
+[ 61%] Built target benchmark_counter_uniformity_all
+[ 61%] Built target fast_matrix_round_trip_tests
+[ 61%] Built target benchmark_counter_uniformity_baseline
+[ 62%] Linking CXX executable password_extender_quality
+[ 63%] Building CXX object CMakeFiles/benchmark_maze_speed_repeatability.dir/tests/benchmark/Benchmark_Maze_Speed_Repeatability.cpp.o
+[ 63%] Built target maze_path_finding
+[ 64%] Building CXX object CMakeFiles/benchmark_games_stats.dir/tests/benchmark/Benchmark_Games_Stats.cpp.o
+[ 65%] Building CXX object CMakeFiles/benchmark_maze_stats.dir/tests/benchmark/Benchmark_Maze_Stats.cpp.o
+[ 66%] Building CXX object CMakeFiles/counter_repeatability_tests.dir/tests/repeatability/Counters_repeatability_tests.cpp.o
+[ 67%] Building CXX object CMakeFiles/game_repeatability_tests.dir/tests/repeatability/Games_repeatability_tests.cpp.o
+[ 68%] Building CXX object CMakeFiles/benchmark_minigames_speed_9216.dir/tests/benchmark/Benchmark_Minigames_Speed9216.cpp.o
+[ 68%] Built target benchmark_counter_predictability_all
+[ 70%] Building CXX object CMakeFiles/digest_repeatability_suite.dir/tests/repeatability/DigestRepeatabilitySuite.cpp.o
+[ 71%] Building CXX object CMakeFiles/test_password_expander.dir/tests/repeatability/Test_PasswordExpander.cpp.o
+[ 72%] Linking CXX executable benchmark_games_speed_repeatability
+[ 73%] Building CXX object CMakeFiles/maze_perseverance_tests.dir/tests/perseverance/Mazes_perseverance_tests.cpp.o
+[ 74%] Building CXX object CMakeFiles/game_perseverance_tests.dir/tests/perseverance/Games_perseverance_tests.cpp.o
+[ 74%] Built target password_extender_quality
+[ 75%] Building CXX object CMakeFiles/game_repeatability_tests.dir/tests/repeatability/RepeatabilitySuiteCore.cpp.o
+[ 75%] Built target benchmark_games_speed_repeatability
+[ 76%] Building CXX object CMakeFiles/digest_repeatability_suite.dir/tests/repeatability/RepeatabilitySuiteCore.cpp.o
+[ 77%] Building CXX object CMakeFiles/game_perseverance_tests.dir/tests/perseverance/PerseveranceSuiteCore.cpp.o
+[ 78%] Linking CXX executable benchmark_maze_speed_repeatability
+[ 80%] Building CXX object CMakeFiles/digest_repeatability_suite.dir/tests/repeatability/DigestRepeatability_Short_Passwords.cpp.o
+[ 81%] Linking CXX executable counter_repeatability_tests
+[ 82%] Linking CXX executable benchmark_maze_stats
+[ 83%] Linking CXX executable benchmark_games_stats
+[ 84%] Linking CXX executable maze_perseverance_tests
+[ 85%] Linking CXX executable test_password_expander
+[ 86%] Building CXX object CMakeFiles/game_repeatability_tests.dir/tests/repeatability/DigestRepeatability_Short_Passwords.cpp.o
+[ 86%] Built target benchmark_maze_speed_repeatability
+[ 87%] Building CXX object CMakeFiles/game_repeatability_tests.dir/tests/repeatability/DigestRepeatability_Medium_Passwords.cpp.o
+[ 88%] Building CXX object CMakeFiles/digest_repeatability_suite.dir/tests/repeatability/DigestRepeatability_Medium_Passwords.cpp.o
+[ 88%] Built target counter_repeatability_tests
+[ 90%] Linking CXX executable benchmark_minigames_speed_9216
+[ 91%] Building CXX object CMakeFiles/game_repeatability_tests.dir/tests/repeatability/DigestRepeatability_Oversized_Passwords.cpp.o
+[ 92%] Building CXX object CMakeFiles/digest_repeatability_suite.dir/tests/repeatability/DigestRepeatability_Oversized_Passwords.cpp.o
+[ 92%] Built target benchmark_maze_stats
+[ 92%] Built target maze_perseverance_tests
+[ 92%] Built target benchmark_games_stats
+[ 93%] Building CXX object CMakeFiles/game_repeatability_tests.dir/tests/repeatability/DigestRepeatability_Contaminated_Passwords.cpp.o
+[ 94%] Building CXX object CMakeFiles/game_repeatability_tests.dir/tests/repeatability/DigestRepeatability_Manual_Passwords.cpp.o
+[ 94%] Built target test_password_expander
+[ 95%] Building CXX object CMakeFiles/digest_repeatability_suite.dir/tests/repeatability/DigestRepeatability_Contaminated_Passwords.cpp.o
+[ 96%] Building CXX object CMakeFiles/digest_repeatability_suite.dir/tests/repeatability/DigestRepeatability_Manual_Passwords.cpp.o
+[ 96%] Built target benchmark_minigames_speed_9216
+[ 97%] Linking CXX executable digest_repeatability_suite
+[ 98%] Linking CXX executable game_repeatability_tests
+[ 98%] Built target digest_repeatability_suite
+[ 98%] Built target game_repeatability_tests
+[100%] Linking CXX executable game_perseverance_tests
+[100%] Built target game_perseverance_tests
+
+[STEP] Running benchmark_games_stats
+[STAT] MatchThreeTapStreaks runs=1 bytes=18432 stuck=2 topple=4139 user_match=4139 cascade_match=0 game_state_overflow_catastrophic=1 game_state_overflow_cataclysmic=0 game_state_overflow_apocalypse=0 apocalypse_event=0 powerup_spawned=274 powerup_consumed=274 password_expander_wraps=16 dragon_attack=0 riddler_attack=2
+[STAT] MatchThreeTapIslands runs=1 bytes=18432 stuck=1 topple=2704 user_match=2704 cascade_match=0 game_state_overflow_catastrophic=0 game_state_overflow_cataclysmic=0 game_state_overflow_apocalypse=0 apocalypse_event=0 powerup_spawned=302 powerup_consumed=302 password_expander_wraps=6 dragon_attack=1 riddler_attack=0
+[STAT] MatchThreeSwapStreaks runs=1 bytes=18432 stuck=1 topple=2660 user_match=981 cascade_match=1679 game_state_overflow_catastrophic=0 game_state_overflow_cataclysmic=0 game_state_overflow_apocalypse=0 apocalypse_event=0 powerup_spawned=313 powerup_consumed=313 password_expander_wraps=6 dragon_attack=0 riddler_attack=0
+[STAT] MatchThreeSwapIslands runs=1 bytes=18432 stuck=1 topple=751 user_match=5 cascade_match=746 game_state_overflow_catastrophic=0 game_state_overflow_cataclysmic=0 game_state_overflow_apocalypse=0 apocalypse_event=0 powerup_spawned=274 powerup_consumed=274 password_expander_wraps=5 dragon_attack=0 riddler_attack=0
+[STAT] MatchThreeSlideStreaks runs=1 bytes=18432 stuck=1 topple=2379 user_match=807 cascade_match=1572 game_state_overflow_catastrophic=0 game_state_overflow_cataclysmic=0 game_state_overflow_apocalypse=0 apocalypse_event=0 powerup_spawned=279 powerup_consumed=279 password_expander_wraps=6 dragon_attack=0 riddler_attack=0
+[STAT] MatchThreeSlideIslands runs=1 bytes=18432 stuck=1 topple=797 user_match=24 cascade_match=773 game_state_overflow_catastrophic=0 game_state_overflow_cataclysmic=0 game_state_overflow_apocalypse=0 apocalypse_event=0 powerup_spawned=267 powerup_consumed=267 password_expander_wraps=5 dragon_attack=0 riddler_attack=0
+[PASS] games stats benchmark passed runs_per_game=1 bytes=18432 digest=10880036953007798326
+
+[PASS] run_game_stat_benchmarks completed at Sat Mar 14 22:11:58 EDT 2026
