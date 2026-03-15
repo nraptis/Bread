@@ -874,7 +874,6 @@ bool GameBoard::PlayMainLoop() {
     return false;
   }
 
-  
   if (GetRand(256) == 86U && GetRand(128) < 16U) {
     ++mRuntimeStats.mRiddlerAttack;
     RiddlerAttack();

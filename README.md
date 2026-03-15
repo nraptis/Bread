@@ -50,6 +50,102 @@ If you swap compilers, machines, or optimization flags, the exact numbers will m
 - `MatchThreeSlideStreaks`: The move is “slide a whole row or column” by 1 through 7 cells. A move is legal only if the resulting board contains a streak match. It uses `PasswordExpanderE`.
 - `MatchThreeSlideIslands`: The move is “slide a whole row or column” by 1 through 7 cells. A move is legal only if the resulting board contains an island match. It uses `PasswordExpanderG`.
 
+### Mini-game diagrams
+
+All six games are `8x8`, use `4` tile types, and differ by move family (`tap`, `swap`, `slide`) and match rule (`streak`, `island`).
+
+#### `MatchThreeTapStreaks`
+
+```text
+tap one tile inside a straight run
+
+[ A B C D ]
+[ B A A A ]  <- tap any A in the run
+[ C D B C ]
+[ D C B D ]
+
+remove matched row/column of 3+
+            |
+            v
+gravity collapses downward
+            |
+            v
+new tiles spawn from the top
+```
+
+#### `MatchThreeTapIslands`
+
+```text
+tap one tile inside a connected blob
+
+[ A B C D ]
+[ B A A D ]
+[ C A B C ]  <- tap any connected A in the island
+[ D C B D ]
+
+remove connected island of 3+
+            |
+            v
+gravity collapses downward
+            |
+            v
+new tiles spawn from the top
+```
+
+#### `MatchThreeSwapStreaks`
+
+```text
+swap two neighbors to create a streak
+
+before:               after:
+[ C A D ]             [ C B D ]
+[ A B A ]   swap      [ A A A ]  -> now row 2 is a streak
+[ E F G ]  ------>    [ E F G ]
+```
+
+#### `MatchThreeSwapIslands`
+
+```text
+swap two neighbors to create an island
+
+before:               after:
+[ C A D ]             [ C B D ]
+[ A B D ]   swap      [ A A D ]
+[ E A G ]  ------>    [ E A G ]  -> now A forms an L-shaped island of 3
+```
+
+#### `MatchThreeSlideStreaks`
+
+```text
+rotate one whole row or column by 1..7 cells
+
+row before: [ A B C D E F G H ]
+slide left by 3
+row after : [ D E F G H A B C ]
+
+the move is legal only if the wrapped board
+now contains a row/column streak of 3+
+```
+
+#### `MatchThreeSlideIslands`
+
+```text
+rotate one whole row or column by 1..7 cells
+
+col before:    col after sliding down by 2:
+[ A ]          [ G ]
+[ B ]          [ H ]
+[ C ]   --->   [ A ]
+[ D ]          [ B ]
+[ E ]          [ C ]
+[ F ]          [ D ]
+[ G ]          [ E ]
+[ H ]          [ F ]
+
+the move is legal only if the wrapped board
+now contains a connected island of 3+
+```
+
 ## Maze
 
 Let `N = width * height`; in this repo `N = 32 * 32 = 1024`, so every algorithm is practically bounded, but the asymptotic costs are still useful.
@@ -83,3 +179,159 @@ Pure accessors such as `IsWall`, `IsEdge`, `PathLength`, `PathNode`, `ToIndex`, 
 Two practical notes matter here.
 First, the recent DSU rewrite removed the older “full regroup every iteration” behavior, which used to be the main avoidable hotspot.
 Second, Kruskal is still asymptotically worse than it needs to be in this repo because it rewrites `mGroupId` directly instead of using DSU there too.
+
+### Example mazes
+
+#### `RobotCheese`
+
+```text
+[   OO O   O       O OO          ]
+[       OO        OO   O  OO     ]
+[   O  O               OO        ]
+[    O     OO O    O  O O        ]
+[O       OO   O      OO    O   O ]
+[   O    O  O        O      O    ]
+[  O     O          OO    O     O]
+[   O        O        OO         ]
+[   O   O O            O         ]
+[  O    O  O          O          ]
+[   O     O   O  O  O        OOO ]
+[  O          O O               O]
+[O O  O O     O    O  O  O O     ]
+[ O    O     O   O    O   O  O OO]
+[       O OO      OO OO         O]
+[     OO   O OOOO   O     OO     ]
+[ O  O O       O   O   O  O  O  O]
+[ OO O O          O         OO   ]
+[  O   O        OO   O OOO OO O  ]
+[O   O  O  O                    O]
+[  O O   O     O    O O     O  O ]
+[ O         OO           O       ]
+[ O O   O  O  O      OO    O O   ]
+[   O           O     OO         ]
+[O  OO O O       O     O     O O ]
+[  O O    O   O     OO       O O ]
+[       O             OO   OO O O]
+[O   O O  O       O O           O]
+[  O  O   O O  O   OO   O       O]
+[  O O  O     O   O    O      O  ]
+[O   O     OO   O O  OOO      O  ]
+[     O  O O      O OO       O   ]
+```
+
+#### `Prim`
+
+```text
+[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+[x x x x     x   x x   x x     xx]
+[x x x xxx xxxxx x xxx x xxx xxxx]
+[x       x x       x x x       xx]
+[xxx xxx x xxx xxxxx x xxxxx xxxx]
+[x x x               x   x     xx]
+[x xxxxxxx x xxxxxxxxx xxx xxxxxx]
+[x x       x     x   x x x x   xx]
+[x xxxxx xxxxxxxxx xxx x x x xxxx]
+[x     x x x x x   x x         xx]
+[x xxx x x x x xxx x x x x xxxxxx]
+[x x         x x   x   x x x   xx]
+[xxx x x xxx x xxx x xxxxxxx xxxx]
+[x   x x   x   x x   x     x   xx]
+[xxxxxxx xxxxxxx x xxx xxx x xxxx]
+[x     x x x x   x     x x   x xx]
+[xxx xxx x x xxx x xxxxx xxxxx xx]
+[x   x     x     x x           xx]
+[xxx xxxxx xxxxx x x xxx xxxxx xx]
+[x                   x       x xx]
+[x xxx xxx xxx xxx x xxxxxxxxx xx]
+[x x     x x     x x x x     x xx]
+[x xxx xxxxxxx x xxx x x xxx x xx]
+[x x   x       x   x       x x xx]
+[xxx xxx xxxxx x xxxxxxx x xxx xx]
+[x   x   x     x     x x x   x xx]
+[xxxxx x xxx xxx x xxx xxx xxxxxx]
+[x   x x x   x   x       x x x xx]
+[xxx x x x x x xxx xxxxxxx x x xx]
+[x     x x x x x         x     xx]
+[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+```
+
+#### `Kruskal`
+
+```text
+[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+[x     x   x x   x   x x   x   xx]
+[x xxx xxx x xxx x x x x xxx x xx]
+[x   x x x x   x   x x       x xx]
+[x xxx x x x x xxx xxx xxxxxxxxxx]
+[x   x       x x   x   x   x   xx]
+[xxxxx xxxxxxx x xxx x x xxxxx xx]
+[x x     x         x x     x   xx]
+[x xxx xxxxxxxxx xxx xxx x xxx xx]
+[x     x   x x x x x   x x   x xx]
+[xxxxx xxx x x xxx xxx x x xxx xx]
+[x x   x x   x   x x   x x     xx]
+[x x xxx x xxx x x xxx x x x xxxx]
+[x x     x x x x   x   x x x   xx]
+[x xxxxx x x x x xxxxx xxxxxxx xx]
+[x x x   x   x x x     x       xx]
+[x x xxx x x x xxx x xxx x x xxxx]
+[x         x x   x x x x x x   xx]
+[xxx xxxxx x xxx xxx x xxxxx xxxx]
+[x   x x   x x       x   x x   xx]
+[x xxx xxxxx xxx xxxxx xxx xxx xx]
+[x     x       x           x   xx]
+[xxx xxxxxxx xxxxx x x xxx x xxxx]
+[x x     x         x x x   x   xx]
+[x xxxxxxxxxxx xxx xxxxx xxx x xx]
+[x           x x     x   x x x xx]
+[x x x x x x xxx xxx x x x x xxxx]
+[x x x x x x     x x x x x x   xx]
+[x xxx xxx x xxx x x xxxxx x xxxx]
+[x x     x x x     x   x       xx]
+[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+```
+
+## Security audit: `AES8192` vs `AES8192 -> mini-game`
+
+Measured locally in this workspace with a one-off harness over `32` independent trials of `8192` output bytes each.
+The pipeline for the mini-game rows was:
+
+`password -> AESCounter -> 8192 bytes -> mini-game -> 8192 bytes`
+
+So this compares a raw `8192`-byte AES-backed stream against the same `8192` AES bytes post-processed by each mini-game.
+
+| Stream | Entropy (bits/byte) | Reduced chi^2 | Lag-1 equal rate | Lag-1 abs corr | Avalanche |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `AES8192` | 7.9775 | 0.9955 | 0.0040 | 0.0097 | 0.5002 |
+| `AES8192 -> MatchThreeTapStreaks` | 7.9776 | 0.9945 | 0.0039 | 0.0077 | 0.5006 |
+| `AES8192 -> MatchThreeTapIslands` | 7.9774 | 1.0029 | 0.0038 | 0.0078 | 0.4994 |
+| `AES8192 -> MatchThreeSwapStreaks` | 7.9775 | 0.9993 | 0.0039 | 0.0084 | 0.5005 |
+| `AES8192 -> MatchThreeSwapIslands` | 7.9774 | 1.0001 | 0.0039 | 0.0082 | 0.5001 |
+| `AES8192 -> MatchThreeSlideStreaks` | 7.9774 | 0.9969 | 0.0038 | 0.0083 | 0.5001 |
+| `AES8192 -> MatchThreeSlideIslands` | 7.9779 | 0.9786 | 0.0040 | 0.0093 | 0.5002 |
+
+For these coarse black-box tests, every mini-game stayed very close to the raw AES baseline.
+On simple histogram, lag-1, and one-bit avalanche checks, none of the six mini-games obviously damaged the byte-level randomness of an `8192`-byte AES stream.
+
+That does **not** make the mini-games cryptographically secure.
+These are still ad hoc, branch-heavy, unaudited transforms built from small game state and custom mixers, not vetted cipher rounds.
+At best they preserve “random-looking” output on these quick tests; they do not earn the trust level of “one more AES round.”
+
+### Per-game security floor
+
+| Mini-game | Security read |
+| --- | --- |
+| `MatchThreeTapStreaks` | Best case of the set on paper because its fast-rand expander is AES-backed, but it is still not a standard or audited cryptographic round. |
+| `MatchThreeTapIslands` | ChaCha-backed expander, but still an ad hoc game transform rather than a cryptographic primitive. |
+| `MatchThreeSwapStreaks` | Not a sound cryptographic strengthening layer: its fast-rand expander is `MersenneCounter`-backed. |
+| `MatchThreeSwapIslands` | Not a sound cryptographic strengthening layer: its fast-rand expander depends on the repo’s placeholder `ARIA256Counter`. |
+| `MatchThreeSlideStreaks` | AES-backed expander, but still only a novelty post-processing layer, not a substitute for another AES round. |
+| `MatchThreeSlideIslands` | Not a sound cryptographic strengthening layer: its fast-rand expander is `MersenneCounter`-backed. |
+
+### Bottom line
+
+- If the goal is entertainment, novelty, or extra diffusion, the mini-games are interesting and the quick stats do not show an obvious collapse.
+- If the goal is actual cryptographic hardening, the security boundary should stay with vetted primitives like AES or ChaCha, not with the mini-games.
+- Comparing “one more AES round” against “AES output crunched through a mini-game,” the extra AES round is the defensible security choice every time.
