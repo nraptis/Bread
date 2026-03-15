@@ -17,6 +17,36 @@ class MazeQualityHarness final : public bread::maze::Maze {
 
   void Seed(unsigned char* pPassword, int pPasswordLength) override {
     InitializeSeedBuffer(pPassword, pPasswordLength, nullptr);
+    mIndexState = 0x811C9DC5U;
+    if (pPassword == nullptr || pPasswordLength <= 0) {
+      return;
+    }
+    for (int aIndex = 0; aIndex < pPasswordLength; ++aIndex) {
+      mIndexState ^= static_cast<std::uint32_t>(pPassword[aIndex]);
+      mIndexState *= 16777619U;
+    }
+  }
+
+ protected:
+  int NextIndex(int pLimit) override {
+    if (pLimit <= 1) {
+      return 0;
+    }
+    mIndexState ^= (mIndexState << 13U);
+    mIndexState ^= (mIndexState >> 17U);
+    mIndexState ^= (mIndexState << 5U);
+    return static_cast<int>(mIndexState % static_cast<std::uint32_t>(pLimit));
+  }
+
+ public:
+  void BuildPrims() {
+    GeneratePrims();
+    FinalizeWalls();
+  }
+
+  void BuildKruskals() {
+    ExecuteKruskals();
+    FinalizeWalls();
   }
 
   void FillRandomWalls(bread::rng::Counter* pCounter, int pWallDivisor) {
@@ -34,6 +64,9 @@ class MazeQualityHarness final : public bread::maze::Maze {
   void OpenCell(int pX, int pY) {
     SetWall(pX, pY, false);
   }
+
+ private:
+  std::uint32_t mIndexState = 0x811C9DC5U;
 };
 
 std::uint32_t SeedState(int pSalt) {
@@ -53,6 +86,105 @@ void FillInput(std::vector<unsigned char>* pBytes, int pTrial) {
 
 int Distance1(int pX1, int pY1, int pX2, int pY2) {
   return std::abs(pX1 - pX2) + std::abs(pY1 - pY2);
+}
+
+bool FindFirstOpenCell(MazeQualityHarness* pMaze, int* pOutX, int* pOutY) {
+  if (pMaze == nullptr || pOutX == nullptr || pOutY == nullptr) {
+    return false;
+  }
+  for (int aY = 0; aY < bread::maze::Maze::kGridHeight; ++aY) {
+    for (int aX = 0; aX < bread::maze::Maze::kGridWidth; ++aX) {
+      if (!pMaze->IsWall(aX, aY)) {
+        *pOutX = aX;
+        *pOutY = aY;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool VerifyGeneratedMaze(MazeQualityHarness* pMaze,
+                         const char* pName,
+                         int pLoop,
+                         int* pOutOpenCount,
+                         int* pOutEndX,
+                         int* pOutEndY) {
+  if (pMaze == nullptr) {
+    std::cerr << "[FAIL] " << pName << " generator produced null maze at loop " << pLoop << "\n";
+    return false;
+  }
+
+  int aStartX = -1;
+  int aStartY = -1;
+  if (!FindFirstOpenCell(pMaze, &aStartX, &aStartY)) {
+    std::cerr << "[FAIL] " << pName << " generator produced no open tiles at loop " << pLoop << "\n";
+    return false;
+  }
+
+  bool aSeen[bread::maze::Maze::kGridWidth][bread::maze::Maze::kGridHeight] = {};
+  int aStackX[bread::maze::Maze::kGridSize];
+  int aStackY[bread::maze::Maze::kGridSize];
+  int aStackCount = 0;
+  int aLastX = aStartX;
+  int aLastY = aStartY;
+  aSeen[aStartX][aStartY] = true;
+  aStackX[aStackCount] = aStartX;
+  aStackY[aStackCount] = aStartY;
+  ++aStackCount;
+
+  while (aStackCount > 0) {
+    --aStackCount;
+    const int aX = aStackX[aStackCount];
+    const int aY = aStackY[aStackCount];
+    aLastX = aX;
+    aLastY = aY;
+
+    const int aNX[4] = {aX - 1, aX + 1, aX, aX};
+    const int aNY[4] = {aY, aY, aY - 1, aY + 1};
+    for (int aDir = 0; aDir < 4; ++aDir) {
+      if (aNX[aDir] < 0 || aNX[aDir] >= bread::maze::Maze::kGridWidth || aNY[aDir] < 0 ||
+          aNY[aDir] >= bread::maze::Maze::kGridHeight || aSeen[aNX[aDir]][aNY[aDir]] ||
+          pMaze->IsWall(aNX[aDir], aNY[aDir])) {
+        continue;
+      }
+      aSeen[aNX[aDir]][aNY[aDir]] = true;
+      aStackX[aStackCount] = aNX[aDir];
+      aStackY[aStackCount] = aNY[aDir];
+      ++aStackCount;
+    }
+  }
+
+  int aOpenCount = 0;
+  for (int aY = 0; aY < bread::maze::Maze::kGridHeight; ++aY) {
+    for (int aX = 0; aX < bread::maze::Maze::kGridWidth; ++aX) {
+      if (pMaze->IsWall(aX, aY)) {
+        continue;
+      }
+      ++aOpenCount;
+      if (!aSeen[aX][aY]) {
+        std::cerr << "[FAIL] " << pName << " generator left unreachable tile at loop " << pLoop
+                  << " x=" << aX << " y=" << aY << "\n";
+        return false;
+      }
+    }
+  }
+
+  if (!pMaze->FindPath(aStartX, aStartY, aLastX, aLastY) || pMaze->PathLength() <= 0) {
+    std::cerr << "[FAIL] " << pName << " generator path check failed at loop " << pLoop << "\n";
+    return false;
+  }
+
+  if (pOutOpenCount != nullptr) {
+    *pOutOpenCount = aOpenCount;
+  }
+  if (pOutEndX != nullptr) {
+    *pOutEndX = aLastX;
+  }
+  if (pOutEndY != nullptr) {
+    *pOutEndY = aLastY;
+  }
+  return true;
 }
 
 }  // namespace
@@ -163,6 +295,42 @@ int main() {
       aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(aStartX + (aStartY << 8));
       aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(aEndX + (aEndY << 8));
       aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(kWallDivisors[aTrialKind]);
+    }
+
+    {
+      std::vector<unsigned char> aInput(static_cast<std::size_t>(aSeedLength), 0U);
+      FillInput(&aInput, (aLoops * 3) + aLoop);
+
+      MazeQualityHarness aPrimsMaze;
+      aPrimsMaze.Seed(aInput.data(), aSeedLength);
+      aPrimsMaze.BuildPrims();
+      int aOpenCount = 0;
+      int aEndX = -1;
+      int aEndY = -1;
+      if (!VerifyGeneratedMaze(&aPrimsMaze, "prims", aLoop, &aOpenCount, &aEndX, &aEndY)) {
+        return 1;
+      }
+      aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(aOpenCount);
+      aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(aPrimsMaze.PathLength());
+      aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(aEndX + (aEndY << 8));
+    }
+
+    {
+      std::vector<unsigned char> aInput(static_cast<std::size_t>(aSeedLength), 0U);
+      FillInput(&aInput, (aLoops * 4) + aLoop);
+
+      MazeQualityHarness aKruskalsMaze;
+      aKruskalsMaze.Seed(aInput.data(), aSeedLength);
+      aKruskalsMaze.BuildKruskals();
+      int aOpenCount = 0;
+      int aEndX = -1;
+      int aEndY = -1;
+      if (!VerifyGeneratedMaze(&aKruskalsMaze, "kruskals", aLoop, &aOpenCount, &aEndX, &aEndY)) {
+        return 1;
+      }
+      aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(aOpenCount);
+      aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(aKruskalsMaze.PathLength());
+      aDigest = (aDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>((aEndX << 8) + aEndY);
     }
   }
 

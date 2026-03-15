@@ -9,6 +9,7 @@ namespace bread::expansion::key_expansion {
 void PasswordExpanderG::Expand(unsigned char* pPassword,
                                int pPasswordLength,
                                unsigned char* pExpanded) {
+  CrashIfExpandedSizeInvalid("PasswordExpanderG");
   if (pExpanded == nullptr) {
     return;
   }

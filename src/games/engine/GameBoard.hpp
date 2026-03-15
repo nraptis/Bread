@@ -55,7 +55,7 @@ class GameBoard : public bread::rng::Digest {
   static constexpr int kGridHeight = 8;
   static constexpr int kGridSize = kGridWidth * kGridHeight;
   static constexpr int kTypeCount = 4;
-  static constexpr int kSeedBufferCapacity = 9216 * 100;
+  static constexpr int kSeedBufferCapacity = PASSWORD_EXPANDED_SIZE;
   static constexpr int kMaxLockedThreshold = 32;
   static constexpr int kSuspendedThreshold = 4;
   static constexpr unsigned char kPowerUpSpawnChance = 4U;

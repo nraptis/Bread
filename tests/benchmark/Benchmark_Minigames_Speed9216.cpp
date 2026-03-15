@@ -88,7 +88,7 @@ bool RunSpeed(const char* pName,
   if (pRiddlerAttackTotal != nullptr) {
     *pRiddlerAttackTotal += aRiddlerAttack;
   }
-  std::cout << "[BENCH9216] " << pName << " trials=" << pTrialsPerGame
+  std::cout << "[BENCH_EXPANDER] " << pName << " trials=" << pTrialsPerGame
             << " seed_bytes=" << pSeedLength << " out_bytes=" << pOutputLength
             << " elapsed_ms=" << aMillis
             << " overflow_catastrophic=" << aOverflowCatastrophic
@@ -143,7 +143,7 @@ int main() {
     return 1;
   }
 
-  std::cout << "[PASS] minigames speed9216 benchmark passed"
+  std::cout << "[PASS] minigames speed expander benchmark passed"
             << " loops=" << aTrialsPerGame << " seed_bytes=" << aSeedLength
             << " out_bytes=" << aOutputLength << " digest=" << aDigest
             << " overflow_catastrophic_total=" << aOverflowCatastrophic

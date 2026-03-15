@@ -16,23 +16,16 @@ class MazeDolphinSharks final : public Maze {
                     bread::rng::Counter* pCounter);
   ~MazeDolphinSharks() override = default;
 
-  void Seed(unsigned char* pPassword, int pPasswordLength) override;
+ void Seed(unsigned char* pPassword, int pPasswordLength) override;
 
  private:
-  int NextIndex(int pLimit);
-  void FillStackAllCoords();
+  int NextIndex(int pLimit) override;
   void ShuffleStack();
   void SetInitialWalls();
-  int CollectOpenComponents(bool pMarkLabels, int* pComponentLabel, int* pComponentCount, bool* pTouchesEdge);
-  bool OpenWallForEnclosedComponent(int pComponentId, const int* pComponentLabel);
-  bool OpenWallToMergeComponents(const int* pComponentLabel, int pComponentCount);
   void Build();
 
   bread::rng::Counter* mCounter;
   bread::fast_rand::FastRand mFastRand;
-  int mStackX[kGridSize];
-  int mStackY[kGridSize];
-  int mStackCount;
 };
 
 }  // namespace bread::maze

@@ -874,13 +874,15 @@ bool GameBoard::PlayMainLoop() {
     return false;
   }
 
-  if (GetRand(256) == 64U && GetRand(256) < 10U) {
-    ++mRuntimeStats.mDragonAttack;
-    DragonAttack();
-  }
-  if (GetRand(256) == 64U && GetRand(256) < 10U) {
+  
+  if (GetRand(256) == 86U && GetRand(128) < 16U) {
     ++mRuntimeStats.mRiddlerAttack;
     RiddlerAttack();
+  }
+
+  if ((GetRand(256) == 60U) && GetRand(128) < 16U) {
+    ++mRuntimeStats.mDragonAttack;
+    DragonAttack();
   }
 
   int aResolveLoopCount = 0;

@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#define PASSWORD_EXPANDED_SIZE 9216
+#define PASSWORD_EXPANDED_SIZE 8192
 #define PASSWORD_BALLOONED_SIZE (PASSWORD_EXPANDED_SIZE * 2)
 
 namespace bread {

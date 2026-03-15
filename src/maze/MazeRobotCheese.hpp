@@ -20,26 +20,18 @@ class MazeRobotCheese final : public Maze {
 
   int RobotX() const;
   int RobotY() const;
-  int CheeseX() const;
-  int CheeseY() const;
+ int CheeseX() const;
+ int CheeseY() const;
 
  private:
-  int NextByte();
-  int NextIndex(int pLimit);
-  void FillStackAllCoords();
+  int NextIndex(int pLimit) override;
   void ShuffleStack();
   void SetInitialWalls();
-  int CollectOpenComponents(bool pMarkLabels, int* pComponentLabel, int* pComponentCount, bool* pTouchesEdge);
-  bool OpenWallForEnclosedComponent(int pComponentId, const int* pComponentLabel);
-  bool OpenWallToMergeComponents(const int* pComponentLabel, int pComponentCount);
   void EnsureSimpleCornerPath();
   void Build();
 
   bread::rng::Counter* mCounter;
   bread::fast_rand::FastRand mFastRand;
-  int mStackX[kGridSize];
-  int mStackY[kGridSize];
-  int mStackCount;
   int mRobotX;
   int mRobotY;
   int mCheeseX;

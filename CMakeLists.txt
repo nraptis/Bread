@@ -61,6 +61,51 @@ add_executable(bread_main
 )
 target_link_libraries(bread_main PRIVATE bread_core)
 
+add_executable(display_robot_maze
+  tests/visualization/Display_RobotMaze.cpp
+)
+target_link_libraries(display_robot_maze PRIVATE bread_core)
+target_include_directories(display_robot_maze
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(display_robot_maze PRIVATE /W4)
+else()
+  target_compile_options(display_robot_maze PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_executable(display_prim_maze
+  tests/visualization/Display_PrimMaze.cpp
+)
+target_link_libraries(display_prim_maze PRIVATE bread_core)
+target_include_directories(display_prim_maze
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(display_prim_maze PRIVATE /W4)
+else()
+  target_compile_options(display_prim_maze PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_executable(display_kruskal_maze
+  tests/visualization/Display_KruskalMaze.cpp
+)
+target_link_libraries(display_kruskal_maze PRIVATE bread_core)
+target_include_directories(display_kruskal_maze
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(display_kruskal_maze PRIVATE /W4)
+else()
+  target_compile_options(display_kruskal_maze PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 enable_testing()
 
@@ -276,6 +321,138 @@ set_tests_properties(MazePathFinding PROPERTIES
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+add_executable(maze_edge_connected
+  tests/quality/MazeEdgeConnected.cpp
+)
+target_link_libraries(maze_edge_connected PRIVATE bread_core)
+target_include_directories(maze_edge_connected
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(maze_edge_connected PRIVATE /W4)
+else()
+  target_compile_options(maze_edge_connected PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME MazeEdgeConnected COMMAND $<TARGET_FILE:maze_edge_connected>)
+set_tests_properties(MazeEdgeConnected PROPERTIES
+  LABELS "quality"
+  RUN_SERIAL TRUE
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_executable(maze_edge_connected_quick
+  tests/quality/MazeEdgeConnectedQuick.cpp
+)
+target_link_libraries(maze_edge_connected_quick PRIVATE bread_core)
+target_include_directories(maze_edge_connected_quick
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(maze_edge_connected_quick PRIVATE /W4)
+else()
+  target_compile_options(maze_edge_connected_quick PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME MazeEdgeConnectedQuick COMMAND $<TARGET_FILE:maze_edge_connected_quick>)
+set_tests_properties(MazeEdgeConnectedQuick PROPERTIES
+  LABELS "quality"
+  RUN_SERIAL TRUE
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_executable(maze_edge_connected_prim
+  tests/quality/MazeEdgeConnectedPrim.cpp
+)
+target_link_libraries(maze_edge_connected_prim PRIVATE bread_core)
+target_include_directories(maze_edge_connected_prim
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(maze_edge_connected_prim PRIVATE /W4)
+else()
+  target_compile_options(maze_edge_connected_prim PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME MazeEdgeConnectedPrim COMMAND $<TARGET_FILE:maze_edge_connected_prim>)
+set_tests_properties(MazeEdgeConnectedPrim PROPERTIES
+  LABELS "quality"
+  RUN_SERIAL TRUE
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_executable(maze_edge_connected_prim_quick
+  tests/quality/MazeEdgeConnectedPrimQuick.cpp
+)
+target_link_libraries(maze_edge_connected_prim_quick PRIVATE bread_core)
+target_include_directories(maze_edge_connected_prim_quick
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(maze_edge_connected_prim_quick PRIVATE /W4)
+else()
+  target_compile_options(maze_edge_connected_prim_quick PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME MazeEdgeConnectedPrimQuick COMMAND $<TARGET_FILE:maze_edge_connected_prim_quick>)
+set_tests_properties(MazeEdgeConnectedPrimQuick PROPERTIES
+  LABELS "quality"
+  RUN_SERIAL TRUE
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_executable(maze_edge_connected_kruskal
+  tests/quality/MazeEdgeConnectedKruskal.cpp
+)
+target_link_libraries(maze_edge_connected_kruskal PRIVATE bread_core)
+target_include_directories(maze_edge_connected_kruskal
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(maze_edge_connected_kruskal PRIVATE /W4)
+else()
+  target_compile_options(maze_edge_connected_kruskal PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME MazeEdgeConnectedKruskal COMMAND $<TARGET_FILE:maze_edge_connected_kruskal>)
+set_tests_properties(MazeEdgeConnectedKruskal PROPERTIES
+  LABELS "quality"
+  RUN_SERIAL TRUE
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_executable(maze_edge_connected_kruskal_quick
+  tests/quality/MazeEdgeConnectedKruskalQuick.cpp
+)
+target_link_libraries(maze_edge_connected_kruskal_quick PRIVATE bread_core)
+target_include_directories(maze_edge_connected_kruskal_quick
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(maze_edge_connected_kruskal_quick PRIVATE /W4)
+else()
+  target_compile_options(maze_edge_connected_kruskal_quick PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME MazeEdgeConnectedKruskalQuick COMMAND $<TARGET_FILE:maze_edge_connected_kruskal_quick>)
+set_tests_properties(MazeEdgeConnectedKruskalQuick PROPERTIES
+  LABELS "quality"
+  RUN_SERIAL TRUE
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 add_executable(benchmark_games_speed_repeatability
   tests/benchmark/Benchmark_Games_Speed_Repeatability.cpp
 )
@@ -364,23 +541,23 @@ set_tests_properties(BenchmarkMazeStats PROPERTIES
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_executable(benchmark_minigames_speed_9216
+add_executable(benchmark_minigames_speed_expander
   tests/benchmark/Benchmark_Minigames_Speed9216.cpp
 )
-target_link_libraries(benchmark_minigames_speed_9216 PRIVATE bread_core)
-target_include_directories(benchmark_minigames_speed_9216
+target_link_libraries(benchmark_minigames_speed_expander PRIVATE bread_core)
+target_include_directories(benchmark_minigames_speed_expander
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 if(MSVC)
-  target_compile_options(benchmark_minigames_speed_9216 PRIVATE /W4)
+  target_compile_options(benchmark_minigames_speed_expander PRIVATE /W4)
 else()
-  target_compile_options(benchmark_minigames_speed_9216 PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(benchmark_minigames_speed_expander PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-add_test(NAME BenchmarkMinigamesSpeed9216 COMMAND benchmark_minigames_speed_9216)
-set_tests_properties(BenchmarkMinigamesSpeed9216 PROPERTIES
+add_test(NAME BenchmarkMinigamesSpeedExpander COMMAND benchmark_minigames_speed_expander)
+set_tests_properties(BenchmarkMinigamesSpeedExpander PROPERTIES
   LABELS "benchmark"
   RUN_SERIAL TRUE
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
