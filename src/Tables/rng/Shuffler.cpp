@@ -16,6 +16,7 @@ namespace {
 
 Shuffler::Shuffler()
     : mSeedBuffer{},
+      mResultBufferStorage{},
       mResultBuffer(nullptr),
       mSeedReadIndex(0U),
       mResultBufferWriteIndex(0U),
@@ -23,6 +24,7 @@ Shuffler::Shuffler()
       mSeedBytesRemaining(0U),
       mResultBufferWriteProgress(0U) {
   std::memset(mSeedBuffer, 0, sizeof(mSeedBuffer));
+  std::memset(mResultBufferStorage, 0, sizeof(mResultBufferStorage));
 }
 
 void Shuffler::Get(unsigned char* pDestination, int pDestinationLength) {
@@ -43,13 +45,14 @@ void Shuffler::InitializeSeedBuffer(unsigned char* pPassword, int pPasswordLengt
     AbortInvalidShufflerUsage();
   }
 
-  mResultBuffer = mSeedBuffer;
+  mResultBuffer = mResultBufferStorage;
   mResultBufferLength = static_cast<unsigned int>(pPasswordLength);
   mSeedReadIndex = 0U;
   mResultBufferWriteIndex = 0U;
   mSeedBytesRemaining = mResultBufferLength;
   mResultBufferWriteProgress = 0U;
   std::memcpy(mSeedBuffer, pPassword, static_cast<std::size_t>(pPasswordLength));
+  std::memset(mResultBufferStorage, 0, sizeof(mResultBufferStorage));
   if (pPasswordLength < kSeedBufferCapacity) {
     std::memset(mSeedBuffer + pPasswordLength, 0, static_cast<std::size_t>(kSeedBufferCapacity - pPasswordLength));
   }
@@ -64,7 +67,7 @@ unsigned char Shuffler::SeedDequeue() {
     AbortInvalidShufflerUsage();
   }
 
-  const unsigned char aByte = mResultBuffer[mSeedReadIndex];
+  const unsigned char aByte = mSeedBuffer[mSeedReadIndex];
   mSeedReadIndex = (mSeedReadIndex + 1U) % mResultBufferLength;
   --mSeedBytesRemaining;
   return aByte;

@@ -1,0 +1,547 @@
+Start testing: Mar 17 16:20 EDT
+----------------------------------------------------------
+11/18 Testing: ByteTwisterPoisonRepeatabilityTests
+11/18 Test: ByteTwisterPoisonRepeatabilityTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/byte_twister_poison_repeatability_tests"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"ByteTwisterPoisonRepeatabilityTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[PASS] byte twister poisoned repeatability tests passed loops=10 lengths=7 types=16 digest=18319008833382942783
+<end of output>
+Test time =   1.13 sec
+----------------------------------------------------------
+Test Passed.
+"ByteTwisterPoisonRepeatabilityTests" end time: Mar 17 16:20 EDT
+"ByteTwisterPoisonRepeatabilityTests" time elapsed: 00:00:01
+----------------------------------------------------------
+
+18/18 Testing: MazeStabilityTests
+18/18 Test: MazeStabilityTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/maze_stability_tests" "2"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"MazeStabilityTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+# Maze Stability Tests
+# runs_per_maze=2
+[MAZE] 0 Custom_R1_C1_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=15 deaths=8 flush=36 empty_flush=2
+  tiles_painted=3815 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=30 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=38 robot_lives=59 avg_robot_walk=10.4576 shortest_robot_walk=0 longest_robot_walk=26
+  shark_kills=8 avg_shark_moves_before_kill=8.6250
+  output_digest=13146521103939897577 runtime_digest=12803368313523846847 topology_digest=17700320471345588966
+[MAZE] 1 Prim_R1_C2_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=14 deaths=32 flush=60 empty_flush=2
+  tiles_painted=4168 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=62 robot_lives=106 avg_robot_walk=9.8208 shortest_robot_walk=0 longest_robot_walk=46
+  shark_kills=32 avg_shark_moves_before_kill=7.0000
+  output_digest=7031662427842113697 runtime_digest=992015105320822421 topology_digest=1207241476045202475
+[MAZE] 2 Kruskal_R2_C1_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=9 deaths=30 flush=60 empty_flush=2
+  tiles_painted=3970 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=55 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=62 robot_lives=156 avg_robot_walk=6.2115 shortest_robot_walk=0 longest_robot_walk=18
+  shark_kills=30 avg_shark_moves_before_kill=4.0333
+  output_digest=4430666044650144155 runtime_digest=7848914518848123790 topology_digest=1183993402194804743
+[MAZE] 3 Custom_R2_C2_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=11 deaths=11 flush=36 empty_flush=2
+  tiles_painted=3856 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=4 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=38 robot_lives=95 avg_robot_walk=7.2421 shortest_robot_walk=0 longest_robot_walk=26
+  shark_kills=11 avg_shark_moves_before_kill=3.9091
+  output_digest=6508753245191332389 runtime_digest=8204528750587463288 topology_digest=2059937993562838592
+[MAZE] 4 Custom_R3_C2_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=16 deaths=12 flush=34 empty_flush=2
+  tiles_painted=4135 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=7 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=36 robot_lives=129 avg_robot_walk=5.1163 shortest_robot_walk=0 longest_robot_walk=18
+  shark_kills=12 avg_shark_moves_before_kill=3.5000
+  output_digest=5382734775506605191 runtime_digest=386003740883141906 topology_digest=10156967016514576508
+[MAZE] 5 Prim_R3_C3_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=16 deaths=31 flush=60 empty_flush=2
+  tiles_painted=4573 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=62 robot_lives=226 avg_robot_walk=5.0796 shortest_robot_walk=0 longest_robot_walk=21
+  shark_kills=31 avg_shark_moves_before_kill=2.8387
+  output_digest=1967463948799870565 runtime_digest=7995382715543679814 topology_digest=1183984606101996671
+[MAZE] 6 Kruskal_R4_C3_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=13 deaths=27 flush=59 empty_flush=2
+  tiles_painted=4317 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=1 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=61 robot_lives=276 avg_robot_walk=3.5616 shortest_robot_walk=0 longest_robot_walk=13
+  shark_kills=27 avg_shark_moves_before_kill=2.1852
+  output_digest=5491279896405315245 runtime_digest=1109660906451016528 topology_digest=1181002730566703667
+[MAZE] 7 Custom_R4_C4_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=10 deaths=10 flush=36 empty_flush=2
+  tiles_painted=3854 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=38 robot_lives=169 avg_robot_walk=3.7574 shortest_robot_walk=0 longest_robot_walk=13
+  shark_kills=10 avg_shark_moves_before_kill=2.8000
+  output_digest=14065077518917652163 runtime_digest=260100172863703615 topology_digest=8227641869077230259
+[MAZE] 8 Custom_R5_C3_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=13 deaths=6 flush=33 empty_flush=2
+  tiles_painted=5153 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=1 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=35 robot_lives=191 avg_robot_walk=3.7958 shortest_robot_walk=0 longest_robot_walk=13
+  shark_kills=6 avg_shark_moves_before_kill=2.5000
+  output_digest=11388960309222464467 runtime_digest=10377504838273009735 topology_digest=1782107895859611604
+[MAZE] 9 Prim_R5_C5_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=32 deaths=31 flush=58 empty_flush=2
+  tiles_painted=4897 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=60 robot_lives=351 avg_robot_walk=3.4131 shortest_robot_walk=0 longest_robot_walk=13
+  shark_kills=31 avg_shark_moves_before_kill=2.1613
+  output_digest=13897125707441598753 runtime_digest=7869940632210935412 topology_digest=1207241476045202475
+[MAZE] 10 Kruskal_R6_C3_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=15 deaths=27 flush=60 empty_flush=2
+  tiles_painted=4481 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=1 comet_horizontal=0 comet_vertical=0
+  simulation_count=62 robot_lives=404 avg_robot_walk=2.7302 shortest_robot_walk=0 longest_robot_walk=9
+  shark_kills=27 avg_shark_moves_before_kill=2.0370
+  output_digest=10038995646969142501 runtime_digest=12473550517092133214 topology_digest=1211278882742109615
+[MAZE] 11 Custom_R6_C6_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=32 deaths=5 flush=34 empty_flush=2
+  tiles_painted=4112 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=36 robot_lives=243 avg_robot_walk=2.6008 shortest_robot_walk=0 longest_robot_walk=9
+  shark_kills=5 avg_shark_moves_before_kill=2.2000
+  output_digest=12476193618612058199 runtime_digest=10058231827403674501 topology_digest=2021657396737289448
+[MAZE] 12 Custom_R7_C5_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=27 deaths=9 flush=34 empty_flush=2
+  tiles_painted=4796 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=36 robot_lives=278 avg_robot_walk=2.7842 shortest_robot_walk=0 longest_robot_walk=9
+  shark_kills=9 avg_shark_moves_before_kill=1.8889
+  output_digest=8794567343538305685 runtime_digest=967765903114793049 topology_digest=13501712174531056592
+[MAZE] 13 Prim_R7_C7_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=42 deaths=21 flush=58 empty_flush=2
+  tiles_painted=5102 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=60 robot_lives=469 avg_robot_walk=2.6311 shortest_robot_walk=0 longest_robot_walk=9
+  shark_kills=21 avg_shark_moves_before_kill=1.9524
+  output_digest=18111693587906099707 runtime_digest=16433174596132550539 topology_digest=1211309669067344027
+[MAZE] 14 Kruskal_R8_C6_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=29 deaths=25 flush=60 empty_flush=2
+  tiles_painted=3955 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=62 robot_lives=530 avg_robot_walk=1.7868 shortest_robot_walk=0 longest_robot_walk=5
+  shark_kills=25 avg_shark_moves_before_kill=1.4400
+  output_digest=2483282352276458375 runtime_digest=10908897272046352382 topology_digest=2071888623934030575
+[MAZE] 15 Custom_R8_C8_S8
+  runs=2 repeatability_checks=2 histogram_checks=2 connectivity_checks=2
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=33 deaths=12 flush=35 empty_flush=2
+  tiles_painted=3904 tiles_flushed_regular=30720 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 stall_cataclysmic=0 stall_apocalypse=0
+  star_burst=0 chaos_storm=0 comet_horizontal=0 comet_vertical=0
+  simulation_count=37 robot_lives=322 avg_robot_walk=1.7919 shortest_robot_walk=0 longest_robot_walk=5
+  shark_kills=12 avg_shark_moves_before_kill=1.8333
+  output_digest=17722577753916625893 runtime_digest=975877521065195485 topology_digest=10182577940837339717
+[PASS] maze stability tests passed
+<end of output>
+Test time =   0.25 sec
+----------------------------------------------------------
+Test Passed.
+"MazeStabilityTests" end time: Mar 17 16:20 EDT
+"MazeStabilityTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+17/18 Testing: MazePerseveranceTests
+17/18 Test: MazePerseveranceTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/maze_perseverance_tests"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"MazePerseveranceTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[INFO] maze perseverance tests loops=10 bytes=15360
+[PASS] Custom_R1_C1_S8 perseverance loops=10 bytes=15360
+[PASS] Prim_R1_C2_S8 perseverance loops=10 bytes=15360
+[PASS] Kruskal_R2_C1_S8 perseverance loops=10 bytes=15360
+[PASS] Custom_R2_C2_S8 perseverance loops=10 bytes=15360
+[PASS] Custom_R3_C2_S8 perseverance loops=10 bytes=15360
+[PASS] Prim_R3_C3_S8 perseverance loops=10 bytes=15360
+[PASS] Kruskal_R4_C3_S8 perseverance loops=10 bytes=15360
+[PASS] Custom_R4_C4_S8 perseverance loops=10 bytes=15360
+[PASS] Custom_R5_C3_S8 perseverance loops=10 bytes=15360
+[PASS] Prim_R5_C5_S8 perseverance loops=10 bytes=15360
+[PASS] Kruskal_R6_C3_S8 perseverance loops=10 bytes=15360
+[PASS] Custom_R6_C6_S8 perseverance loops=10 bytes=15360
+[PASS] Custom_R7_C5_S8 perseverance loops=10 bytes=15360
+[PASS] Prim_R7_C7_S8 perseverance loops=10 bytes=15360
+[PASS] Kruskal_R8_C6_S8 perseverance loops=10 bytes=15360
+[PASS] Custom_R8_C8_S8 perseverance loops=10 bytes=15360
+[PASS] maze perseverance tests passed loops=10 bytes=15360 digest=16184752762906183546
+<end of output>
+Test time =   1.41 sec
+----------------------------------------------------------
+Test Passed.
+"MazePerseveranceTests" end time: Mar 17 16:20 EDT
+"MazePerseveranceTests" time elapsed: 00:00:01
+----------------------------------------------------------
+
+13/18 Testing: TestPasswordExpander
+13/18 Test: TestPasswordExpander
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/test_password_expander"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"TestPasswordExpander" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[PASS] password expander flows test passed loops=10 types=16 digest=10537037254921629607
+<end of output>
+Test time =   0.10 sec
+----------------------------------------------------------
+Test Passed.
+"TestPasswordExpander" end time: Mar 17 16:20 EDT
+"TestPasswordExpander" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/18 Testing: PasswordExpanderQualityReport
+14/18 Test: PasswordExpanderQualityReport
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/password_expander_quality_report" "2" "hotdog" "password_expander_quality_report.html"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"PasswordExpanderQualityReport" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[INFO] password expander quality password=hotdog blocks=2 bytes=15360
+[PAIR] BT00 -> CHACHA grade=99.35 quality=51.68
+[PAIR] BT01 -> ARIA grade=98.74 quality=53.51
+[PAIR] BT02 -> ARIA grade=99.90 quality=52.85
+[PAIR] BT03 -> ARIA grade=98.93 quality=53.54
+[PAIR] BT04 -> CHACHA grade=99.34 quality=50.57
+[PAIR] BT05 -> ARIA grade=99.09 quality=53.05
+[PAIR] BT06 -> AES grade=99.29 quality=50.56
+[PAIR] BT07 -> AES grade=97.69 quality=48.39
+[PAIR] BT08 -> AES grade=99.02 quality=49.06
+[PAIR] BT09 -> AES grade=98.40 quality=49.35
+[PAIR] BT10 -> CHACHA grade=98.60 quality=51.37
+[PAIR] BT11 -> ARIA grade=99.71 quality=52.49
+[PAIR] BT12 -> ARIA grade=98.41 quality=53.22
+[PAIR] BT13 -> ARIA grade=99.77 quality=52.59
+[PAIR] BT14 -> AES grade=98.68 quality=49.53
+[PAIR] BT15 -> CHACHA grade=99.15 quality=50.90
+[INFO] wrote visual report to password_expander_quality_report.html
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"PasswordExpanderQualityReport" end time: Mar 17 16:20 EDT
+"PasswordExpanderQualityReport" time elapsed: 00:00:00
+----------------------------------------------------------
+
+15/18 Testing: PasswordExpanderConfusionMatrix
+15/18 Test: PasswordExpanderConfusionMatrix
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/password_expander_confusion_matrix" "2" "hotdog" "password_expander_confusion_matrix.html"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"PasswordExpanderConfusionMatrix" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[INFO] password expander confusion matrix password=hotdog blocks=2 bytes=15360
+[INFO] wrote visual report to password_expander_confusion_matrix.html
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"PasswordExpanderConfusionMatrix" end time: Mar 17 16:20 EDT
+"PasswordExpanderConfusionMatrix" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/18 Testing: FastRandRepeatabilityTests
+10/18 Test: FastRandRepeatabilityTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/fast_rand_repeatability_tests"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"FastRandRepeatabilityTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[PASS] FastRand repeatability tests passed loops=10 bytes=15361 digest=713782367417270719
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"FastRandRepeatabilityTests" end time: Mar 17 16:20 EDT
+"FastRandRepeatabilityTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/18 Testing: DigestRepeatabilitySuite
+12/18 Test: DigestRepeatabilitySuite
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/digest_repeatability_suite"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"DigestRepeatabilitySuite" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[INFO] digest repeatability mode=digest loops=10 bytes=7680
+[PASS] digest repeatability suite passed loops=10 bytes=7680
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"DigestRepeatabilitySuite" end time: Mar 17 16:20 EDT
+"DigestRepeatabilitySuite" time elapsed: 00:00:00
+----------------------------------------------------------
+
+1/18 Testing: FastMatrixRoundTripTests
+1/18 Test: FastMatrixRoundTripTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/fast_matrix_round_trip_tests"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"FastMatrixRoundTripTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[PASS] FastMatrix round-trip tests passed
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"FastMatrixRoundTripTests" end time: Mar 17 16:20 EDT
+"FastMatrixRoundTripTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/18 Testing: CounterRepeatabilityTests
+9/18 Test: CounterRepeatabilityTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/counter_repeatability_tests"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"CounterRepeatabilityTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[PASS] counter repeatability tests passed loops=10 bytes=7680 digest=6680988397117204145
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"CounterRepeatabilityTests" end time: Mar 17 16:20 EDT
+"CounterRepeatabilityTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/18 Testing: MazePathfindingTests
+2/18 Test: MazePathfindingTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/maze_pathfinding_tests"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"MazePathfindingTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[PASS] maze pathfinding tests passed
+<end of output>
+Test time =   0.41 sec
+----------------------------------------------------------
+Test Passed.
+"MazePathfindingTests" end time: Mar 17 16:20 EDT
+"MazePathfindingTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/18 Testing: GamePerseveranceTests
+16/18 Test: GamePerseveranceTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/game_perseverance_tests"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"GamePerseveranceTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[INFO] perseverance mode=games loops=10 bytes=7680
+[PASS] StreakSwapGreedy perseverance loops=10 bytes=7680
+[PASS] StreakSlideGreedy perseverance loops=10 bytes=7680
+[PASS] IslandSwapGreedy perseverance loops=10 bytes=7680
+[PASS] IslandSlideGreedy perseverance loops=10 bytes=7680
+[PASS] StreakTapGreedy perseverance loops=10 bytes=7680
+[PASS] IslandTapGreedy perseverance loops=10 bytes=7680
+[PASS] StreakSwapRandom perseverance loops=10 bytes=7680
+[PASS] StreakSlideRandom perseverance loops=10 bytes=7680
+[PASS] IslandSwapRandom perseverance loops=10 bytes=7680
+[PASS] IslandSlideRandom perseverance loops=10 bytes=7680
+[PASS] StreakTapRandom perseverance loops=10 bytes=7680
+[PASS] IslandTapRandom perseverance loops=10 bytes=7680
+[PASS] StreakSwapFirst perseverance loops=10 bytes=7680
+[PASS] StreakSlideFirst perseverance loops=10 bytes=7680
+[PASS] IslandSwapFirst perseverance loops=10 bytes=7680
+[PASS] IslandSlideFirst perseverance loops=10 bytes=7680
+[PASS] game perseverance tests passed loops=10 bytes=7680 games=16 digest=8249606640072663484
+<end of output>
+Test time =   5.11 sec
+----------------------------------------------------------
+Test Passed.
+"GamePerseveranceTests" end time: Mar 17 16:21 EDT
+"GamePerseveranceTests" time elapsed: 00:00:05
+----------------------------------------------------------
+
+8/18 Testing: GameRepeatabilityTests
+8/18 Test: GameRepeatabilityTests
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/game_repeatability_tests"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+"GameRepeatabilityTests" start time: Mar 17 16:20 EDT
+Output:
+----------------------------------------------------------
+[PASS] StreakSwapGreedy repeatable loops=10 bytes=7680
+[PASS] StreakSlideGreedy repeatable loops=10 bytes=7680
+[PASS] IslandSwapGreedy repeatable loops=10 bytes=7680
+[PASS] IslandSlideGreedy repeatable loops=10 bytes=7680
+[PASS] StreakTapGreedy repeatable loops=10 bytes=7680
+[PASS] IslandTapGreedy repeatable loops=10 bytes=7680
+[PASS] StreakSwapRandom repeatable loops=10 bytes=7680
+[PASS] StreakSlideRandom repeatable loops=10 bytes=7680
+[PASS] IslandSwapRandom repeatable loops=10 bytes=7680
+[PASS] IslandSlideRandom repeatable loops=10 bytes=7680
+[PASS] StreakTapRandom repeatable loops=10 bytes=7680
+[PASS] IslandTapRandom repeatable loops=10 bytes=7680
+[PASS] StreakSwapFirst repeatable loops=10 bytes=7680
+[PASS] StreakSlideFirst repeatable loops=10 bytes=7680
+[PASS] IslandSwapFirst repeatable loops=10 bytes=7680
+[PASS] IslandSlideFirst repeatable loops=10 bytes=7680
+[PASS] game repeatability tests passed loops=10 bytes=7680 games=16 moves=81157 broken=14 digest=4746217621610028653
+<end of output>
+Test time =   5.40 sec
+----------------------------------------------------------
+Test Passed.
+"GameRepeatabilityTests" end time: Mar 17 16:21 EDT
+"GameRepeatabilityTests" time elapsed: 00:00:05
+----------------------------------------------------------
+
+5/18 Testing: MazeEdgeConnectedQuick
+5/18 Test: MazeEdgeConnectedQuick
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/maze_edge_connected_quick"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread
+"MazeEdgeConnectedQuick" start time: Mar 17 16:21 EDT
+Output:
+----------------------------------------------------------
+[INFO] maze edge connected quick loops=10 bytes=15360 global_seed=77
+[PASS] maze edge connected quick passed loops=10 bytes=15360 digest=210986702327430592
+<end of output>
+Test time =   0.68 sec
+----------------------------------------------------------
+Test Passed.
+"MazeEdgeConnectedQuick" end time: Mar 17 16:21 EDT
+"MazeEdgeConnectedQuick" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/18 Testing: MazePathFinding
+3/18 Test: MazePathFinding
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/maze_path_finding"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread
+"MazePathFinding" start time: Mar 17 16:21 EDT
+Output:
+----------------------------------------------------------
+[INFO] maze pathfinding quality loops=10 bytes=15360 trials_per_loop=3 global_seed=77
+[PASS] maze pathfinding quality passed loops=10 bytes=15360 digest=7870443015880900228
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"MazePathFinding" end time: Mar 17 16:21 EDT
+"MazePathFinding" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/18 Testing: MazeEdgeConnectedPrimQuick
+6/18 Test: MazeEdgeConnectedPrimQuick
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/maze_edge_connected_prim_quick"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread
+"MazeEdgeConnectedPrimQuick" start time: Mar 17 16:21 EDT
+Output:
+----------------------------------------------------------
+[INFO] maze edge connected prim quick loops=10 bytes=15360 global_seed=77
+[PASS] maze edge connected prim quick passed loops=10 bytes=15360 digest=6304837193801518300
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"MazeEdgeConnectedPrimQuick" end time: Mar 17 16:21 EDT
+"MazeEdgeConnectedPrimQuick" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/18 Testing: MazeEdgeConnectedKruskalQuick
+7/18 Test: MazeEdgeConnectedKruskalQuick
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/maze_edge_connected_kruskal_quick"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread
+"MazeEdgeConnectedKruskalQuick" start time: Mar 17 16:21 EDT
+Output:
+----------------------------------------------------------
+[INFO] maze edge connected kruskal quick loops=10 bytes=15360 global_seed=77
+[PASS] maze edge connected kruskal quick passed loops=10 bytes=15360 digest=7921555250982836148
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"MazeEdgeConnectedKruskalQuick" end time: Mar 17 16:21 EDT
+"MazeEdgeConnectedKruskalQuick" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/18 Testing: TestMazeGridValidity
+4/18 Test: TestMazeGridValidity
+Command: "/Users/magneto/Desktop/Codex Playground/Bread/build_release/test_maze_grid_validity"
+Directory: /Users/magneto/Desktop/Codex Playground/Bread
+"TestMazeGridValidity" start time: Mar 17 16:21 EDT
+Output:
+----------------------------------------------------------
+[INFO] maze grid validity trials_per_mode=100
+[PASS] mode=custom trials=100
+[PASS] mode=prim trials=100
+[PASS] mode=kruskal trials=100
+[PASS] maze grid validity tests passed
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"TestMazeGridValidity" end time: Mar 17 16:21 EDT
+"TestMazeGridValidity" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Mar 17 16:21 EDT
+
+perseverance =   6.52 sec*proc
+
+quality =   0.82 sec*proc
+
+regression =  14.13 sec*proc
+
+repeatability =   6.63 sec*proc
+
+round_trip =   0.41 sec*proc
+
+smoke =   0.51 sec*proc
+
+stability =   0.25 sec*proc
+
+verification =  14.64 sec*proc
+

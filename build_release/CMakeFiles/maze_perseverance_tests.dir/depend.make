@@ -1,0 +1,2 @@
+# Empty dependencies file for maze_perseverance_tests.
+# This may be replaced when dependencies are built.

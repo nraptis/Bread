@@ -12,18 +12,18 @@ int RandomDurationFromPick(int pPick) {
   return 10 + (pPick % 7);
 }
 
-bool AnyActiveCheese(const std::array<CheeseState, kMaxCheeses>& pCheeses, int pCheeseCount) {
+bool AnyValidCheese(const std::array<MazeCheese, kMaxCheeses>& pCheeses, int pCheeseCount) {
   for (int aIndex = 0; aIndex < pCheeseCount; ++aIndex) {
-    if (pCheeses[aIndex].mActive) {
+    if (pCheeses[aIndex].mIsValid) {
       return true;
     }
   }
   return false;
 }
 
-bool AnyPathingRobot(const std::array<RobotState, kMaxRobots>& pRobots, int pRobotCount) {
+bool AnyRunnableRobot(const std::array<MazeRobot, kMaxRobots>& pRobots, int pRobotCount) {
   for (int aIndex = 0; aIndex < pRobotCount; ++aIndex) {
-    if (pRobots[aIndex].mAlive && !pRobots[aIndex].mVictorious) {
+    if (!pRobots[aIndex].mDead || pRobots[aIndex].mVictorious) {
       return true;
     }
   }

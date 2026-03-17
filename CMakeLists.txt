@@ -17,9 +17,11 @@ add_library(peanutbutter_core
   src/Tables/rng/Shuffler.cpp
   src/Tables/fast_rand/FastRand.cpp
   src/Tables/matrices/FastMatrix.cpp
+  src/Tables/maze/MazeGrid.cpp
   src/Tables/maze/Maze.cpp
   src/Tables/maze/MazeHelpers.cpp
   src/Tables/maze/MazePolicy.cpp
+  src/Tables/maze/MazeSpecialEvents.cpp
   src/Tables/maze/MazeDirector.cpp
   src/Tables/games/engine/GameBoard.cpp
   src/Tables/games/engine/GamePlayDirector.cpp
@@ -114,6 +116,28 @@ endif()
 
 add_test(NAME MazePathFinding COMMAND maze_path_finding)
 set_tests_properties(MazePathFinding PROPERTIES
+  LABELS "regression;verification;quality"
+  RUN_SERIAL TRUE
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_executable(test_maze_grid_validity
+  tests_regression/TestMazeGridValidity.cpp
+)
+target_link_libraries(test_maze_grid_validity PRIVATE peanutbutter_core)
+target_include_directories(test_maze_grid_validity
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(test_maze_grid_validity PRIVATE /W4)
+else()
+  target_compile_options(test_maze_grid_validity PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME TestMazeGridValidity COMMAND $<TARGET_FILE:test_maze_grid_validity>)
+set_tests_properties(TestMazeGridValidity PROPERTIES
   LABELS "regression;verification;quality"
   RUN_SERIAL TRUE
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

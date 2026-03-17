@@ -1,0 +1,147 @@
+# Maze Stability Tests
+# runs_per_maze=100
+[MAZE] 0 Custom_R1_C1_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=8458 deaths=1878 flush=646 empty_flush=100
+  tiles_painted=1043979 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=8559 robot_lives=8559 avg_robot_walk=0.0000 shortest_robot_walk=0 longest_robot_walk=0
+  shark_kills=1878 avg_shark_moves_before_kill=11.7923
+  output_digest=9123744547570729637 runtime_digest=5165621328294403898 topology_digest=6554735028636565755
+[MAZE] 1 Prim_R1_C2_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=7614 deaths=6274 flush=868 empty_flush=100
+  tiles_painted=1152762 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=4209 robot_lives=4209 avg_robot_walk=0.0000 shortest_robot_walk=0 longest_robot_walk=0
+  shark_kills=6274 avg_shark_moves_before_kill=38.9283
+  output_digest=422869316987738637 runtime_digest=11778418838199358765 topology_digest=5289747451181700743
+[MAZE] 2 Kruskal_R2_C1_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=5799 deaths=6025 flush=739 empty_flush=100
+  tiles_painted=1211254 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=6187 robot_lives=12374 avg_robot_walk=8.1479 shortest_robot_walk=0 longest_robot_walk=129
+  shark_kills=6025 avg_shark_moves_before_kill=17.7819
+  output_digest=8225760783974016663 runtime_digest=15677738431301825528 topology_digest=3069143689513196707
+[MAZE] 3 Custom_R2_C2_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=7420 deaths=2084 flush=594 empty_flush=100
+  tiles_painted=1078847 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=3930 robot_lives=7860 avg_robot_walk=6.1057 shortest_robot_walk=0 longest_robot_walk=57
+  shark_kills=2084 avg_shark_moves_before_kill=11.6228
+  output_digest=12035285754791835543 runtime_digest=18102755330309527108 topology_digest=14707317869389946466
+[MAZE] 4 Custom_R3_C2_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6668 deaths=2084 flush=547 empty_flush=100
+  tiles_painted=1113190 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=3539 robot_lives=10617 avg_robot_walk=7.5540 shortest_robot_walk=0 longest_robot_walk=58
+  shark_kills=2084 avg_shark_moves_before_kill=8.9045
+  output_digest=8938932716915762393 runtime_digest=11001509828501423333 topology_digest=4751469788207076550
+[MAZE] 5 Prim_R3_C3_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6441 deaths=5607 flush=753 empty_flush=100
+  tiles_painted=1201752 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=2520 robot_lives=7560 avg_robot_walk=12.2185 shortest_robot_walk=0 longest_robot_walk=101
+  shark_kills=5607 avg_shark_moves_before_kill=19.9579
+  output_digest=13184148370658734207 runtime_digest=8957781956558249210 topology_digest=14053594530364058855
+[MAZE] 6 Kruskal_R4_C3_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=5480 deaths=5544 flush=689 empty_flush=100
+  tiles_painted=1232196 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=2156 robot_lives=8624 avg_robot_walk=15.1860 shortest_robot_walk=0 longest_robot_walk=138
+  shark_kills=5544 avg_shark_moves_before_kill=18.8436
+  output_digest=13291319471348877255 runtime_digest=8629568180751008586 topology_digest=3438831250833525227
+[MAZE] 7 Custom_R4_C4_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6880 deaths=2096 flush=561 empty_flush=100
+  tiles_painted=1109599 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=1967 robot_lives=7868 avg_robot_walk=9.5144 shortest_robot_walk=0 longest_robot_walk=72
+  shark_kills=2096 avg_shark_moves_before_kill=11.7381
+  output_digest=10469562770439596371 runtime_digest=12637364019544170512 topology_digest=360782332501303158
+[MAZE] 8 Custom_R5_C3_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6167 deaths=2169 flush=521 empty_flush=100
+  tiles_painted=1133614 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=2272 robot_lives=11360 avg_robot_walk=8.8423 shortest_robot_walk=0 longest_robot_walk=60
+  shark_kills=2169 avg_shark_moves_before_kill=7.9663
+  output_digest=16128707256072847665 runtime_digest=2173622425357012536 topology_digest=16911773274552360069
+[MAZE] 9 Prim_R5_C5_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6432 deaths=5088 flush=720 empty_flush=100
+  tiles_painted=1215479 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=1614 robot_lives=8070 avg_robot_walk=15.4626 shortest_robot_walk=0 longest_robot_walk=121
+  shark_kills=5088 avg_shark_moves_before_kill=17.0252
+  output_digest=6256571488030221389 runtime_digest=17153496548860476040 topology_digest=14451687066288626667
+[MAZE] 10 Kruskal_R6_C3_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=5257 deaths=5367 flush=664 empty_flush=100
+  tiles_painted=1240938 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=2087 robot_lives=12522 avg_robot_walk=14.2080 shortest_robot_walk=0 longest_robot_walk=102
+  shark_kills=5367 avg_shark_moves_before_kill=12.7149
+  output_digest=15156862283906402799 runtime_digest=17243727626233192259 topology_digest=14630355348180974923
+[MAZE] 11 Custom_R6_C6_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6701 deaths=2131 flush=552 empty_flush=100
+  tiles_painted=1113674 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=1365 robot_lives=8190 avg_robot_walk=10.3976 shortest_robot_walk=0 longest_robot_walk=64
+  shark_kills=2131 avg_shark_moves_before_kill=10.8939
+  output_digest=8371101666021698015 runtime_digest=7414888324374249924 topology_digest=7377769456045681685
+[MAZE] 12 Custom_R7_C5_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6278 deaths=2202 flush=530 empty_flush=100
+  tiles_painted=1131945 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=1500 robot_lives=10500 avg_robot_walk=9.7881 shortest_robot_walk=0 longest_robot_walk=64
+  shark_kills=2202 avg_shark_moves_before_kill=8.8669
+  output_digest=15807674074328611431 runtime_digest=16943933510748938189 topology_digest=5890236460425524562
+[MAZE] 13 Prim_R7_C7_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6600 deaths=4856 flush=716 empty_flush=100
+  tiles_painted=1219751 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=1324 robot_lives=9268 avg_robot_walk=15.9102 shortest_robot_walk=0 longest_robot_walk=112
+  shark_kills=4856 avg_shark_moves_before_kill=14.9586
+  output_digest=16085382370526877173 runtime_digest=12941034308806650418 topology_digest=6569340797957814903
+[MAZE] 14 Kruskal_R8_C6_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=5608 deaths=4984 flush=662 empty_flush=100
+  tiles_painted=1242191 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=1262 robot_lives=10096 avg_robot_walk=17.3197 shortest_robot_walk=0 longest_robot_walk=103
+  shark_kills=4984 avg_shark_moves_before_kill=13.9565
+  output_digest=17884331392064855957 runtime_digest=13859105274081208720 topology_digest=15608193926695873355
+[MAZE] 15 Custom_R8_C8_S8
+  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
+  victories=6729 deaths=2215 flush=559 empty_flush=100
+  tiles_painted=1107651 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 stall_cataclysmic=0 stall_apocalypse=0
+  simulation_count=1101 robot_lives=8808 avg_robot_walk=10.6408 shortest_robot_walk=0 longest_robot_walk=57
+  shark_kills=2215 avg_shark_moves_before_kill=9.6641
+  output_digest=5056943241542016905 runtime_digest=11463421486559803024 topology_digest=16492405139914601910
+[PASS] maze stability tests passed

@@ -25,6 +25,7 @@ class Shuffler : public Digest {
   void EnqueueByte(unsigned char pByte);
 
   unsigned char mSeedBuffer[kSeedBufferCapacity];
+  unsigned char mResultBufferStorage[kSeedBufferCapacity];
   unsigned char* mResultBuffer;
   unsigned int mSeedReadIndex;
   unsigned int mResultBufferWriteIndex;

@@ -5,6 +5,7 @@
 
 #include "../../PeanutButter.hpp"
 #include "../rng/Shuffler.hpp"
+#include "MazeGrid.hpp"
 
 namespace peanutbutter::fast_rand {
 class FastRand;
@@ -12,7 +13,9 @@ class FastRand;
 
 namespace peanutbutter::maze {
 
-class Maze : public peanutbutter::rng::Shuffler {
+class MazeSpecialEvents;
+
+class Maze : public peanutbutter::rng::Shuffler, protected MazeGrid {
  public:
   enum class FlushAccountingMode {
     kRegular,
@@ -29,16 +32,23 @@ class Maze : public peanutbutter::rng::Shuffler {
     std::uint64_t mTilesPaintedValidScenario = 0U;
     std::uint64_t mInconsistentStateA = 0U;
     std::uint64_t mInconsistentStateB = 0U;
+    std::uint64_t mInconsistentStateC = 0U;
+    std::uint64_t mInconsistentStateD = 0U;
+    std::uint64_t mInconsistentStateE = 0U;
     std::uint64_t mSimulationStallCataclysmic = 0U;
     std::uint64_t mSimulationStallApocalypse = 0U;
+    std::uint64_t mStarBurst = 0U;
+    std::uint64_t mChaosStorm = 0U;
+    std::uint64_t mCometTrailsHorizontal = 0U;
+    std::uint64_t mCometTrailsVertical = 0U;
   };
 
-  static constexpr int kGridWidth = 32;
-  static constexpr int kGridHeight = 32;
-  static constexpr int kGridSize = kGridWidth * kGridHeight;
-  static constexpr int kGridShift = 5;
-  static constexpr int kGridMask = kGridWidth - 1;
-  static constexpr int kMazeMaxGroups = 256;
+  static constexpr int kGridWidth = MazeGrid::kGridWidth;
+  static constexpr int kGridHeight = MazeGrid::kGridHeight;
+  static constexpr int kGridSize = MazeGrid::kGridSize;
+  static constexpr int kGridShift = MazeGrid::kGridShift;
+  static constexpr int kGridMask = MazeGrid::kGridMask;
+  static constexpr int kMazeMaxGroups = MazeGrid::kMazeMaxGroups;
   static constexpr int kSeedBufferCapacity = PASSWORD_BALLOONED_SIZE;
   static constexpr int kMazeRespawnActionThreshold = 16;
 
@@ -47,26 +57,54 @@ class Maze : public peanutbutter::rng::Shuffler {
 
   virtual void Seed(unsigned char* pPassword, int pPasswordLength) override = 0;
 
-  bool FindPath(int pStartX, int pStartY, int pEndX, int pEndY);
+  using MazeGrid::FindPath;
+  using MazeGrid::GetRandomWall;
+  using MazeGrid::GetRandomWalkable;
+  using MazeGrid::IsConnected_Slow;
+  using MazeGrid::IsEdge;
+  using MazeGrid::IsWall;
+  using MazeGrid::PathLength;
+  using MazeGrid::PathNode;
+  using MazeGrid::FinalizeWalls;
+
   RuntimeStats GetRuntimeStats() const;
-  int PathLength() const;
-  bool PathNode(int pIndex, int* pOutX, int* pOutY) const;
-  bool IsWall(int pX, int pY) const;
-  bool IsEdge(int pX, int pY) const;
-  bool IsConnected_Slow(int pX1, int pY1, int pX2, int pY2) const;
-  bool GetRandomWall(int& pX, int& pY);
-  bool GetRandomWalkable(int& pX, int& pY);
-  void FinalizeWalls();
 
  protected:
-  static int AbsInt(int pValue);
-  int ToX(int pIndex) const;
-  int ToY(int pIndex) const;
-  bool InBounds(int pX, int pY) const;
-  bool IsWalkable(int pX, int pY) const;
-  int HeuristicCostByIndex(int pIndex, int pEndX, int pEndY) const;
-  int ToIndex(int pX, int pY) const;
-  virtual int NextIndex(int pLimit) = 0;
+  using MazeGrid::AbsInt;
+  using MazeGrid::BreakDownOneCellGroups;
+  using MazeGrid::ClearWalls;
+  using MazeGrid::EnsureSingleConnectedOpenGroup;
+  using MazeGrid::ExecuteKruskals;
+  using MazeGrid::FillAxisOrder;
+  using MazeGrid::FillStackAllCoords;
+  using MazeGrid::FindEdgeWalls;
+  using MazeGrid::GeneratePrims;
+  using MazeGrid::HeuristicCostByIndex;
+  using MazeGrid::InBounds;
+  using MazeGrid::InitializeKruskals;
+  using MazeGrid::IsWalkable;
+  using MazeGrid::ResetGrid;
+  using MazeGrid::SetWall;
+  using MazeGrid::ToIndex;
+  using MazeGrid::ToX;
+  using MazeGrid::ToY;
+  using MazeGrid::mEdgeCount;
+  using MazeGrid::mEdgeX;
+  using MazeGrid::mEdgeY;
+  using MazeGrid::mGroupCount;
+  using MazeGrid::mIsMarked;
+  using MazeGrid::mIsVisited;
+  using MazeGrid::mIsWall;
+  using MazeGrid::mStackCount;
+  using MazeGrid::mStackX;
+  using MazeGrid::mStackY;
+  using MazeGrid::mWalkableListCount;
+  using MazeGrid::mWalkableListX;
+  using MazeGrid::mWalkableListY;
+  using MazeGrid::mWallListCount;
+  using MazeGrid::mWallsAreFinalized;
+
+  virtual int NextIndex(int pLimit) override = 0;
   void InitializeSeedBuffer(unsigned char* pPassword, int pPasswordLength);
   void ShuffleSeedBuffer(peanutbutter::fast_rand::FastRand* pFastRand);
   void Reset();
@@ -74,91 +112,20 @@ class Maze : public peanutbutter::rng::Shuffler {
   bool RepaintFromSeed(int pX, int pY);
   void ApocalypseScenario();
   void SetFlushAccountingMode(FlushAccountingMode pMode);
-  void ClearWalls();
   void ClearByteCells();
-  void SetWall(int pX, int pY, bool pIsWall);
   void Repaint(int pX, int pY, unsigned char pValue);
   void Flush(int pX, int pY);
   void SetByteCell(int pX, int pY, unsigned char pByte, bool pIsByte);
   void Flush();
-  void FillStackAllCoords();
-  void FindEdgeWalls(int pX, int pY);
-  void BreakDownOneCellGroups();
-  void EnsureSingleConnectedOpenGroup();
-  void GeneratePrims();
-  void InitializeKruskals();
-  void ExecuteKruskals();
 
-  int mIsWall[kGridWidth][kGridHeight];
   int mIsByte[kGridWidth][kGridHeight];
   unsigned char mByte[kGridWidth][kGridHeight];
   RuntimeStats mRuntimeStats;
-  int mStackX[kGridSize];
-  int mStackY[kGridSize];
-  int mStackCount;
-  int mEdgeX[kGridSize];
-  int mEdgeY[kGridSize];
-  int mEdgeCount;
-  unsigned char mIsVisited[kGridWidth][kGridHeight];
-  unsigned char mIsMarked[kGridWidth][kGridHeight];
-  unsigned char mIsEdgeConnected[kGridWidth][kGridHeight];
-  unsigned char mGroup[kMazeMaxGroups][kGridWidth][kGridHeight];
-  unsigned char mGroupIsEdgeConnected[kMazeMaxGroups];
-  int mGroupEdgeX[kMazeMaxGroups][kGridSize];
-  int mGroupEdgeY[kMazeMaxGroups][kGridSize];
-  int mGroupEdgeCount[kMazeMaxGroups];
-  short mGroupId[kGridWidth][kGridHeight];
-  int mGroupCount;
-  int mWallListX[kGridSize];
-  int mWallListY[kGridSize];
-  int mWallListCount;
-  int mWalkableListX[kGridSize];
-  int mWalkableListY[kGridSize];
-  int mWalkableListCount;
-  int mSetParent[kGridSize];
-  unsigned char mSetRank[kGridSize];
-  unsigned char mSetEdgeConnected[kGridSize];
-  unsigned char mWallsAreFinalized;
   FlushAccountingMode mFlushAccountingMode;
   int mFlushX[kGridWidth];
   int mFlushY[kGridHeight];
 
- private:
-  void InvalidateWallLists();
-  void FillAxisOrder(int* pAxis, int pCount);
-  void ResetEdgeSearchState();
-  void PushStackCell(int pX, int pY);
-  void PushEdgeCell(int pX, int pY);
-  void RemoveEdgeCellAt(int pIndex);
-  void PushPrimsFrontierWalls(int pCellX, int pCellY);
-  void InitializeDisjointSets(int* pComponentCount);
-  int FindSetRoot(int pIndex);
-  bool UnionSetRoots(int pIndexA, int pIndexB);
-  void OpenWallAndUnion(int pX, int pY, int* pComponentCount);
-  bool IsInteriorMazeCell(int pX, int pY) const;
-  bool GetCellsForWall(int pWallX, int pWallY, int* pX1, int* pY1, int* pX2, int* pY2) const;
-  bool OpenNodeLess(int pPosA, int pPosB) const;
-  void SwapOpenNodes(int pPosA, int pPosB);
-  void HeapifyUp(int pPos);
-  void HeapifyDown(int pPos);
-  void PushOpenNode(int pIndex);
-  void UpdateOpenNodePriority(int pIndex);
-  int RemoveOpenMin();
-  bool IsInClosedList(int pIndex) const;
-  bool IsInOpenList(int pIndex) const;
-  void ReconstructPath(int pEndIndex);
-
-  int mPathX[kGridSize];
-  int mPathY[kGridSize];
-  int mPathLength;
-  int mParentX[kGridSize];
-  int mParentY[kGridSize];
-  int mGScore[kGridSize];
-  int mFScore[kGridSize];
-  int mOpenHeap[kGridSize];
-  int mOpenHeapCount;
-  short mOpenHeapPosByIndex[kGridSize];
-  unsigned char mNodeStateByIndex[kGridSize];
+  friend class MazeSpecialEvents;
 };
 
 }  // namespace peanutbutter::maze

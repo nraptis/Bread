@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/fast_matrix_round_trip_tests.dir/tests_smoke/FastMatrix_round_trip_tests.cpp.o -o fast_matrix_round_trip_tests  libpeanutbutter_core.a

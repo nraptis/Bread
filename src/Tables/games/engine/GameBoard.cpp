@@ -125,8 +125,7 @@ void GameBoard::InitializeSeed(unsigned char* pPassword, int pPasswordLength) {
   InitializeSeedBuffer(pPassword, pPasswordLength);
   mCataclysmWriteIndex = 0U;
   mApocalypseWriteIndex = 0U;
-  mFastRand.Seed(pPassword, pPasswordLength);
-  mFastRand.Mix(mSeedBuffer, static_cast<int>(mResultBufferLength));
+  mFastRand.Seed(mSeedBuffer, pPasswordLength);
 }
 
 void GameBoard::SetMoveBehavior(MoveBehavior pMoveBehavior) {

@@ -1,0 +1,20 @@
+FastMatrixRoundTripTests 25 0.0487256
+MazePathfindingTests 24 0.260336
+TestPasswordExpander 25 0.155546
+MazePathFinding 22 0.064529
+MazeEdgeConnectedQuick 22 0.916428
+MazeEdgeConnectedPrimQuick 22 0.0456154
+MazeEdgeConnectedKruskalQuick 22 0.0448895
+GameRepeatabilityTests 23 5.42127
+CounterRepeatabilityTests 23 0.0475445
+DigestRepeatabilitySuite 23 0.0514694
+GamePerseveranceTests 23 5.38214
+MazePerseveranceTests 23 1.68471
+PasswordExpanderQualityReport 17 0.11921
+PasswordExpanderConfusionMatrix 17 0.101686
+FastRandRepeatabilityTests 16 0.0754691
+ByteTwisterPoisonRepeatabilityTests 15 1.30698
+MazeRobotPolicyRepeatabilityTests 0 0
+MazeStabilityTests 9 0.522975
+TestMazeGridValidity 1 0.0116548
+---

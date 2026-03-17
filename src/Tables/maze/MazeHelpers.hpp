@@ -21,33 +21,39 @@ enum class PowerUpType : unsigned char {
   kTeleport = 4
 };
 
-struct RobotState {
+struct MazeCheese {
   int mX = -1;
   int mY = -1;
-  int mTargetCheese = -1;
-  int mInvincibleHops = 0;
-  int mMagnetHops = 0;
-  int mSuperSpeedHops = 0;
-  bool mAlive = false;
+  int mRespawnTick = 0;
+  bool mIsValid = false;
+};
+
+struct MazeRobot {
+  MazeCheese* mTargetCheese = nullptr;
+  int mX = -1;
+  int mY = -1;
+  int mPathX[Maze::kGridSize] = {};
+  int mPathY[Maze::kGridSize] = {};
+  int mPathLength = 0;
+  int mPathIndex = 0;
+  int mConfusedTick = 0;
+  int mPowerUpTick = 0;
+  PowerUpType mPowerUp = PowerUpType::kNone;
+  bool mWasConfused = false;
+  bool mDead = true;
   bool mVictorious = false;
 };
 
-struct CheeseState {
+struct MazeShark {
   int mX = -1;
   int mY = -1;
-  bool mActive = false;
-};
-
-struct SharkState {
-  int mX = -1;
-  int mY = -1;
-  bool mActive = false;
+  bool mDead = true;
 };
 
 int ManhattanDistance(int pX1, int pY1, int pX2, int pY2);
 int RandomDurationFromPick(int pPick);
-bool AnyActiveCheese(const std::array<CheeseState, kMaxCheeses>& pCheeses, int pCheeseCount);
-bool AnyPathingRobot(const std::array<RobotState, kMaxRobots>& pRobots, int pRobotCount);
+bool AnyValidCheese(const std::array<MazeCheese, kMaxCheeses>& pCheeses, int pCheeseCount);
+bool AnyRunnableRobot(const std::array<MazeRobot, kMaxRobots>& pRobots, int pRobotCount);
 
 template <typename TGetRandomWalkable, typename TOccupied>
 inline bool PickUniqueWalkable(TGetRandomWalkable&& pGetRandomWalkable,
@@ -76,22 +82,26 @@ inline bool PickUniqueWalkable(TGetRandomWalkable&& pGetRandomWalkable,
 }
 
 template <typename TNextIndex>
-inline int ChooseActiveCheese(TNextIndex&& pNextIndex,
-                              const std::array<CheeseState, kMaxCheeses>& pCheeses,
-                              int pCheeseCount) {
-  int aActive[kMaxCheeses];
-  int aActiveCount = 0;
+inline MazeCheese* ChooseValidCheese(TNextIndex&& pNextIndex,
+                                     std::array<MazeCheese, kMaxCheeses>* pCheeses,
+                                     int pCheeseCount) {
+  if (pCheeses == nullptr) {
+    return nullptr;
+  }
+
+  int aValid[kMaxCheeses];
+  int aValidCount = 0;
   for (int aIndex = 0; aIndex < pCheeseCount; ++aIndex) {
-    if (!pCheeses[aIndex].mActive) {
+    if (!(*pCheeses)[aIndex].mIsValid) {
       continue;
     }
-    aActive[aActiveCount] = aIndex;
-    ++aActiveCount;
+    aValid[aValidCount] = aIndex;
+    ++aValidCount;
   }
-  if (aActiveCount <= 0) {
-    return -1;
+  if (aValidCount <= 0) {
+    return nullptr;
   }
-  return aActive[pNextIndex(aActiveCount)];
+  return &(*pCheeses)[aValid[pNextIndex(aValidCount)]];
 }
 
 template <typename TMaze, typename TNextIndex, typename TOccupied>

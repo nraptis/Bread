@@ -39,8 +39,15 @@ struct StabilityAggregate {
   std::uint64_t mTilesPaintedValidScenario = 0U;
   std::uint64_t mInconsistentStateA = 0U;
   std::uint64_t mInconsistentStateB = 0U;
+  std::uint64_t mInconsistentStateC = 0U;
+  std::uint64_t mInconsistentStateD = 0U;
+  std::uint64_t mInconsistentStateE = 0U;
   std::uint64_t mSimulationStallCataclysmic = 0U;
   std::uint64_t mSimulationStallApocalypse = 0U;
+  std::uint64_t mStarBurst = 0U;
+  std::uint64_t mChaosStorm = 0U;
+  std::uint64_t mCometTrailsHorizontal = 0U;
+  std::uint64_t mCometTrailsVertical = 0U;
   std::uint64_t mSimulationCount = 0U;
   std::uint64_t mRobotLifeCount = 0U;
   std::uint64_t mTotalRobotWalk = 0U;
@@ -112,8 +119,15 @@ std::uint64_t HashRuntimeStats(const peanutbutter::maze::Maze::RuntimeStats& pSt
   aDigest = HashMix(aDigest, pStats.mTilesPaintedValidScenario);
   aDigest = HashMix(aDigest, pStats.mInconsistentStateA);
   aDigest = HashMix(aDigest, pStats.mInconsistentStateB);
+  aDigest = HashMix(aDigest, pStats.mInconsistentStateC);
+  aDigest = HashMix(aDigest, pStats.mInconsistentStateD);
+  aDigest = HashMix(aDigest, pStats.mInconsistentStateE);
   aDigest = HashMix(aDigest, pStats.mSimulationStallCataclysmic);
   aDigest = HashMix(aDigest, pStats.mSimulationStallApocalypse);
+  aDigest = HashMix(aDigest, pStats.mStarBurst);
+  aDigest = HashMix(aDigest, pStats.mChaosStorm);
+  aDigest = HashMix(aDigest, pStats.mCometTrailsHorizontal);
+  aDigest = HashMix(aDigest, pStats.mCometTrailsVertical);
   aDigest = HashMix(aDigest, pProbeStats.mSimulationCount);
   aDigest = HashMix(aDigest, pProbeStats.mRobotLifeCount);
   aDigest = HashMix(aDigest, pProbeStats.mTotalRobotWalk);
@@ -135,8 +149,15 @@ bool RuntimeStatsEqual(const peanutbutter::maze::Maze::RuntimeStats& pA,
          pA.mTilesPaintedValidScenario == pB.mTilesPaintedValidScenario &&
          pA.mInconsistentStateA == pB.mInconsistentStateA &&
          pA.mInconsistentStateB == pB.mInconsistentStateB &&
+         pA.mInconsistentStateC == pB.mInconsistentStateC &&
+         pA.mInconsistentStateD == pB.mInconsistentStateD &&
+         pA.mInconsistentStateE == pB.mInconsistentStateE &&
          pA.mSimulationStallCataclysmic == pB.mSimulationStallCataclysmic &&
-         pA.mSimulationStallApocalypse == pB.mSimulationStallApocalypse;
+         pA.mSimulationStallApocalypse == pB.mSimulationStallApocalypse &&
+         pA.mStarBurst == pB.mStarBurst &&
+         pA.mChaosStorm == pB.mChaosStorm &&
+         pA.mCometTrailsHorizontal == pB.mCometTrailsHorizontal &&
+         pA.mCometTrailsVertical == pB.mCometTrailsVertical;
 }
 
 bool ProbeStatsEqual(const peanutbutter::maze::MazeDirector::ProbeStats& pA,
@@ -221,8 +242,15 @@ void Accumulate(StabilityAggregate* pAggregate,
   pAggregate->mTilesPaintedValidScenario += pStats.mTilesPaintedValidScenario;
   pAggregate->mInconsistentStateA += pStats.mInconsistentStateA;
   pAggregate->mInconsistentStateB += pStats.mInconsistentStateB;
+  pAggregate->mInconsistentStateC += pStats.mInconsistentStateC;
+  pAggregate->mInconsistentStateD += pStats.mInconsistentStateD;
+  pAggregate->mInconsistentStateE += pStats.mInconsistentStateE;
   pAggregate->mSimulationStallCataclysmic += pStats.mSimulationStallCataclysmic;
   pAggregate->mSimulationStallApocalypse += pStats.mSimulationStallApocalypse;
+  pAggregate->mStarBurst += pStats.mStarBurst;
+  pAggregate->mChaosStorm += pStats.mChaosStorm;
+  pAggregate->mCometTrailsHorizontal += pStats.mCometTrailsHorizontal;
+  pAggregate->mCometTrailsVertical += pStats.mCometTrailsVertical;
   pAggregate->mSimulationCount += pProbeStats.mSimulationCount;
   pAggregate->mRobotLifeCount += pProbeStats.mRobotLifeCount;
   pAggregate->mTotalRobotWalk += pProbeStats.mTotalRobotWalk;
@@ -359,8 +387,15 @@ int main(int argc, char** argv) {
               << " tiles_flushed_stalled=" << aAggregate.mTilesFlushedStalled << "\n";
     std::cout << "  inconsistent_a=" << aAggregate.mInconsistentStateA
               << " inconsistent_b=" << aAggregate.mInconsistentStateB
+              << " inconsistent_c=" << aAggregate.mInconsistentStateC
+              << " inconsistent_d=" << aAggregate.mInconsistentStateD
+              << " inconsistent_e=" << aAggregate.mInconsistentStateE
               << " stall_cataclysmic=" << aAggregate.mSimulationStallCataclysmic
               << " stall_apocalypse=" << aAggregate.mSimulationStallApocalypse << "\n";
+    std::cout << "  star_burst=" << aAggregate.mStarBurst
+              << " chaos_storm=" << aAggregate.mChaosStorm
+              << " comet_horizontal=" << aAggregate.mCometTrailsHorizontal
+              << " comet_vertical=" << aAggregate.mCometTrailsVertical << "\n";
     std::cout << "  simulation_count=" << aAggregate.mSimulationCount
               << " robot_lives=" << aAggregate.mRobotLifeCount
               << " avg_robot_walk=" << std::fixed << std::setprecision(4)

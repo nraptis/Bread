@@ -1,0 +1,5 @@
+[INFO] maze grid validity trials_per_mode=100000
+[PASS] mode=custom trials=100000
+[PASS] mode=prim trials=100000
+[PASS] mode=kruskal trials=100000
+[PASS] maze grid validity tests passed

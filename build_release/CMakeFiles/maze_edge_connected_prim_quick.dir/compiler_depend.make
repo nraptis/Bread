@@ -1,0 +1,2 @@
+# Empty compiler generated dependencies file for maze_edge_connected_prim_quick.
+# This may be replaced when dependencies are built.
