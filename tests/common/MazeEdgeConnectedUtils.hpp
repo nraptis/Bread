@@ -6,13 +6,13 @@
 #include <utility>
 #include <vector>
 
-#include "src/maze/Maze.hpp"
+#include "src/Tables/maze/Maze.hpp"
 #include "tests/common/Tests.hpp"
 
-namespace bread::tests::maze_quality {
+namespace peanutbutter::tests::maze_quality {
 
 inline std::uint32_t SeedState(int pSalt, std::uint32_t pMix) {
-  const int aSeedSalt = bread::tests::config::ApplyGlobalSeed(pSalt);
+  const int aSeedSalt = peanutbutter::tests::config::ApplyGlobalSeed(pSalt);
   return pMix ^ (static_cast<std::uint32_t>(aSeedSalt) * 0x9E3779B9U);
 }
 
@@ -33,11 +33,11 @@ inline std::uint32_t NextWord(std::uint32_t* pState) {
   return *pState;
 }
 
-inline void CollectOpenCells(const bread::maze::Maze& pMaze, std::vector<std::pair<int, int>>* pOpenCells) {
+inline void CollectOpenCells(const peanutbutter::maze::Maze& pMaze, std::vector<std::pair<int, int>>* pOpenCells) {
   pOpenCells->clear();
-  pOpenCells->reserve(static_cast<std::size_t>(bread::maze::Maze::kGridSize));
-  for (int aY = 0; aY < bread::maze::Maze::kGridHeight; ++aY) {
-    for (int aX = 0; aX < bread::maze::Maze::kGridWidth; ++aX) {
+  pOpenCells->reserve(static_cast<std::size_t>(peanutbutter::maze::Maze::kGridSize));
+  for (int aY = 0; aY < peanutbutter::maze::Maze::kGridHeight; ++aY) {
+    for (int aX = 0; aX < peanutbutter::maze::Maze::kGridWidth; ++aX) {
       if (!pMaze.IsWall(aX, aY)) {
         pOpenCells->emplace_back(aX, aY);
       }
@@ -45,7 +45,7 @@ inline void CollectOpenCells(const bread::maze::Maze& pMaze, std::vector<std::pa
   }
 }
 
-inline bool VerifyQuickConnectivity(bread::maze::Maze* pMaze,
+inline bool VerifyQuickConnectivity(peanutbutter::maze::Maze* pMaze,
                                     const char* pLabel,
                                     int pLoop,
                                     std::uint32_t pPickMix,
@@ -90,7 +90,7 @@ inline bool VerifyQuickConnectivity(bread::maze::Maze* pMaze,
   return true;
 }
 
-inline bool VerifyExhaustiveConnectivity(bread::maze::Maze* pMaze,
+inline bool VerifyExhaustiveConnectivity(peanutbutter::maze::Maze* pMaze,
                                          const char* pLabel,
                                          int pLoop,
                                          std::uint64_t* pPairChecks,
@@ -133,6 +133,6 @@ inline bool VerifyExhaustiveConnectivity(bread::maze::Maze* pMaze,
   return true;
 }
 
-}  // namespace bread::tests::maze_quality
+}  // namespace peanutbutter::tests::maze_quality
 
 #endif  // BREAD_TESTS_COMMON_MAZEEDGECONNECTEDUTILS_HPP_

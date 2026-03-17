@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "src/rng/Digest.hpp"
+#include "src/Tables/rng/Digest.hpp"
 
 class Ledger {
  public:
@@ -15,12 +15,12 @@ class Ledger {
     double mValue = 0.0;
   };
 
-  Ledger(const std::string& pName, bread::rng::Digest* pDigest, int pSeedSalt = 0)
+  Ledger(const std::string& pName, peanutbutter::rng::Digest* pDigest, int pSeedSalt = 0)
       : mName(pName), mDigest(pDigest), mSeedSalt(pSeedSalt) {}
 
-  bread::rng::Digest* Digest() const { return mDigest; }
+  peanutbutter::rng::Digest* Digest() const { return mDigest; }
 
-  void SetDigest(bread::rng::Digest* pDigest) { mDigest = pDigest; }
+  void SetDigest(peanutbutter::rng::Digest* pDigest) { mDigest = pDigest; }
 
   const std::string& Name() const { return mName; }
 
@@ -42,7 +42,7 @@ class Ledger {
 
  private:
   std::string mName;
-  bread::rng::Digest* mDigest = nullptr;
+  peanutbutter::rng::Digest* mDigest = nullptr;
   int mSeedSalt = 0;
   std::vector<Metric> mMetrics;
 };

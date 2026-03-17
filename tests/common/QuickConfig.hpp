@@ -3,11 +3,11 @@
 
 #include "tests/common/Tests.hpp"
 
-namespace bread::tests::common {
+namespace peanutbutter::tests::common {
 
-inline constexpr int kTinyLoops = bread::tests::config::TEST_LOOP_COUNT;
-inline constexpr int kTinyBytes = bread::tests::config::GAME_TEST_DATA_LENGTH;
+inline constexpr int kTinyLoops = peanutbutter::tests::config::TEST_LOOP_COUNT;
+inline constexpr int kTinyBytes = peanutbutter::tests::config::GAME_TEST_DATA_LENGTH;
 
-}  // namespace bread::tests::common
+}  // namespace peanutbutter::tests::common
 
 #endif  // BREAD_TESTS_COMMON_QUICK_CONFIG_HPP_

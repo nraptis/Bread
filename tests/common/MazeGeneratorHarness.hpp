@@ -3,16 +3,16 @@
 
 #include <cstdint>
 
-#include "src/maze/Maze.hpp"
+#include "src/Tables/maze/Maze.hpp"
 
-namespace bread::tests::maze_generation {
+namespace peanutbutter::tests::maze_generation {
 
-class MazeGeneratorHarness final : public bread::maze::Maze {
+class MazeGeneratorHarness final : public peanutbutter::maze::Maze {
  public:
-  using bread::maze::Maze::Get;
+  using peanutbutter::maze::Maze::Get;
 
   void Seed(unsigned char* pPassword, int pPasswordLength) override {
-    InitializeSeedBuffer(pPassword, pPasswordLength, nullptr);
+    InitializeSeedBuffer(pPassword, pPasswordLength);
     mIndexState = 0x811C9DC5U;
     if (pPassword == nullptr || pPasswordLength <= 0) {
       return;
@@ -48,6 +48,6 @@ class MazeGeneratorHarness final : public bread::maze::Maze {
   std::uint32_t mIndexState = 0x811C9DC5U;
 };
 
-}  // namespace bread::tests::maze_generation
+}  // namespace peanutbutter::tests::maze_generation
 
 #endif  // BREAD_TESTS_COMMON_MAZEGENERATORHARNESS_HPP_

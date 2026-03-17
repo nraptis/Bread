@@ -1,0 +1,231 @@
+WORK STATEMENT
+
+Context
+- Repo root: /Users/magneto/Desktop/Codex Playground/Bread
+- Current fixed expander size: PASSWORD_EXPANDED_SIZE = 7818
+- This task is exploratory and tooling-focused.
+- Do not replace the production twisters yet.
+- Build a generation + grading pipeline first.
+
+Primary Goal
+- Create a toolchain that can generate thousands of candidate byte-twister functions, compile them into a C++ harness, run harsh quality checks, rank the candidates, and emit the best candidates as stand-alone C++ functions.
+
+Outcome Required
+- A Python generator produces candidate C++ twister functions.
+- A C++ harness compiles and runs those generated candidates.
+- The harness grades each candidate on repeat resistance, cycle resistance, and output quality.
+- The pipeline can evaluate thousands of candidates and report the top-scoring ones.
+- The output is suitable for later hand-selection and integration into production.
+
+Important Constraints
+- Generated twisters operate on exactly:
+  - PASSWORD_EXPANDED_SIZE = 7818
+- Each generated twister is a stand-alone C++ function.
+- Each generated twister takes exactly 3 arrays:
+  - source
+  - worker
+  - dest
+- Each generated twister has exactly 2 phases.
+- Offsets must be int64-compatible and preferably multiples of 8.
+- The generated hot path should be compatible with a future NEON/SIMD pass.
+- The generator should favor lane-friendly operations over branchy byte-by-byte logic.
+
+Twister Shape
+
+Phase 1
+- Pick 3 offsets:
+  - offset1
+  - offset2
+  - offset3
+- Offsets should be 8-byte aligned candidates where practical.
+- Loop:
+  - for (i = 0; i < PASSWORD_EXPANDED_SIZE; i += 8)
+- Inputs:
+  - a = source[i]
+  - b = source[i + offset1]
+  - c = source[i + offset2]
+  - d = source[i + offset3]
+- Derived values:
+  - e = OP1(a, [b or c])
+  - f = OP2(d, [the other of b or c])
+  - worker = OP3(e, f)
+- Allowed primary ops:
+  - add
+  - sub
+  - mul
+- Constraint:
+  - at most 1 multiply per twister
+- Allowed sub-ops:
+  - up to 2 total sub-ops per twister
+  - examples:
+    - a + constant
+    - b << shift
+    - c >> shift
+    - xor with constant if needed only if explicitly approved later
+
+Phase 2
+- Re-pick 3 offsets:
+  - offset1
+  - offset2
+  - offset3
+- Loop:
+  - for (i = 0; i < PASSWORD_EXPANDED_SIZE; i += 8)
+- Inputs:
+  - a = source[i]
+  - b = worker[i + offset1]
+  - c = worker[i + offset2]
+  - d = worker[i + offset3]
+- Derived values:
+  - e = OP1(a, [b or c])
+  - f = OP2(d, [the other of b or c])
+  - dest = OP3(e, f)
+- Same op limits apply:
+  - only 1 multiply total per twister
+  - only 2 total sub-ops per twister
+
+Operation Budget
+- Pick a total operation count between 4 and 7.
+- The generator must enforce this budget explicitly.
+- Count the core expression ops, not loop/indexing overhead.
+- The generator must be able to print the chosen op budget for each candidate.
+
+Generator Requirements
+- Language: Python
+- Purpose:
+  - generate candidate twister recipes
+  - emit C++ files containing stand-alone functions
+  - emit metadata for each candidate
+- The generator must produce:
+  - a unique candidate id
+  - the recipe parameters
+  - the generated C++ function text
+  - a stable file name
+- The generator must be able to produce thousands of candidates in one run.
+- The generator must avoid obviously invalid candidates:
+  - duplicate offsets within a phase unless explicitly allowed
+  - illegal op counts
+  - more than 1 multiply
+  - more than 2 sub-ops
+- The generator should support deterministic runs from a seed.
+
+Generated C++ Requirements
+- Each candidate should compile as a stand-alone function.
+- Each function should have a unique name such as:
+  - TwistCandidate_0001
+  - TwistCandidate_0002
+- Prefer a separate generated C++ file that contains many candidate functions plus a registration table.
+- Also emit human-readable recipe comments above each function.
+- The generated code should be easy to paste into production later.
+
+Harness Requirements
+- Language: C++
+- The harness must:
+  - register and execute generated candidates
+  - run a harsh grading suite against each candidate
+  - output machine-readable and human-readable rankings
+- The harness must be able to run a single candidate or many candidates.
+- The harness must support deterministic seeds.
+- The harness must produce a ranking file and a summary report.
+
+Quality Tests Required
+
+1. Repeat resistance
+- Generate a long output stream for each candidate.
+- Target stream length:
+  - 20,000,000 bytes
+- Check for no repeating 128-bit windows.
+- At minimum:
+  - scan a very large sample of 128-bit windows
+  - record first repeat if found
+- Candidates with early repeats should be heavily penalized or rejected.
+
+2. Cycle resistance
+- Detect obvious short cycles when repeatedly feeding output back as input.
+- Record:
+  - first repeated block index if found
+  - cycle length if measurable
+- Penalize short cycles heavily.
+
+3. Uniformity
+- Byte frequency counts across a long stream.
+- Required checks:
+  - byte histogram
+  - entropy estimate
+  - reduced chi-squared or similar
+  - max deviation from expected byte frequency
+
+4. Predictability
+- Measure lag-1 predictability or similar adjacent-byte correlation.
+- Record:
+  - equal-rate drift
+  - correlation magnitude
+  - conditional entropy estimate
+
+5. Avalanche / sensitivity
+- Flip a small change in input and compare output divergence.
+- Measure:
+  - differing output bytes
+  - differing output bits
+- Penalize weak avalanche behavior.
+
+6. Distinctness
+- Candidate outputs should not collapse onto each other easily.
+- Compare first-block and stream similarity across top candidates.
+
+Grading
+- Produce a single composite score per candidate.
+- Also keep sub-scores:
+  - repeat_score
+  - cycle_score
+  - uniformity_score
+  - predictability_score
+  - avalanche_score
+  - distinctness_score
+- Output top N candidates sorted by composite score.
+- Output worst failure reason for rejected candidates.
+
+Reporting
+- Required outputs:
+  - ranked summary text file
+  - machine-readable results file, preferably CSV or JSON
+  - generated C++ file for top candidates
+- The summary must include:
+  - candidate id
+  - composite score
+  - each sub-score
+  - recipe parameters
+  - emitted function name
+
+Suggested File Layout
+- tools/
+  - generate_twist_candidates.py
+- generated/
+  - twist_candidates_generated.cpp
+  - twist_candidates_manifest.json
+  - twist_candidate_scores.csv
+  - twist_candidate_summary.txt
+- tests_regression/ or a dedicated harness location
+  - TwistCandidateHarness.cpp
+
+Integration Guidance
+- Keep the production ByteTwister path unchanged for now.
+- The search harness should be parallel to production, not inside it.
+- Only after grading and hand-selection should chosen candidates be integrated into the real expander path.
+
+Acceptance Criteria
+- A single command can generate candidate functions.
+- A single command can build and run the grading harness.
+- The harness can evaluate at least 1000 candidates in one batch.
+- The harness emits a ranked list of best candidates.
+- The tool emits stand-alone C++ functions for the top candidates.
+- The grading run is deterministic for a fixed seed.
+
+Non-Goals For This Pass
+- Do not swap the production password expander over to generated candidates yet.
+- Do not do the final NEON implementation yet.
+- Do not optimize for perfect throughput before the grading pipeline exists.
+
+Notes For The Next Thread
+- Use existing repo quality helpers where useful, but do not force the design around them if they are too noisy or rigid.
+- Favor a clean generator/harness boundary over trying to make the runtime path dynamic.
+- The key deliverable is selection tooling, not a final twister.

@@ -1,0 +1,151 @@
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <string_view>
+#include <vector>
+
+#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/games/engine/GameBoard.hpp"
+#include "tests/common/CounterSeedBuffer.hpp"
+#include "tests/common/GameCatalog.hpp"
+#include "tests/common/GameChunkRunner.hpp"
+#include "tests/common/Tests.hpp"
+#include "tests_regression/PerseveranceSuiteCore.hpp"
+
+namespace {
+
+std::uint32_t SeedState(int pSalt) {
+  const int aSeedSalt = peanutbutter::tests::config::ApplyGlobalSeed(pSalt);
+  return 0x7F4A7C15U ^ (static_cast<std::uint32_t>(aSeedSalt) * 0x9E3779B9U);
+}
+
+void FillInput(std::vector<unsigned char>* pBytes, int pTrial, int pSalt) {
+  std::uint32_t aState = SeedState(pTrial + pSalt + static_cast<int>(pBytes->size()));
+  for (std::size_t aIndex = 0; aIndex < pBytes->size(); ++aIndex) {
+    aState ^= (aState << 13U);
+    aState ^= (aState >> 17U);
+    aState ^= (aState << 5U);
+    (*pBytes)[aIndex] = static_cast<unsigned char>(aState & 0xFFU);
+  }
+}
+
+bool SameSummary(const peanutbutter::tests::games::GameRunSummary& pLeft,
+                 const peanutbutter::tests::games::GameRunSummary& pRight) {
+  return pLeft.mSuccessfulMoveCount == pRight.mSuccessfulMoveCount &&
+         pLeft.mBrokenCount == pRight.mBrokenCount &&
+         pLeft.mRuntimeStats.mStuck == pRight.mRuntimeStats.mStuck &&
+         pLeft.mRuntimeStats.mTopple == pRight.mRuntimeStats.mTopple &&
+         pLeft.mRuntimeStats.mUserMatch == pRight.mRuntimeStats.mUserMatch &&
+         pLeft.mRuntimeStats.mCascadeMatch == pRight.mRuntimeStats.mCascadeMatch &&
+         pLeft.mRuntimeStats.mGameStateOverflowCatastrophic == pRight.mRuntimeStats.mGameStateOverflowCatastrophic &&
+         pLeft.mRuntimeStats.mGameStateOverflowCataclysmic == pRight.mRuntimeStats.mGameStateOverflowCataclysmic &&
+         pLeft.mRuntimeStats.mGameStateOverflowApocalypse == pRight.mRuntimeStats.mGameStateOverflowApocalypse &&
+         pLeft.mRuntimeStats.mPowerUpSpawned == pRight.mRuntimeStats.mPowerUpSpawned &&
+         pLeft.mRuntimeStats.mPowerUpConsumed == pRight.mRuntimeStats.mPowerUpConsumed &&
+         pLeft.mRuntimeStats.mPasswordExpanderWraps == pRight.mRuntimeStats.mPasswordExpanderWraps &&
+         pLeft.mRuntimeStats.mDragonAttack == pRight.mRuntimeStats.mDragonAttack &&
+         pLeft.mRuntimeStats.mRiddlerAttack == pRight.mRuntimeStats.mRiddlerAttack;
+}
+
+bool RunPerseveranceCase(const peanutbutter::tests::games::GameCatalogEntry& pEntry,
+                        int pLoops,
+                        int pDataLength,
+                        std::uint64_t* pDigest) {
+  for (int aLoop = 0; aLoop < pLoops; ++aLoop) {
+    std::vector<unsigned char> aInput(static_cast<std::size_t>(pDataLength), 0U);
+    std::vector<unsigned char> aOutputA(static_cast<std::size_t>(pDataLength), 0U);
+    std::vector<unsigned char> aOutputB(static_cast<std::size_t>(pDataLength), 0U);
+    FillInput(&aInput, aLoop, pEntry.mSalt);
+
+    peanutbutter::tests::games::GameRunSummary aSummaryA;
+    peanutbutter::tests::games::GameRunSummary aSummaryB;
+    if (!peanutbutter::tests::games::RunGameChunksFromInput<MersenneCounter>(
+            pEntry.mGameIndex, aInput.data(), pDataLength, aOutputA.data(), &aSummaryA)) {
+      std::cerr << "[FAIL] invalid game byte length=" << pDataLength << "\n";
+      return false;
+    }
+    if (!peanutbutter::tests::games::RunGameChunksFromInput<MersenneCounter>(
+            pEntry.mGameIndex, aInput.data(), pDataLength, aOutputB.data(), &aSummaryB)) {
+      std::cerr << "[FAIL] invalid game byte length=" << pDataLength << "\n";
+      return false;
+    }
+
+    const char* aName = peanutbutter::tests::games::GetGameName(pEntry.mGameIndex);
+    if (aName == nullptr || aName[0] == '\0') {
+      std::cerr << "[FAIL] game name missing at loop " << aLoop << "\n";
+      return false;
+    }
+
+    if (aOutputA != aOutputB) {
+      std::cerr << "[FAIL] " << aName << " perseverance output mismatch at loop " << aLoop
+                << " bytes=" << pDataLength << "\n";
+      return false;
+    }
+    if (!SameSummary(aSummaryA, aSummaryB)) {
+      std::cerr << "[FAIL] " << aName << " perseverance stats mismatch at loop " << aLoop
+                << " bytes=" << pDataLength << "\n";
+      return false;
+    }
+
+    if (pDigest != nullptr) {
+      for (unsigned char aByte : aOutputA) {
+        *pDigest = (*pDigest * 1099511628211ULL) ^ static_cast<std::uint64_t>(aByte);
+      }
+    }
+  }
+
+  std::cout << "[PASS] " << peanutbutter::tests::games::GetGameName(pEntry.mGameIndex)
+            << " perseverance loops=" << pLoops << " bytes=" << pDataLength << "\n";
+  return true;
+}
+
+bool RunPerseveranceGames(std::string_view pMode, int pLoops, int pDataLength) {
+  if (pMode != "games" && pMode != "all") {
+    return false;
+  }
+  if (!peanutbutter::tests::games::IsValidGameByteLength(pDataLength)) {
+    std::cerr << "[FAIL] game byte length must be a positive multiple of "
+              << peanutbutter::games::GameBoard::kSeedBufferCapacity
+              << " bytes, got " << pDataLength << "\n";
+    return false;
+  }
+
+  std::uint64_t aDigest = 1469598103934665603ULL;
+
+  for (const peanutbutter::tests::games::GameCatalogEntry& aEntry : peanutbutter::tests::games::kAllGames) {
+    if (!RunPerseveranceCase(aEntry, pLoops, pDataLength, &aDigest)) {
+      return false;
+    }
+  }
+
+  std::cout << "[PASS] game perseverance tests passed"
+            << " loops=" << pLoops << " bytes=" << pDataLength
+            << " games=" << peanutbutter::tests::games::kAllGames.size()
+            << " digest=" << aDigest << "\n";
+  return true;
+}
+
+}  // namespace
+
+namespace peanutbutter::tests::perseverance {
+
+bool RunDigestPerseveranceSuite(std::string_view pMode, int pLoops, int pDataLength) {
+  if (pMode.empty()) {
+    pMode = "games";
+  }
+
+  if (!RunPerseveranceGames(pMode, pLoops, pDataLength)) {
+    if (pMode == "games") {
+      std::cerr << "[FAIL] game perseverance mismatch\n";
+    } else if (pMode == "all") {
+      std::cerr << "[FAIL] perseverance mismatch\n";
+    } else {
+      std::cerr << "[FAIL] unknown perseverance mode=" << pMode << " (expected games or all)\n";
+    }
+    return false;
+  }
+
+  return true;
+}
+
+}  // namespace peanutbutter::tests::perseverance

@@ -5,27 +5,26 @@
 #include <array>
 #include <cstring>
 
-#include "src/core/Bread.hpp"
-#include "src/expansion/key_expansion/PasswordExpander.hpp"
-#include "src/rng/Digest.hpp"
+#include "src/PeanutButter.hpp"
+#include "src/Tables/password_expanders/PasswordExpander.hpp"
+#include "src/Tables/rng/Digest.hpp"
 
-class ExpanderDigestAdapter final : public bread::rng::Digest {
+class ExpanderDigestAdapter final : public peanutbutter::rng::Digest {
  public:
-  explicit ExpanderDigestAdapter(bread::expansion::key_expansion::PasswordExpander* pExpander)
-      : mExpander(pExpander) {
+  explicit ExpanderDigestAdapter(
+      peanutbutter::expansion::key_expansion::PasswordExpander::Type pType)
+      : mType(pType) {
     std::memset(mBlock.data(), 0, mBlock.size());
   }
 
   void Seed(unsigned char* pPassword, int pPasswordLength) override {
-    if (mExpander == nullptr) {
-      return;
-    }
-    mExpander->Expand(pPassword, pPasswordLength, mBlock.data());
+    peanutbutter::expansion::key_expansion::PasswordExpander::ExpandPassword(
+        mType, pPassword, mWorker.data(), mBlock.data(), static_cast<unsigned int>(pPasswordLength));
     mCursor = 0;
   }
 
   void Get(unsigned char* pDestination, int pDestinationLength) override {
-    if (mExpander == nullptr || pDestination == nullptr || pDestinationLength <= 0) {
+    if (pDestination == nullptr || pDestinationLength <= 0) {
       return;
     }
 
@@ -47,17 +46,16 @@ class ExpanderDigestAdapter final : public bread::rng::Digest {
 
  private:
   void Refill() {
-    if (mExpander == nullptr) {
-      return;
-    }
     std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aNext = {};
-    mExpander->Expand(mBlock.data(), PASSWORD_EXPANDED_SIZE, aNext.data());
+    peanutbutter::expansion::key_expansion::PasswordExpander::ExpandPassword(
+        mType, mBlock.data(), mWorker.data(), aNext.data(), PASSWORD_EXPANDED_SIZE);
     mBlock = aNext;
     mCursor = 0;
   }
 
-  bread::expansion::key_expansion::PasswordExpander* mExpander = nullptr;
+  peanutbutter::expansion::key_expansion::PasswordExpander::Type mType;
   std::array<unsigned char, PASSWORD_EXPANDED_SIZE> mBlock = {};
+  std::array<unsigned char, PASSWORD_EXPANDED_SIZE> mWorker = {};
   int mCursor = PASSWORD_EXPANDED_SIZE;
 };
 

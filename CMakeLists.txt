@@ -6,113 +6,65 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(bread_core
-  src/core/BreadCore.cpp
-  src/core/Glyph.cpp
-  src/expansion/password_inflation/Inflater_Twenty.cpp
-  src/expansion/key_expansion/PasswordExpanderA.cpp
-  src/expansion/key_expansion/PasswordExpanderB.cpp
-  src/expansion/key_expansion/PasswordExpanderC.cpp
-  src/expansion/key_expansion/PasswordExpanderD.cpp
-  src/expansion/key_expansion/PasswordExpanderE.cpp
-  src/expansion/key_expansion/PasswordExpanderF.cpp
-  src/expansion/key_expansion/PasswordExpanderG.cpp
-  src/expansion/key_expansion/PasswordExpanderH.cpp
-  src/expansion/key_expansion/PasswordBalloonerA.cpp
-  src/counters/AESCounter.cpp
-  src/counters/ARIA256Counter.cpp
-  src/counters/ChaCha20Counter.cpp
-  src/counters/MersenneCounter.cpp
-  src/fast_rand/FastRand.cpp
-  src/matrices/FastMatrix.cpp
-  src/maze/Maze.cpp
-  src/maze/MazeRobotCheese.cpp
-  src/maze/MazeDolphinSharks.cpp
-  src/games/engine/GameBoard.cpp
-  src/games/engine/GamePlayDirector.cpp
-  src/games/engine/GamePowerUp.cpp
-  src/games/engine/GameBoard_Island.cpp
-  src/games/engine/GameBoard_Streak.cpp
-  src/games/minigames/MatchThreeTapIslands.cpp
-  src/games/minigames/MatchThreeTapStreaks.cpp
-  src/games/minigames/MatchThreeSwapIslands.cpp
-  src/games/minigames/MatchThreeSwapStreaks.cpp
-  src/games/minigames/MatchThreeSlideIslands.cpp
-  src/games/minigames/MatchThreeSlideStreaks.cpp
+add_library(peanutbutter_core
+  src/PeanutButter.cpp
+  src/Tables/password_expanders/ByteTwister.cpp
+  src/Tables/password_expanders/PasswordExpander.cpp
+  src/Tables/counters/AESCounter.cpp
+  src/Tables/counters/ARIA256Counter.cpp
+  src/Tables/counters/ChaCha20Counter.cpp
+  src/Tables/counters/MersenneCounter.cpp
+  src/Tables/rng/Shuffler.cpp
+  src/Tables/fast_rand/FastRand.cpp
+  src/Tables/matrices/FastMatrix.cpp
+  src/Tables/maze/Maze.cpp
+  src/Tables/maze/MazeHelpers.cpp
+  src/Tables/maze/MazePolicy.cpp
+  src/Tables/maze/MazeDirector.cpp
+  src/Tables/games/engine/GameBoard.cpp
+  src/Tables/games/engine/GamePlayDirector.cpp
+  src/Tables/games/engine/GamePowerUp.cpp
 )
 
-target_include_directories(bread_core
+target_include_directories(peanutbutter_core
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/counters
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/crypto
 )
 
 if(MSVC)
-  target_compile_options(bread_core PRIVATE /W4)
+  target_compile_options(peanutbutter_core PRIVATE /W4)
 else()
-  target_compile_options(bread_core PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(peanutbutter_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 add_executable(bread_main
   src/core/main.cpp
 )
-target_link_libraries(bread_main PRIVATE bread_core)
+target_link_libraries(bread_main PRIVATE peanutbutter_core)
 
-add_executable(display_robot_maze
-  tests/visualization/Display_RobotMaze.cpp
+add_executable(maze_sim_matrix
+  tools/Maze_sim_matrix.cpp
 )
-target_link_libraries(display_robot_maze PRIVATE bread_core)
-target_include_directories(display_robot_maze
+target_link_libraries(maze_sim_matrix PRIVATE peanutbutter_core)
+target_include_directories(maze_sim_matrix
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 if(MSVC)
-  target_compile_options(display_robot_maze PRIVATE /W4)
+  target_compile_options(maze_sim_matrix PRIVATE /W4)
 else()
-  target_compile_options(display_robot_maze PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(maze_sim_matrix PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-add_executable(display_prim_maze
-  tests/visualization/Display_PrimMaze.cpp
-)
-target_link_libraries(display_prim_maze PRIVATE bread_core)
-target_include_directories(display_prim_maze
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(display_prim_maze PRIVATE /W4)
-else()
-  target_compile_options(display_prim_maze PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_executable(display_kruskal_maze
-  tests/visualization/Display_KruskalMaze.cpp
-)
-target_link_libraries(display_kruskal_maze PRIVATE bread_core)
-target_include_directories(display_kruskal_maze
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(display_kruskal_maze PRIVATE /W4)
-else()
-  target_compile_options(display_kruskal_maze PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_smoke" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_regression")
 enable_testing()
 
 add_executable(fast_matrix_round_trip_tests
-  tests/round_trip/FastMatrix_round_trip_tests.cpp
+  tests_smoke/FastMatrix_round_trip_tests.cpp
 )
-target_link_libraries(fast_matrix_round_trip_tests PRIVATE bread_core)
+target_link_libraries(fast_matrix_round_trip_tests PRIVATE peanutbutter_core)
 target_include_directories(fast_matrix_round_trip_tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -125,12 +77,12 @@ else()
 endif()
 
 add_test(NAME FastMatrixRoundTripTests COMMAND fast_matrix_round_trip_tests)
-set_tests_properties(FastMatrixRoundTripTests PROPERTIES LABELS "round_trip")
+set_tests_properties(FastMatrixRoundTripTests PROPERTIES LABELS "smoke;verification;round_trip")
 
 add_executable(maze_pathfinding_tests
-  tests/round_trip/Maze_pathfinding_tests.cpp
+  tests_smoke/Maze_pathfinding_tests.cpp
 )
-target_link_libraries(maze_pathfinding_tests PRIVATE bread_core)
+target_link_libraries(maze_pathfinding_tests PRIVATE peanutbutter_core)
 target_include_directories(maze_pathfinding_tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -143,166 +95,12 @@ else()
 endif()
 
 add_test(NAME MazePathfindingTests COMMAND $<TARGET_FILE:maze_pathfinding_tests>)
-set_tests_properties(MazePathfindingTests PROPERTIES LABELS "round_trip")
-
-add_executable(benchmark_counters_matrix_tests
-  tests/benchmark/Benchmark_CountersAndMatrix.cpp
-)
-target_link_libraries(benchmark_counters_matrix_tests PRIVATE bread_core)
-target_include_directories(benchmark_counters_matrix_tests
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(benchmark_counters_matrix_tests PRIVATE /W4)
-else()
-  target_compile_options(benchmark_counters_matrix_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME BenchmarkCountersAndMatrix COMMAND benchmark_counters_matrix_tests)
-set_tests_properties(BenchmarkCountersAndMatrix PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(benchmark_counter_speed_comparison
-  tests/benchmark/Benchmark_CounterSpeedComparison.cpp
-)
-target_link_libraries(benchmark_counter_speed_comparison PRIVATE bread_core)
-target_include_directories(benchmark_counter_speed_comparison
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(benchmark_counter_speed_comparison PRIVATE /W4)
-else()
-  target_compile_options(benchmark_counter_speed_comparison PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME BenchmarkCounterSpeedComparison COMMAND benchmark_counter_speed_comparison)
-set_tests_properties(BenchmarkCounterSpeedComparison PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(benchmark_counter_uniformity_baseline
-  tests/benchmark/Benchmark_CounterUniformityBaseline.cpp
-)
-target_link_libraries(benchmark_counter_uniformity_baseline PRIVATE bread_core)
-target_include_directories(benchmark_counter_uniformity_baseline
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(benchmark_counter_uniformity_baseline PRIVATE /W4)
-else()
-  target_compile_options(benchmark_counter_uniformity_baseline PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME BenchmarkCounterUniformityBaseline COMMAND benchmark_counter_uniformity_baseline)
-set_tests_properties(BenchmarkCounterUniformityBaseline PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(benchmark_counter_uniformity_all
-  tests/benchmark/Benchmark_CounterUniformityAll.cpp
-)
-target_link_libraries(benchmark_counter_uniformity_all PRIVATE bread_core)
-target_include_directories(benchmark_counter_uniformity_all
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(benchmark_counter_uniformity_all PRIVATE /W4)
-else()
-  target_compile_options(benchmark_counter_uniformity_all PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME BenchmarkCounterUniformityAll COMMAND benchmark_counter_uniformity_all)
-set_tests_properties(BenchmarkCounterUniformityAll PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(benchmark_counter_predictability_all
-  tests/benchmark/Benchmark_CounterPredictabilityAll.cpp
-)
-target_link_libraries(benchmark_counter_predictability_all PRIVATE bread_core)
-target_include_directories(benchmark_counter_predictability_all
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(benchmark_counter_predictability_all PRIVATE /W4)
-else()
-  target_compile_options(benchmark_counter_predictability_all PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME BenchmarkCounterPredictabilityAll COMMAND benchmark_counter_predictability_all)
-set_tests_properties(BenchmarkCounterPredictabilityAll PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(benchmark_password_expander_quality_speed
-  tests/benchmark/Benchmark_PasswordExpanders_QualityAndSpeed.cpp
-)
-target_link_libraries(benchmark_password_expander_quality_speed PRIVATE bread_core)
-target_include_directories(benchmark_password_expander_quality_speed
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(benchmark_password_expander_quality_speed PRIVATE /W4)
-else()
-  target_compile_options(benchmark_password_expander_quality_speed PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME BenchmarkPasswordExpanderQualityAndSpeed COMMAND benchmark_password_expander_quality_speed)
-set_tests_properties(BenchmarkPasswordExpanderQualityAndSpeed PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(password_extender_quality
-  tests/quality/PasswordExtenderQuality.cpp
-)
-target_link_libraries(password_extender_quality PRIVATE bread_core)
-target_include_directories(password_extender_quality
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(password_extender_quality PRIVATE /W4)
-else()
-  target_compile_options(password_extender_quality PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME PasswordExtenderQuality COMMAND password_extender_quality)
-set_tests_properties(PasswordExtenderQuality PROPERTIES
-  LABELS "quality"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
+set_tests_properties(MazePathfindingTests PROPERTIES LABELS "smoke;verification;round_trip")
 
 add_executable(maze_path_finding
-  tests/quality/MazePathFinding.cpp
+  tests_regression/MazePathFinding.cpp
 )
-target_link_libraries(maze_path_finding PRIVATE bread_core)
+target_link_libraries(maze_path_finding PRIVATE peanutbutter_core)
 target_include_directories(maze_path_finding
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -316,37 +114,15 @@ endif()
 
 add_test(NAME MazePathFinding COMMAND maze_path_finding)
 set_tests_properties(MazePathFinding PROPERTIES
-  LABELS "quality"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(maze_edge_connected
-  tests/quality/MazeEdgeConnected.cpp
-)
-target_link_libraries(maze_edge_connected PRIVATE bread_core)
-target_include_directories(maze_edge_connected
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(maze_edge_connected PRIVATE /W4)
-else()
-  target_compile_options(maze_edge_connected PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME MazeEdgeConnected COMMAND $<TARGET_FILE:maze_edge_connected>)
-set_tests_properties(MazeEdgeConnected PROPERTIES
-  LABELS "quality"
+  LABELS "regression;verification;quality"
   RUN_SERIAL TRUE
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 add_executable(maze_edge_connected_quick
-  tests/quality/MazeEdgeConnectedQuick.cpp
+  tests_regression/MazeEdgeConnectedQuick.cpp
 )
-target_link_libraries(maze_edge_connected_quick PRIVATE bread_core)
+target_link_libraries(maze_edge_connected_quick PRIVATE peanutbutter_core)
 target_include_directories(maze_edge_connected_quick
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -360,37 +136,15 @@ endif()
 
 add_test(NAME MazeEdgeConnectedQuick COMMAND $<TARGET_FILE:maze_edge_connected_quick>)
 set_tests_properties(MazeEdgeConnectedQuick PROPERTIES
-  LABELS "quality"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(maze_edge_connected_prim
-  tests/quality/MazeEdgeConnectedPrim.cpp
-)
-target_link_libraries(maze_edge_connected_prim PRIVATE bread_core)
-target_include_directories(maze_edge_connected_prim
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(maze_edge_connected_prim PRIVATE /W4)
-else()
-  target_compile_options(maze_edge_connected_prim PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME MazeEdgeConnectedPrim COMMAND $<TARGET_FILE:maze_edge_connected_prim>)
-set_tests_properties(MazeEdgeConnectedPrim PROPERTIES
-  LABELS "quality"
+  LABELS "regression;verification;quality"
   RUN_SERIAL TRUE
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 add_executable(maze_edge_connected_prim_quick
-  tests/quality/MazeEdgeConnectedPrimQuick.cpp
+  tests_regression/MazeEdgeConnectedPrimQuick.cpp
 )
-target_link_libraries(maze_edge_connected_prim_quick PRIVATE bread_core)
+target_link_libraries(maze_edge_connected_prim_quick PRIVATE peanutbutter_core)
 target_include_directories(maze_edge_connected_prim_quick
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -404,37 +158,15 @@ endif()
 
 add_test(NAME MazeEdgeConnectedPrimQuick COMMAND $<TARGET_FILE:maze_edge_connected_prim_quick>)
 set_tests_properties(MazeEdgeConnectedPrimQuick PROPERTIES
-  LABELS "quality"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(maze_edge_connected_kruskal
-  tests/quality/MazeEdgeConnectedKruskal.cpp
-)
-target_link_libraries(maze_edge_connected_kruskal PRIVATE bread_core)
-target_include_directories(maze_edge_connected_kruskal
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(maze_edge_connected_kruskal PRIVATE /W4)
-else()
-  target_compile_options(maze_edge_connected_kruskal PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME MazeEdgeConnectedKruskal COMMAND $<TARGET_FILE:maze_edge_connected_kruskal>)
-set_tests_properties(MazeEdgeConnectedKruskal PROPERTIES
-  LABELS "quality"
+  LABELS "regression;verification;quality"
   RUN_SERIAL TRUE
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 add_executable(maze_edge_connected_kruskal_quick
-  tests/quality/MazeEdgeConnectedKruskalQuick.cpp
+  tests_regression/MazeEdgeConnectedKruskalQuick.cpp
 )
-target_link_libraries(maze_edge_connected_kruskal_quick PRIVATE bread_core)
+target_link_libraries(maze_edge_connected_kruskal_quick PRIVATE peanutbutter_core)
 target_include_directories(maze_edge_connected_kruskal_quick
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -448,130 +180,66 @@ endif()
 
 add_test(NAME MazeEdgeConnectedKruskalQuick COMMAND $<TARGET_FILE:maze_edge_connected_kruskal_quick>)
 set_tests_properties(MazeEdgeConnectedKruskalQuick PROPERTIES
-  LABELS "quality"
+  LABELS "regression;verification;quality"
   RUN_SERIAL TRUE
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_executable(benchmark_games_speed_repeatability
-  tests/benchmark/Benchmark_Games_Speed_Repeatability.cpp
+add_executable(game_confusion_matrix
+  tests_regression/Game_confusion_matrix.cpp
 )
-target_link_libraries(benchmark_games_speed_repeatability PRIVATE bread_core)
-target_include_directories(benchmark_games_speed_repeatability
+target_link_libraries(game_confusion_matrix PRIVATE peanutbutter_core)
+target_include_directories(game_confusion_matrix
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 if(MSVC)
-  target_compile_options(benchmark_games_speed_repeatability PRIVATE /W4)
+  target_compile_options(game_confusion_matrix PRIVATE /W4)
 else()
-  target_compile_options(benchmark_games_speed_repeatability PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(game_confusion_matrix PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-add_test(NAME BenchmarkGamesSpeedRepeatability COMMAND benchmark_games_speed_repeatability)
-set_tests_properties(BenchmarkGamesSpeedRepeatability PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+add_executable(password_expander_quality_report
+  tests_regression/PasswordExpander_quality_report.cpp
 )
-
-add_executable(benchmark_games_stats
-  tests/benchmark/Benchmark_Games_Stats.cpp
-)
-target_link_libraries(benchmark_games_stats PRIVATE bread_core)
-target_include_directories(benchmark_games_stats
+target_link_libraries(password_expander_quality_report PRIVATE peanutbutter_core)
+target_include_directories(password_expander_quality_report
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 if(MSVC)
-  target_compile_options(benchmark_games_stats PRIVATE /W4)
+  target_compile_options(password_expander_quality_report PRIVATE /W4)
 else()
-  target_compile_options(benchmark_games_stats PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(password_expander_quality_report PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-add_test(NAME BenchmarkGamesStats COMMAND benchmark_games_stats)
-set_tests_properties(BenchmarkGamesStats PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+add_executable(password_expander_confusion_matrix
+  tests_regression/PasswordExpander_confusion_matrix.cpp
 )
-
-add_executable(benchmark_maze_speed_repeatability
-  tests/benchmark/Benchmark_Maze_Speed_Repeatability.cpp
-)
-target_link_libraries(benchmark_maze_speed_repeatability PRIVATE bread_core)
-target_include_directories(benchmark_maze_speed_repeatability
+target_link_libraries(password_expander_confusion_matrix PRIVATE peanutbutter_core)
+target_include_directories(password_expander_confusion_matrix
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 if(MSVC)
-  target_compile_options(benchmark_maze_speed_repeatability PRIVATE /W4)
+  target_compile_options(password_expander_confusion_matrix PRIVATE /W4)
 else()
-  target_compile_options(benchmark_maze_speed_repeatability PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(password_expander_confusion_matrix PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-add_test(NAME BenchmarkMazeSpeedRepeatability COMMAND benchmark_maze_speed_repeatability)
-set_tests_properties(BenchmarkMazeSpeedRepeatability PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(benchmark_maze_stats
-  tests/benchmark/Benchmark_Maze_Stats.cpp
-)
-target_link_libraries(benchmark_maze_stats PRIVATE bread_core)
-target_include_directories(benchmark_maze_stats
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(benchmark_maze_stats PRIVATE /W4)
-else()
-  target_compile_options(benchmark_maze_stats PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME BenchmarkMazeStats COMMAND benchmark_maze_stats)
-set_tests_properties(BenchmarkMazeStats PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(benchmark_minigames_speed_expander
-  tests/benchmark/Benchmark_Minigames_Speed9216.cpp
-)
-target_link_libraries(benchmark_minigames_speed_expander PRIVATE bread_core)
-target_include_directories(benchmark_minigames_speed_expander
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(benchmark_minigames_speed_expander PRIVATE /W4)
-else()
-  target_compile_options(benchmark_minigames_speed_expander PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME BenchmarkMinigamesSpeedExpander COMMAND benchmark_minigames_speed_expander)
-set_tests_properties(BenchmarkMinigamesSpeedExpander PROPERTIES
-  LABELS "benchmark"
-  RUN_SERIAL TRUE
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
 add_executable(game_repeatability_tests
-  tests/repeatability/Games_repeatability_tests.cpp
-  tests/repeatability/RepeatabilitySuiteCore.cpp
-  tests/repeatability/DigestRepeatability_Short_Passwords.cpp
-  tests/repeatability/DigestRepeatability_Medium_Passwords.cpp
-  tests/repeatability/DigestRepeatability_Oversized_Passwords.cpp
-  tests/repeatability/DigestRepeatability_Contaminated_Passwords.cpp
-  tests/repeatability/DigestRepeatability_Manual_Passwords.cpp
+  tests_regression/Games_repeatability_tests.cpp
+  tests_regression/RepeatabilitySuiteCore.cpp
+  tests_regression/DigestRepeatability_Short_Passwords.cpp
+  tests_regression/DigestRepeatability_Medium_Passwords.cpp
+  tests_regression/DigestRepeatability_Oversized_Passwords.cpp
+  tests_regression/DigestRepeatability_Contaminated_Passwords.cpp
+  tests_regression/DigestRepeatability_Manual_Passwords.cpp
 )
-target_link_libraries(game_repeatability_tests PRIVATE bread_core)
+target_link_libraries(game_repeatability_tests PRIVATE peanutbutter_core)
 target_include_directories(game_repeatability_tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -584,12 +252,12 @@ else()
 endif()
 
 add_test(NAME GameRepeatabilityTests COMMAND game_repeatability_tests)
-set_tests_properties(GameRepeatabilityTests PROPERTIES LABELS "repeatability")
+set_tests_properties(GameRepeatabilityTests PROPERTIES LABELS "regression;verification;repeatability")
 
 add_executable(counter_repeatability_tests
-  tests/repeatability/Counters_repeatability_tests.cpp
+  tests_regression/Counters_repeatability_tests.cpp
 )
-target_link_libraries(counter_repeatability_tests PRIVATE bread_core)
+target_link_libraries(counter_repeatability_tests PRIVATE peanutbutter_core)
 target_include_directories(counter_repeatability_tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -602,18 +270,69 @@ else()
 endif()
 
 add_test(NAME CounterRepeatabilityTests COMMAND counter_repeatability_tests)
-set_tests_properties(CounterRepeatabilityTests PROPERTIES LABELS "repeatability")
+set_tests_properties(CounterRepeatabilityTests PROPERTIES LABELS "regression;verification;repeatability")
+
+add_executable(fast_rand_repeatability_tests
+  tests_regression/FastRand_repeatability_tests.cpp
+)
+target_link_libraries(fast_rand_repeatability_tests PRIVATE peanutbutter_core)
+target_include_directories(fast_rand_repeatability_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(fast_rand_repeatability_tests PRIVATE /W4)
+else()
+  target_compile_options(fast_rand_repeatability_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME FastRandRepeatabilityTests COMMAND fast_rand_repeatability_tests)
+set_tests_properties(FastRandRepeatabilityTests PROPERTIES LABELS "regression;verification;repeatability")
+
+add_executable(byte_twister_poison_repeatability_tests
+  tests_regression/ByteTwister_poison_repeatability_tests.cpp
+)
+target_link_libraries(byte_twister_poison_repeatability_tests PRIVATE peanutbutter_core)
+target_include_directories(byte_twister_poison_repeatability_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(byte_twister_poison_repeatability_tests PRIVATE /W4)
+else()
+  target_compile_options(byte_twister_poison_repeatability_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME ByteTwisterPoisonRepeatabilityTests COMMAND byte_twister_poison_repeatability_tests)
+set_tests_properties(ByteTwisterPoisonRepeatabilityTests PROPERTIES LABELS "regression;verification;repeatability")
+
+add_executable(table_fill_and_engine_benchmark
+  tests_regression/Table_fill_and_engine_benchmark.cpp
+)
+target_link_libraries(table_fill_and_engine_benchmark PRIVATE peanutbutter_core)
+target_include_directories(table_fill_and_engine_benchmark
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(table_fill_and_engine_benchmark PRIVATE /W4)
+else()
+  target_compile_options(table_fill_and_engine_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 add_executable(digest_repeatability_suite
-  tests/repeatability/DigestRepeatabilitySuite.cpp
-  tests/repeatability/RepeatabilitySuiteCore.cpp
-  tests/repeatability/DigestRepeatability_Short_Passwords.cpp
-  tests/repeatability/DigestRepeatability_Medium_Passwords.cpp
-  tests/repeatability/DigestRepeatability_Oversized_Passwords.cpp
-  tests/repeatability/DigestRepeatability_Contaminated_Passwords.cpp
-  tests/repeatability/DigestRepeatability_Manual_Passwords.cpp
+  tests_regression/DigestRepeatabilitySuite.cpp
+  tests_regression/RepeatabilitySuiteCore.cpp
+  tests_regression/DigestRepeatability_Short_Passwords.cpp
+  tests_regression/DigestRepeatability_Medium_Passwords.cpp
+  tests_regression/DigestRepeatability_Oversized_Passwords.cpp
+  tests_regression/DigestRepeatability_Contaminated_Passwords.cpp
+  tests_regression/DigestRepeatability_Manual_Passwords.cpp
 )
-target_link_libraries(digest_repeatability_suite PRIVATE bread_core)
+target_link_libraries(digest_repeatability_suite PRIVATE peanutbutter_core)
 target_include_directories(digest_repeatability_suite
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -626,12 +345,12 @@ else()
 endif()
 
 add_test(NAME DigestRepeatabilitySuite COMMAND digest_repeatability_suite)
-set_tests_properties(DigestRepeatabilitySuite PROPERTIES LABELS "repeatability")
+set_tests_properties(DigestRepeatabilitySuite PROPERTIES LABELS "regression;verification;repeatability")
 
 add_executable(test_password_expander
-  tests/repeatability/Test_PasswordExpander.cpp
+  tests_smoke/Test_PasswordExpander.cpp
 )
-target_link_libraries(test_password_expander PRIVATE bread_core)
+target_link_libraries(test_password_expander PRIVATE peanutbutter_core)
 target_include_directories(test_password_expander
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -644,13 +363,31 @@ else()
 endif()
 
 add_test(NAME TestPasswordExpander COMMAND test_password_expander)
-set_tests_properties(TestPasswordExpander PROPERTIES LABELS "repeatability")
+set_tests_properties(TestPasswordExpander PROPERTIES LABELS "smoke;verification;repeatability")
+
+add_test(
+  NAME PasswordExpanderQualityReport
+  COMMAND password_expander_quality_report 2 hotdog password_expander_quality_report.html
+)
+set_tests_properties(PasswordExpanderQualityReport PROPERTIES
+  LABELS "regression;verification;quality"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+add_test(
+  NAME PasswordExpanderConfusionMatrix
+  COMMAND password_expander_confusion_matrix 2 hotdog password_expander_confusion_matrix.html
+)
+set_tests_properties(PasswordExpanderConfusionMatrix PROPERTIES
+  LABELS "regression;verification;quality"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 add_executable(game_perseverance_tests
-  tests/perseverance/Games_perseverance_tests.cpp
-  tests/perseverance/PerseveranceSuiteCore.cpp
+  tests_regression/Games_perseverance_tests.cpp
+  tests_regression/PerseveranceSuiteCore.cpp
 )
-target_link_libraries(game_perseverance_tests PRIVATE bread_core)
+target_link_libraries(game_perseverance_tests PRIVATE peanutbutter_core)
 target_include_directories(game_perseverance_tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -663,12 +400,12 @@ else()
 endif()
 
 add_test(NAME GamePerseveranceTests COMMAND game_perseverance_tests)
-set_tests_properties(GamePerseveranceTests PROPERTIES LABELS "perseverance")
+set_tests_properties(GamePerseveranceTests PROPERTIES LABELS "regression;verification;perseverance")
 
 add_executable(maze_perseverance_tests
-  tests/perseverance/Mazes_perseverance_tests.cpp
+  tests_regression/Mazes_perseverance_tests.cpp
 )
-target_link_libraries(maze_perseverance_tests PRIVATE bread_core)
+target_link_libraries(maze_perseverance_tests PRIVATE peanutbutter_core)
 target_include_directories(maze_perseverance_tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -681,7 +418,25 @@ else()
 endif()
 
 add_test(NAME MazePerseveranceTests COMMAND maze_perseverance_tests)
-set_tests_properties(MazePerseveranceTests PROPERTIES LABELS "perseverance")
+set_tests_properties(MazePerseveranceTests PROPERTIES LABELS "regression;verification;perseverance")
+
+add_executable(maze_stability_tests
+  tests_regression/MazeStabilityTests.cpp
+)
+target_link_libraries(maze_stability_tests PRIVATE peanutbutter_core)
+target_include_directories(maze_stability_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(maze_stability_tests PRIVATE /W4)
+else()
+  target_compile_options(maze_stability_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME MazeStabilityTests COMMAND maze_stability_tests 2)
+set_tests_properties(MazeStabilityTests PROPERTIES LABELS "regression;verification;stability")
 else()
   message(STATUS "Skipping test/benchmark targets because tests/ directory is missing.")
 endif()
