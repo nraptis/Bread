@@ -1,7 +1,6 @@
 #ifndef BREAD_SRC_MAZE_MAZEDIRECTOR_HPP_
 #define BREAD_SRC_MAZE_MAZEDIRECTOR_HPP_
 
-#include <array>
 #include <cstdint>
 
 #include "../fast_rand/FastRand.hpp"
@@ -45,41 +44,51 @@ class MazeDirector final : public Maze {
   int ClampConfiguredCount(int pConfiguredCount, int pMaximum) const;
   GenerationMode ResolveGenerationMode() const;
   void ResetPulseState();
+  void ResetPulseOutcomeFlags();
   bool IsTileOccupied(int pX,
                       int pY,
                       int pIgnoreRobotIndex = -1,
                       int pIgnoreCheeseIndex = -1,
-                      int pIgnoreSharkIndex = -1) const;
+                      int pIgnoreSharkIndex = -1,
+                      int pIgnoreDolphinIndex = -1) const;
+  bool Generate();
+  void Simulation();
+  bool SimulationMainLoop();
+  bool PathingLoopPulse();
+  void HandleSpecialEvents();
+  bool MoveSharks();
+  bool MoveDolphins();
+  void MarkRobotSharkCollisions();
+  void MarkDolphinSharkCollisions();
+  bool ResolveCapturedCheeses();
+  bool ResolveDeadEntities();
+  bool ResolveRobotRepaths();
+  bool MoveRobots();
+  bool ManageCheese();
   void FinalizeRobotLife(int pRobotIndex);
   void FinalizePulseStats();
-  bool RespawnRobot(int pRobotIndex);
+  bool RespawnRobot(int pRobotIndex, bool pMarkRecentlyRevived);
   bool RespawnCheese(int pCheeseIndex);
-  bool RespawnShark(int pSharkIndex);
+  bool RespawnShark(int pSharkIndex, bool pMarkRecentlyRevived);
+  bool RespawnDolphin(int pDolphinIndex, bool pMarkRecentlyRevived);
   bool InitializePulseState();
   int FindSharkAt(int pX, int pY) const;
+  int FindCheeseAt(int pX, int pY) const;
   void MoveShark(helpers::MazeShark& pShark, int pSharkIndex);
-  helpers::MazeCheese* PickRandomValidCheese();
+  void MoveDolphin(helpers::MazeDolphin& pDolphin, int pDolphinIndex);
+  helpers::MazeCheese* PickRandomCheese(int pIgnoreCheeseIndex = -1);
+  void ClearRobotTarget(helpers::MazeRobot* pRobot);
   bool StoreRobotPath(helpers::MazeRobot* pRobot, helpers::MazeCheese* pCheese);
-  bool AssignPathableCheese(helpers::MazeRobot* pRobot);
+  bool AssignPathableCheese(helpers::MazeRobot* pRobot, int pIgnoreCheeseIndex = -1);
   bool RepaintOrFlushTile(int pX, int pY);
   void RepaintRobotSquare(int pCenterX, int pCenterY);
   void ApplyRobotPowerUp(int pRobotIndex);
-  bool CaptureCheese(int pRobotIndex);
-  void RecordRobotAction(int* pActionCount, int* pOutActions);
-  void TriggerConfusedRobot(helpers::MazeRobot* pRobot);
-  void KillRobotAndShark(int pRobotIndex, int pSharkIndex);
+  bool MarkRobotVictory(int pRobotIndex, bool* pOutFailure = nullptr);
+  bool MarkDolphinCheeseSteal(int pDolphinIndex);
+  void MarkDolphinAndSharkDead(int pDolphinIndex, int pSharkIndex);
+  void MarkRobotAndSharkDead(int pRobotIndex, int pSharkIndex);
   void PickDistinctRows(int* pRows, int pRowCount);
   void PickDistinctCols(int* pCols, int pColCount);
-  void TriggerSpecialEvents();
-  bool MoveSharks();
-  void CollideRobotsWithSharks();
-  bool ManageRobots(bool* pRobotCanMove, int* pActionCount, int* pOutActions);
-  bool MoveRobots(const bool* pRobotCanMove, int* pActionCount, int* pOutActions);
-  bool ManageCheese();
-  bool Generate();
-  bool PathingLoopPulse(int* pOutActions);
-  bool SimulationMainLoop();
-  void Simulation();
   void Build();
 
   peanutbutter::fast_rand::FastRand mFastRand;
@@ -87,17 +96,17 @@ class MazeDirector final : public Maze {
   ProbeStats mProbeStats;
   int mGameIndex;
   const char* mGameName;
-  std::array<helpers::MazeRobot, helpers::kMaxRobots> mRobots;
-  std::array<helpers::MazeCheese, helpers::kMaxCheeses> mCheeses;
-  std::array<helpers::MazeShark, helpers::kMaxSharks> mSharks;
   unsigned char mIsShark[kGridWidth][kGridHeight];
+  unsigned char mIsDolphin[kGridWidth][kGridHeight];
   unsigned char mPowerUpType[kGridWidth][kGridHeight];
   int mRobotWalks[helpers::kMaxRobots];
   int mSharkMovesSinceKill[helpers::kMaxSharks];
   int mSharkMoveCandidateX[4];
   int mSharkMoveCandidateY[4];
   int mSharkMoveCandidateCount;
+  int mMainLoopIterationVictoryCount;
   bool mRobotLifeActive[helpers::kMaxRobots];
+  bool mCapturedCheeseThisPulse[helpers::kMaxCheeses];
 };
 
 }  // namespace peanutbutter::maze

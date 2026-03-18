@@ -4,8 +4,8 @@
 #include <string_view>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
-#include "src/Tables/games/engine/GameBoard.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
+#include "src/Tables/games/GameBoard.hpp"
 #include "tests/common/CounterSeedBuffer.hpp"
 #include "tests/common/GameCatalog.hpp"
 #include "tests/common/GameChunkRunner.hpp"
@@ -59,12 +59,12 @@ bool RunPerseveranceCase(const peanutbutter::tests::games::GameCatalogEntry& pEn
 
     peanutbutter::tests::games::GameRunSummary aSummaryA;
     peanutbutter::tests::games::GameRunSummary aSummaryB;
-    if (!peanutbutter::tests::games::RunGameChunksFromInput<MersenneCounter>(
+    if (!peanutbutter::tests::games::RunGameChunksFromInput<ChaCha20Counter>(
             pEntry.mGameIndex, aInput.data(), pDataLength, aOutputA.data(), &aSummaryA)) {
       std::cerr << "[FAIL] invalid game byte length=" << pDataLength << "\n";
       return false;
     }
-    if (!peanutbutter::tests::games::RunGameChunksFromInput<MersenneCounter>(
+    if (!peanutbutter::tests::games::RunGameChunksFromInput<ChaCha20Counter>(
             pEntry.mGameIndex, aInput.data(), pDataLength, aOutputB.data(), &aSummaryB)) {
       std::cerr << "[FAIL] invalid game byte length=" << pDataLength << "\n";
       return false;

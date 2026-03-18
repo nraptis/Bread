@@ -1,7 +1,6 @@
 #include "MazeDirector.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cstring>
 #include <utility>
 
@@ -12,12 +11,15 @@ namespace peanutbutter::maze {
 namespace {
 
 using helpers::MazeCheese;
+using helpers::MazeDolphin;
 using helpers::MazeRobot;
 using helpers::MazeShark;
 using helpers::PowerUpType;
 
-constexpr int kCheeseCooldownPulses = 4;
-constexpr int kRobotConfusedLimit = 10;
+constexpr int kMazeDolphinCount = helpers::kMaxDolphins;
+constexpr int kMazeRespawnVictoryMinimum = 8;
+constexpr int kMazeRespawnVictoryMaximum = 16;
+constexpr int kMainLoopConsecutiveFailureThreshold = 4;
 
 }  // namespace
 
@@ -28,17 +30,17 @@ MazeDirector::MazeDirector()
       mProbeStats{},
       mGameIndex(0),
       mGameName(GetProbeConfigNameByIndex(0)),
-      mRobots{},
-      mCheeses{},
-      mSharks{},
       mIsShark{},
+      mIsDolphin{},
       mPowerUpType{},
       mRobotWalks{},
       mSharkMovesSinceKill{},
       mSharkMoveCandidateX{},
       mSharkMoveCandidateY{},
       mSharkMoveCandidateCount(0),
-      mRobotLifeActive{} {
+      mMainLoopIterationVictoryCount(0),
+      mRobotLifeActive{},
+      mCapturedCheeseThisPulse{} {
   SetGame(0);
 }
 
@@ -103,10 +105,23 @@ GenerationMode MazeDirector::ResolveGenerationMode() const {
 }
 
 void MazeDirector::ResetPulseState() {
-  mRobots = {};
-  mCheeses = {};
-  mSharks = {};
+  for (MazeRobot& aRobot : mRobotStorage) {
+    aRobot.Reset();
+  }
+  for (MazeCheese& aCheese : mCheeseStorage) {
+    aCheese.Reset();
+  }
+  for (MazeShark& aShark : mSharkStorage) {
+    aShark.Reset();
+  }
+  for (MazeDolphin& aDolphin : mDolphinStorage) {
+    aDolphin.Reset();
+  }
+  ResetCharacterLists(ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots),
+                      ClampConfiguredCount(mProbeConfig.mCheeseCount, helpers::kMaxCheeses),
+                      ClampConfiguredCount(mProbeConfig.mSharkCount, helpers::kMaxSharks), kMazeDolphinCount);
   std::memset(mIsShark, 0, sizeof(mIsShark));
+  std::memset(mIsDolphin, 0, sizeof(mIsDolphin));
   std::memset(mPowerUpType, 0, sizeof(mPowerUpType));
   std::memset(mRobotWalks, 0, sizeof(mRobotWalks));
   std::memset(mSharkMovesSinceKill, 0, sizeof(mSharkMovesSinceKill));
@@ -114,49 +129,173 @@ void MazeDirector::ResetPulseState() {
   std::memset(mSharkMoveCandidateY, 0, sizeof(mSharkMoveCandidateY));
   mSharkMoveCandidateCount = 0;
   std::memset(mRobotLifeActive, 0, sizeof(mRobotLifeActive));
+  ResetPulseOutcomeFlags();
+}
+
+void MazeDirector::ResetPulseOutcomeFlags() {
+  std::memset(mCapturedCheeseThisPulse, 0, sizeof(mCapturedCheeseThisPulse));
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    if (mRobotList[aRobotIndex] == nullptr) {
+      continue;
+    }
+    mRobotList[aRobotIndex]->mIsVictorious = false;
+  }
 }
 
 bool MazeDirector::IsTileOccupied(int pX,
                                   int pY,
                                   int pIgnoreRobotIndex,
                                   int pIgnoreCheeseIndex,
-                                  int pIgnoreSharkIndex) const {
+                                  int pIgnoreSharkIndex,
+                                  int pIgnoreDolphinIndex) const {
   if (!InBounds(pX, pY)) {
     return true;
   }
 
-  const int aRobotCount = ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots);
-  const int aCheeseCount = ClampConfiguredCount(mProbeConfig.mCheeseCount, helpers::kMaxCheeses);
-  const int aSharkCount = ClampConfiguredCount(mProbeConfig.mSharkCount, helpers::kMaxSharks);
-
-  for (int aRobotIndex = 0; aRobotIndex < aRobotCount; ++aRobotIndex) {
-    if (aRobotIndex == pIgnoreRobotIndex || mRobots[aRobotIndex].mDead) {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    const MazeRobot* aRobot = mRobotList[aRobotIndex];
+    if (aRobotIndex == pIgnoreRobotIndex || aRobot == nullptr || aRobot->mDeadFlag) {
       continue;
     }
-    if (mRobots[aRobotIndex].mX == pX && mRobots[aRobotIndex].mY == pY) {
+    if (aRobot->mX == pX && aRobot->mY == pY) {
       return true;
     }
   }
 
-  for (int aCheeseIndex = 0; aCheeseIndex < aCheeseCount; ++aCheeseIndex) {
-    if (aCheeseIndex == pIgnoreCheeseIndex || !mCheeses[aCheeseIndex].mIsValid) {
+  for (int aCheeseIndex = 0; aCheeseIndex < mCheeseListCount; ++aCheeseIndex) {
+    const MazeCheese* aCheese = mCheeseList[aCheeseIndex];
+    if (aCheeseIndex == pIgnoreCheeseIndex) {
       continue;
     }
-    if (mCheeses[aCheeseIndex].mX == pX && mCheeses[aCheeseIndex].mY == pY) {
+    if (aCheese != nullptr && aCheese->mX == pX && aCheese->mY == pY) {
       return true;
     }
   }
 
-  for (int aSharkIndex = 0; aSharkIndex < aSharkCount; ++aSharkIndex) {
-    if (aSharkIndex == pIgnoreSharkIndex || mSharks[aSharkIndex].mDead) {
+  for (int aSharkIndex = 0; aSharkIndex < mSharkListCount; ++aSharkIndex) {
+    const MazeShark* aShark = mSharkList[aSharkIndex];
+    if (aSharkIndex == pIgnoreSharkIndex || aShark == nullptr || aShark->mDeadFlag) {
       continue;
     }
-    if (mSharks[aSharkIndex].mX == pX && mSharks[aSharkIndex].mY == pY) {
+    if (aShark->mX == pX && aShark->mY == pY) {
+      return true;
+    }
+  }
+
+  for (int aDolphinIndex = 0; aDolphinIndex < mDolphinListCount; ++aDolphinIndex) {
+    const MazeDolphin* aDolphin = mDolphinList[aDolphinIndex];
+    if (aDolphinIndex == pIgnoreDolphinIndex || aDolphin == nullptr || aDolphin->mDeadFlag) {
+      continue;
+    }
+    if (aDolphin->mX == pX && aDolphin->mY == pY) {
       return true;
     }
   }
 
   return mPowerUpType[pX][pY] != 0U;
+}
+
+bool MazeDirector::Generate() {
+  Reset();
+  Build();
+  FinalizeWalls();
+  if (mWalkableListCount <= 0) {
+    SetFlushAccountingMode(FlushAccountingMode::kStalled);
+    Flush();
+    SetFlushAccountingMode(FlushAccountingMode::kRegular);
+    return false;
+  }
+  (void)PaintWalkableFromSeed();
+  return InitializePulseState();
+}
+
+void MazeDirector::Simulation() {
+  int aStallCount = 0;
+  while (mResultBufferWriteProgress < mResultBufferLength && aStallCount < kSimulationStallThreshold) {
+    const std::uint64_t aWriteProgressBefore = mResultBufferWriteProgress;
+    if (!SimulationMainLoop()) {
+      break;
+    }
+
+    if (mResultBufferWriteProgress != aWriteProgressBefore) {
+      aStallCount = 0;
+      continue;
+    }
+
+    ++mRuntimeStats.mSimulationStallCataclysmic;
+    ++aStallCount;
+  }
+
+  if (mResultBufferWriteProgress < mResultBufferLength) {
+    ++mRuntimeStats.mSimulationStallApocalypse;
+    ApocalypseScenario();
+  }
+}
+
+bool MazeDirector::SimulationMainLoop() {
+  if (!Generate()) {
+    return false;
+  }
+
+  int aConsecutiveFailureCount = 0;
+  while (aConsecutiveFailureCount < kMainLoopConsecutiveFailureThreshold &&
+         mResultBufferWriteProgress < mResultBufferLength) {
+    const std::uint64_t aWriteProgressBeforeRound = mResultBufferWriteProgress;
+    const int aVictoryThreshold =
+        kMazeRespawnVictoryMinimum + NextIndex(kMazeRespawnVictoryMaximum - kMazeRespawnVictoryMinimum + 1);
+    mMainLoopIterationVictoryCount = 0;
+
+    while (mMainLoopIterationVictoryCount < aVictoryThreshold && mResultBufferWriteProgress < mResultBufferLength) {
+      if (!PathingLoopPulse()) {
+        ++mRuntimeStats.mInconsistentStateG;
+        FinalizePulseStats();
+        return true;
+      }
+    }
+
+    if (mResultBufferWriteProgress >= mResultBufferLength) {
+      break;
+    }
+
+    const bool aMadeByteProgress = (mResultBufferWriteProgress != aWriteProgressBeforeRound);
+    if (mMainLoopIterationVictoryCount >= aVictoryThreshold || aMadeByteProgress) {
+      aConsecutiveFailureCount = 0;
+    } else {
+      ++aConsecutiveFailureCount;
+    }
+  }
+
+  if (aConsecutiveFailureCount >= kMainLoopConsecutiveFailureThreshold &&
+      mResultBufferWriteProgress < mResultBufferLength) {
+    ++mRuntimeStats.mInconsistentStateF;
+    return false;
+  }
+
+  FinalizePulseStats();
+  return true;
+}
+
+bool MazeDirector::PathingLoopPulse() {
+  ResetPulseOutcomeFlags();
+  HandleSpecialEvents();
+  if (!MoveSharks()) {
+    return false;
+  }
+  if (!MoveDolphins()) {
+    return false;
+  }
+  if (!MoveRobots()) {
+    return false;
+  }
+  MarkRobotSharkCollisions();
+  MarkDolphinSharkCollisions();
+  if (!ResolveCapturedCheeses()) {
+    return false;
+  }
+  if (!ResolveDeadEntities()) {
+    return false;
+  }
+  return ResolveRobotRepaths();
 }
 
 void MazeDirector::FinalizeRobotLife(int pRobotIndex) {
@@ -180,13 +319,12 @@ void MazeDirector::FinalizeRobotLife(int pRobotIndex) {
 
 void MazeDirector::FinalizePulseStats() {
   ++mProbeStats.mSimulationCount;
-  const int aRobotCount = ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots);
-  for (int aRobotIndex = 0; aRobotIndex < aRobotCount; ++aRobotIndex) {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
     FinalizeRobotLife(aRobotIndex);
   }
 }
 
-bool MazeDirector::RespawnRobot(int pRobotIndex) {
+bool MazeDirector::RespawnRobot(int pRobotIndex, bool pMarkRecentlyRevived) {
   if (pRobotIndex < 0 || pRobotIndex >= helpers::kMaxRobots) {
     return false;
   }
@@ -196,14 +334,19 @@ bool MazeDirector::RespawnRobot(int pRobotIndex) {
   if (!helpers::PickUniqueWalkable(
           [&](int& pX, int& pY) { return GetRandomWalkable(pX, pY); },
           [&](int pX, int pY) { return IsTileOccupied(pX, pY, pRobotIndex, -1, -1); }, &aRespawnX, &aRespawnY)) {
+    ++mRuntimeStats.mInconsistentStateI;
     return false;
   }
 
-  MazeRobot& aRobot = mRobots[pRobotIndex];
-  aRobot = MazeRobot{};
+  if (pRobotIndex >= mRobotListCount || mRobotList[pRobotIndex] == nullptr) {
+    return false;
+  }
+  MazeRobot& aRobot = *mRobotList[pRobotIndex];
+  aRobot.Reset();
   aRobot.mX = aRespawnX;
   aRobot.mY = aRespawnY;
-  aRobot.mDead = false;
+  aRobot.mDeadFlag = false;
+  aRobot.mDidRecentlyRepath = pMarkRecentlyRevived;
   mRobotWalks[pRobotIndex] = 0;
   mRobotLifeActive[pRobotIndex] = true;
   return true;
@@ -219,24 +362,30 @@ bool MazeDirector::RespawnCheese(int pCheeseIndex) {
   if (!helpers::PickUniqueWalkable(
           [&](int& pX, int& pY) { return GetRandomWalkable(pX, pY); },
           [&](int pX, int pY) { return IsTileOccupied(pX, pY, -1, pCheeseIndex, -1); }, &aRespawnX, &aRespawnY)) {
+    ++mRuntimeStats.mInconsistentStateI;
     return false;
   }
 
-  MazeCheese& aCheese = mCheeses[pCheeseIndex];
+  if (pCheeseIndex >= mCheeseListCount || mCheeseList[pCheeseIndex] == nullptr) {
+    return false;
+  }
+  MazeCheese& aCheese = *mCheeseList[pCheeseIndex];
+  aCheese.Reset();
   aCheese.mX = aRespawnX;
   aCheese.mY = aRespawnY;
-  aCheese.mRespawnTick = 0;
-  aCheese.mIsValid = true;
   return true;
 }
 
-bool MazeDirector::RespawnShark(int pSharkIndex) {
+bool MazeDirector::RespawnShark(int pSharkIndex, bool pMarkRecentlyRevived) {
   if (pSharkIndex < 0 || pSharkIndex >= helpers::kMaxSharks) {
     return false;
   }
 
-  MazeShark& aShark = mSharks[pSharkIndex];
-  if (!aShark.mDead && InBounds(aShark.mX, aShark.mY)) {
+  if (pSharkIndex >= mSharkListCount || mSharkList[pSharkIndex] == nullptr) {
+    return false;
+  }
+  MazeShark& aShark = *mSharkList[pSharkIndex];
+  if (!aShark.mDeadFlag && InBounds(aShark.mX, aShark.mY)) {
     mIsShark[aShark.mX][aShark.mY] = 0U;
   }
 
@@ -245,43 +394,85 @@ bool MazeDirector::RespawnShark(int pSharkIndex) {
   if (!helpers::PickUniqueWalkable(
           [&](int& pX, int& pY) { return GetRandomWalkable(pX, pY); },
           [&](int pX, int pY) { return IsTileOccupied(pX, pY, -1, -1, pSharkIndex); }, &aRespawnX, &aRespawnY)) {
+    ++mRuntimeStats.mInconsistentStateI;
     return false;
   }
 
   aShark.mX = aRespawnX;
   aShark.mY = aRespawnY;
-  aShark.mDead = false;
+  aShark.mDeadFlag = false;
+  aShark.mDidRecentlyRevive = pMarkRecentlyRevived;
   mIsShark[aShark.mX][aShark.mY] = 1U;
   mSharkMovesSinceKill[pSharkIndex] = 0;
+  return true;
+}
+
+bool MazeDirector::RespawnDolphin(int pDolphinIndex, bool pMarkRecentlyRevived) {
+  if (pDolphinIndex < 0 || pDolphinIndex >= helpers::kMaxDolphins) {
+    return false;
+  }
+
+  if (pDolphinIndex >= mDolphinListCount || mDolphinList[pDolphinIndex] == nullptr) {
+    return false;
+  }
+  MazeDolphin& aDolphin = *mDolphinList[pDolphinIndex];
+  if (!aDolphin.mDeadFlag && InBounds(aDolphin.mX, aDolphin.mY)) {
+    mIsDolphin[aDolphin.mX][aDolphin.mY] = 0U;
+  }
+
+  int aRespawnX = -1;
+  int aRespawnY = -1;
+  if (!helpers::PickUniqueWalkable(
+          [&](int& pX, int& pY) { return GetRandomWalkable(pX, pY); },
+          [&](int pX, int pY) { return IsTileOccupied(pX, pY, -1, -1, -1, pDolphinIndex); }, &aRespawnX,
+          &aRespawnY)) {
+    ++mRuntimeStats.mInconsistentStateI;
+    return false;
+  }
+
+  aDolphin.mX = aRespawnX;
+  aDolphin.mY = aRespawnY;
+  aDolphin.mDeadFlag = false;
+  aDolphin.mDidRecentlyRevive = pMarkRecentlyRevived;
+  mIsDolphin[aDolphin.mX][aDolphin.mY] = 1U;
+  (void)RepaintOrFlushTile(aDolphin.mX, aDolphin.mY);
   return true;
 }
 
 bool MazeDirector::InitializePulseState() {
   ResetPulseState();
 
-  const int aRobotCount = ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots);
-  const int aCheeseCount = ClampConfiguredCount(mProbeConfig.mCheeseCount, helpers::kMaxCheeses);
-  const int aSharkCount = ClampConfiguredCount(mProbeConfig.mSharkCount, helpers::kMaxSharks);
-
-  for (int aCheeseIndex = 0; aCheeseIndex < aCheeseCount; ++aCheeseIndex) {
+  for (int aCheeseIndex = 0; aCheeseIndex < mCheeseListCount; ++aCheeseIndex) {
     if (!RespawnCheese(aCheeseIndex)) {
       ++mRuntimeStats.mInconsistentStateA;
       return false;
     }
   }
 
-  for (int aRobotIndex = 0; aRobotIndex < aRobotCount; ++aRobotIndex) {
-    if (!RespawnRobot(aRobotIndex)) {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    if (!RespawnRobot(aRobotIndex, false)) {
       ++mRuntimeStats.mInconsistentStateA;
       return false;
     }
   }
 
-  for (int aSharkIndex = 0; aSharkIndex < aSharkCount; ++aSharkIndex) {
-    if (!RespawnShark(aSharkIndex)) {
+  for (int aSharkIndex = 0; aSharkIndex < mSharkListCount; ++aSharkIndex) {
+    if (!RespawnShark(aSharkIndex, false)) {
       ++mRuntimeStats.mInconsistentStateA;
       return false;
     }
+  }
+
+  for (int aDolphinIndex = 0; aDolphinIndex < mDolphinListCount; ++aDolphinIndex) {
+    if (!RespawnDolphin(aDolphinIndex, false)) {
+      ++mRuntimeStats.mInconsistentStateA;
+      return false;
+    }
+  }
+
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    MazeRobot& aRobot = *mRobotList[aRobotIndex];
+    aRobot.mNeedsRepath = true;
   }
 
   for (int aIndex = 0; aIndex < mWalkableListCount; ++aIndex) {
@@ -293,27 +484,43 @@ bool MazeDirector::InitializePulseState() {
     mPowerUpType[aX][aY] = static_cast<unsigned char>(NextIndex(4) + 1);
   }
 
-  return true;
+  return ResolveRobotRepaths();
 }
 
 int MazeDirector::FindSharkAt(int pX, int pY) const {
   if (!InBounds(pX, pY) || mIsShark[pX][pY] == 0U) {
     return -1;
   }
-  const int aSharkCount = ClampConfiguredCount(mProbeConfig.mSharkCount, helpers::kMaxSharks);
-  for (int aSharkIndex = 0; aSharkIndex < aSharkCount; ++aSharkIndex) {
-    if (mSharks[aSharkIndex].mDead) {
+  for (int aSharkIndex = 0; aSharkIndex < mSharkListCount; ++aSharkIndex) {
+    const MazeShark* aShark = mSharkList[aSharkIndex];
+    if (aShark == nullptr || aShark->mDeadFlag) {
       continue;
     }
-    if (mSharks[aSharkIndex].mX == pX && mSharks[aSharkIndex].mY == pY) {
+    if (aShark->mX == pX && aShark->mY == pY) {
       return aSharkIndex;
     }
   }
   return -1;
 }
 
+int MazeDirector::FindCheeseAt(int pX, int pY) const {
+  if (!InBounds(pX, pY)) {
+    return -1;
+  }
+  for (int aCheeseIndex = 0; aCheeseIndex < mCheeseListCount; ++aCheeseIndex) {
+    const MazeCheese* aCheese = mCheeseList[aCheeseIndex];
+    if (aCheese == nullptr) {
+      continue;
+    }
+    if (aCheese->mX == pX && aCheese->mY == pY) {
+      return aCheeseIndex;
+    }
+  }
+  return -1;
+}
+
 void MazeDirector::MoveShark(MazeShark& pShark, int pSharkIndex) {
-  if (pSharkIndex < 0 || pSharkIndex >= helpers::kMaxSharks || pShark.mDead || !InBounds(pShark.mX, pShark.mY)) {
+  if (pSharkIndex < 0 || pSharkIndex >= helpers::kMaxSharks || pShark.mDeadFlag || !InBounds(pShark.mX, pShark.mY)) {
     return;
   }
 
@@ -361,51 +568,156 @@ void MazeDirector::MoveShark(MazeShark& pShark, int pSharkIndex) {
   }
 }
 
-MazeCheese* MazeDirector::PickRandomValidCheese() {
-  return helpers::ChooseValidCheese([&](int pLimit) { return NextIndex(pLimit); }, &mCheeses,
-                                    ClampConfiguredCount(mProbeConfig.mCheeseCount, helpers::kMaxCheeses));
+void MazeDirector::MoveDolphin(MazeDolphin& pDolphin, int pDolphinIndex) {
+  if (pDolphinIndex < 0 || pDolphinIndex >= helpers::kMaxDolphins || pDolphin.mDeadFlag ||
+      !InBounds(pDolphin.mX, pDolphin.mY)) {
+    return;
+  }
+
+  int aCandidateX[4] = {};
+  int aCandidateY[4] = {};
+  int aCandidateScore[4] = {};
+  int aCandidateCount = 0;
+
+  const int aStepX[4] = {-1, 1, 0, 0};
+  const int aStepY[4] = {0, 0, -1, 1};
+  for (int aStepIndex = 0; aStepIndex < 4; ++aStepIndex) {
+    const int aCheckX = pDolphin.mX + aStepX[aStepIndex];
+    const int aCheckY = pDolphin.mY + aStepY[aStepIndex];
+    if (!IsWalkable(aCheckX, aCheckY) || mIsDolphin[aCheckX][aCheckY] != 0U) {
+      continue;
+    }
+
+    bool aHasRobot = false;
+    for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+      const MazeRobot* aRobot = mRobotList[aRobotIndex];
+      if (aRobot != nullptr && !aRobot->mDeadFlag && aRobot->mX == aCheckX && aRobot->mY == aCheckY) {
+        aHasRobot = true;
+        break;
+      }
+    }
+    if (aHasRobot) {
+      continue;
+    }
+
+    int aBestCheeseDistance = kGridSize;
+    for (int aCheeseIndex = 0; aCheeseIndex < mCheeseListCount; ++aCheeseIndex) {
+      const MazeCheese* aCheese = mCheeseList[aCheeseIndex];
+      if (aCheese == nullptr) {
+        continue;
+      }
+      const int aDistance = AbsInt(aCheese->mX - aCheckX) + AbsInt(aCheese->mY - aCheckY);
+      if (aDistance < aBestCheeseDistance) {
+        aBestCheeseDistance = aDistance;
+      }
+    }
+
+    int aScore = -aBestCheeseDistance;
+    if (FindCheeseAt(aCheckX, aCheckY) >= 0) {
+      aScore += 1000;
+    }
+    if (FindSharkAt(aCheckX, aCheckY) >= 0) {
+      aScore += 500;
+    }
+
+    aCandidateX[aCandidateCount] = aCheckX;
+    aCandidateY[aCandidateCount] = aCheckY;
+    aCandidateScore[aCandidateCount] = aScore;
+    ++aCandidateCount;
+  }
+
+  if (aCandidateCount <= 0) {
+    return;
+  }
+
+  int aBestScore = aCandidateScore[0];
+  for (int aIndex = 1; aIndex < aCandidateCount; ++aIndex) {
+    if (aCandidateScore[aIndex] > aBestScore) {
+      aBestScore = aCandidateScore[aIndex];
+    }
+  }
+
+  int aBestCandidateIndex[4] = {};
+  int aBestCandidateCount = 0;
+  for (int aIndex = 0; aIndex < aCandidateCount; ++aIndex) {
+    if (aCandidateScore[aIndex] != aBestScore) {
+      continue;
+    }
+    aBestCandidateIndex[aBestCandidateCount] = aIndex;
+    ++aBestCandidateCount;
+  }
+
+  mIsDolphin[pDolphin.mX][pDolphin.mY] = 0U;
+  const int aPickIndex = aBestCandidateIndex[NextIndex(aBestCandidateCount)];
+  pDolphin.mX = aCandidateX[aPickIndex];
+  pDolphin.mY = aCandidateY[aPickIndex];
+  mIsDolphin[pDolphin.mX][pDolphin.mY] = 1U;
+}
+
+MazeCheese* MazeDirector::PickRandomCheese(int pIgnoreCheeseIndex) {
+  int aCandidateIndex[helpers::kMaxCheeses] = {};
+  int aCandidateCount = 0;
+  for (int aCheeseIndex = 0; aCheeseIndex < mCheeseListCount; ++aCheeseIndex) {
+    if (aCheeseIndex == pIgnoreCheeseIndex) {
+      continue;
+    }
+    aCandidateIndex[aCandidateCount] = aCheeseIndex;
+    ++aCandidateCount;
+  }
+  if (aCandidateCount <= 0) {
+    return nullptr;
+  }
+  return mCheeseList[aCandidateIndex[NextIndex(aCandidateCount)]];
+}
+
+void MazeDirector::ClearRobotTarget(MazeRobot* pRobot) {
+  if (pRobot == nullptr) {
+    return;
+  }
+
+  pRobot->mCheese = nullptr;
+  (void)pRobot->AssignPathAndStartWalk(nullptr, nullptr, 0);
 }
 
 bool MazeDirector::StoreRobotPath(MazeRobot* pRobot, MazeCheese* pCheese) {
-  if (pRobot == nullptr || pCheese == nullptr || pRobot->mDead || !pCheese->mIsValid) {
+  if (pRobot == nullptr || pCheese == nullptr || pRobot->mDeadFlag) {
     return false;
   }
 
-  pRobot->mTargetCheese = nullptr;
-  pRobot->mPathLength = 0;
-  pRobot->mPathIndex = 0;
-
-  if (!FindPath(pRobot->mX, pRobot->mY, pCheese->mX, pCheese->mY) || PathLength() <= 0) {
+  const bool aHasPath = FindPath(pRobot->mX, pRobot->mY, pCheese->mX, pCheese->mY);
+  const int aPathLength = PathLength();
+  if (!aHasPath || aPathLength <= 0) {
     ++mRuntimeStats.mInconsistentStateE;
     return false;
   }
 
-  pRobot->mTargetCheese = pCheese;
-  pRobot->mPathLength = PathLength();
-  for (int aPathIndex = 0; aPathIndex < pRobot->mPathLength; ++aPathIndex) {
-    if (!PathNode(aPathIndex, &pRobot->mPathX[aPathIndex], &pRobot->mPathY[aPathIndex])) {
-      pRobot->mTargetCheese = nullptr;
-      pRobot->mPathLength = 0;
-      pRobot->mPathIndex = 0;
+  int aPathX[Maze::kGridSize] = {};
+  int aPathY[Maze::kGridSize] = {};
+  for (int aPathIndex = 0; aPathIndex < aPathLength; ++aPathIndex) {
+    if (!PathNode(aPathIndex, &aPathX[aPathIndex], &aPathY[aPathIndex])) {
       ++mRuntimeStats.mInconsistentStateE;
       return false;
     }
   }
-
-  pRobot->mPathIndex = (pRobot->mPathLength > 1) ? 1 : 0;
-  return true;
-}
-
-bool MazeDirector::AssignPathableCheese(MazeRobot* pRobot) {
-  if (pRobot == nullptr || pRobot->mDead) {
+  ClearRobotTarget(pRobot);
+  if (!pRobot->AssignPathAndStartWalk(aPathX, aPathY, aPathLength)) {
+    ++mRuntimeStats.mInconsistentStateE;
     return false;
   }
 
-  MazeCheese* aCheese = PickRandomValidCheese();
+  pRobot->mCheese = pCheese;
+  pRobot->mNeedsRepath = false;
+  return true;
+}
+
+bool MazeDirector::AssignPathableCheese(MazeRobot* pRobot, int pIgnoreCheeseIndex) {
+  if (pRobot == nullptr || pRobot->mDeadFlag || pRobot->mIsVictorious) {
+    return false;
+  }
+
+  MazeCheese* aCheese = PickRandomCheese(pIgnoreCheeseIndex);
   if (aCheese == nullptr) {
-    pRobot->mTargetCheese = nullptr;
-    pRobot->mPathLength = 0;
-    pRobot->mPathIndex = 0;
+    ClearRobotTarget(pRobot);
     return false;
   }
   return StoreRobotPath(pRobot, aCheese);
@@ -441,12 +753,12 @@ void MazeDirector::RepaintRobotSquare(int pCenterX, int pCenterY) {
 }
 
 void MazeDirector::ApplyRobotPowerUp(int pRobotIndex) {
-  if (pRobotIndex < 0 || pRobotIndex >= helpers::kMaxRobots) {
+  if (pRobotIndex < 0 || pRobotIndex >= mRobotListCount || mRobotList[pRobotIndex] == nullptr) {
     return;
   }
 
-  MazeRobot& aRobot = mRobots[pRobotIndex];
-  if (aRobot.mDead || !InBounds(aRobot.mX, aRobot.mY)) {
+  MazeRobot& aRobot = *mRobotList[pRobotIndex];
+  if (aRobot.mDeadFlag || !InBounds(aRobot.mX, aRobot.mY)) {
     return;
   }
 
@@ -466,105 +778,110 @@ void MazeDirector::ApplyRobotPowerUp(int pRobotIndex) {
   }
 }
 
-bool MazeDirector::CaptureCheese(int pRobotIndex) {
-  if (pRobotIndex < 0 || pRobotIndex >= helpers::kMaxRobots) {
+bool MazeDirector::MarkRobotVictory(int pRobotIndex, bool* pOutFailure) {
+  if (pOutFailure != nullptr) {
+    *pOutFailure = false;
+  }
+  if (pRobotIndex < 0 || pRobotIndex >= mRobotListCount || mRobotList[pRobotIndex] == nullptr) {
     return false;
   }
 
-  MazeRobot& aRobot = mRobots[pRobotIndex];
-  if (aRobot.mDead || aRobot.mVictorious) {
+  MazeRobot& aRobot = *mRobotList[pRobotIndex];
+  if (aRobot.mDeadFlag || aRobot.mIsVictorious) {
     return false;
   }
 
-  const int aCheeseCount = ClampConfiguredCount(mProbeConfig.mCheeseCount, helpers::kMaxCheeses);
-  for (int aCheeseIndex = 0; aCheeseIndex < aCheeseCount; ++aCheeseIndex) {
-    MazeCheese& aCheese = mCheeses[aCheeseIndex];
-    if (!aCheese.mIsValid) {
-      continue;
-    }
+  for (int aCheeseIndex = 0; aCheeseIndex < mCheeseListCount; ++aCheeseIndex) {
+    MazeCheese& aCheese = *mCheeseList[aCheeseIndex];
     if (AbsInt(aCheese.mX - aRobot.mX) > 1 || AbsInt(aCheese.mY - aRobot.mY) > 1) {
       continue;
     }
 
-    aCheese.mIsValid = false;
-    aCheese.mRespawnTick = kCheeseCooldownPulses + 1;
-    aRobot.mVictorious = true;
-    aRobot.mTargetCheese = nullptr;
-    aRobot.mWasConfused = false;
-    aRobot.mConfusedTick = 0;
-    aRobot.mPowerUp = PowerUpType::kNone;
-    aRobot.mPowerUpTick = 0;
+    mCapturedCheeseThisPulse[aCheeseIndex] = true;
+    aRobot.mIsVictorious = true;
+    aRobot.mNeedsRepath = false;
     ++mRuntimeStats.mVictories;
-    FinalizeRobotLife(pRobotIndex);
+    ++mMainLoopIterationVictoryCount;
     return true;
   }
 
   return false;
 }
 
-void MazeDirector::RecordRobotAction(int* pActionCount, int* pOutActions) {
-  if (pActionCount == nullptr) {
-    return;
+bool MazeDirector::MarkDolphinCheeseSteal(int pDolphinIndex) {
+  if (pDolphinIndex < 0 || pDolphinIndex >= mDolphinListCount || mDolphinList[pDolphinIndex] == nullptr) {
+    return false;
   }
 
-  ++(*pActionCount);
-  if (pOutActions != nullptr) {
-    *pOutActions = *pActionCount;
+  MazeDolphin& aDolphin = *mDolphinList[pDolphinIndex];
+  if (aDolphin.mDeadFlag) {
+    return true;
   }
+
+  const int aCheeseIndex = FindCheeseAt(aDolphin.mX, aDolphin.mY);
+  if (aCheeseIndex < 0 || aCheeseIndex >= mCheeseListCount || mCheeseList[aCheeseIndex] == nullptr) {
+    return true;
+  }
+
+  if (mCapturedCheeseThisPulse[aCheeseIndex]) {
+    return true;
+  }
+
+  mCapturedCheeseThisPulse[aCheeseIndex] = true;
+  ++mRuntimeStats.mDolphinCheeseTriages;
+  RepaintRobotSquare(aDolphin.mX, aDolphin.mY);
+  return true;
 }
 
-void MazeDirector::TriggerConfusedRobot(MazeRobot* pRobot) {
-  if (pRobot == nullptr) {
+void MazeDirector::MarkDolphinAndSharkDead(int pDolphinIndex, int pSharkIndex) {
+  if (pDolphinIndex < 0 || pDolphinIndex >= mDolphinListCount || mDolphinList[pDolphinIndex] == nullptr ||
+      pSharkIndex < 0 || pSharkIndex >= mSharkListCount || mSharkList[pSharkIndex] == nullptr) {
     return;
   }
 
-  ++mRuntimeStats.mInconsistentStateB;
-  pRobot->mTargetCheese = nullptr;
-  pRobot->mPathLength = 0;
-  pRobot->mPathIndex = 0;
-  if (!pRobot->mWasConfused) {
-    pRobot->mWasConfused = true;
-    pRobot->mConfusedTick = kRobotConfusedLimit;
+  MazeDolphin& aDolphin = *mDolphinList[pDolphinIndex];
+  MazeShark& aShark = *mSharkList[pSharkIndex];
+  if (aDolphin.mDeadFlag || aShark.mDeadFlag) {
     return;
   }
-  if (pRobot->mConfusedTick > 0) {
-    --pRobot->mConfusedTick;
-    if (pRobot->mConfusedTick == 0) {
-      ++mRuntimeStats.mInconsistentStateD;
-    }
+
+  ++mRuntimeStats.mDolphinSharkCollisions;
+  if (NextIndex(2) == 0) {
+    mIsDolphin[aDolphin.mX][aDolphin.mY] = 0U;
+    aDolphin.mDeadFlag = true;
+    ++mRuntimeStats.mDolphinDeaths;
+    return;
   }
+
+  mIsShark[aShark.mX][aShark.mY] = 0U;
+  ++mRuntimeStats.mDolphinSharkKills;
+  ++mProbeStats.mSharkKillCount;
+  mProbeStats.mTotalSharkMovesBeforeKill += static_cast<std::uint64_t>(mSharkMovesSinceKill[pSharkIndex]);
+  aShark.mDeadFlag = true;
+  mSharkMovesSinceKill[pSharkIndex] = 0;
 }
 
-void MazeDirector::KillRobotAndShark(int pRobotIndex, int pSharkIndex) {
-  const int aRobotCount = ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots);
-  const int aSharkCount = ClampConfiguredCount(mProbeConfig.mSharkCount, helpers::kMaxSharks);
-  if (pRobotIndex < 0 || pRobotIndex >= aRobotCount || pSharkIndex < 0 || pSharkIndex >= aSharkCount) {
+void MazeDirector::MarkRobotAndSharkDead(int pRobotIndex, int pSharkIndex) {
+  if (pRobotIndex < 0 || pRobotIndex >= mRobotListCount || pSharkIndex < 0 ||
+      pSharkIndex >= mSharkListCount || mRobotList[pRobotIndex] == nullptr ||
+      mSharkList[pSharkIndex] == nullptr) {
     return;
   }
 
-  MazeRobot& aRobot = mRobots[pRobotIndex];
-  MazeShark& aShark = mSharks[pSharkIndex];
-  if (!aShark.mDead) {
+  MazeRobot& aRobot = *mRobotList[pRobotIndex];
+  MazeShark& aShark = *mSharkList[pSharkIndex];
+  if (!aShark.mDeadFlag) {
     if (InBounds(aShark.mX, aShark.mY)) {
       mIsShark[aShark.mX][aShark.mY] = 0U;
     }
     ++mProbeStats.mSharkKillCount;
     mProbeStats.mTotalSharkMovesBeforeKill += static_cast<std::uint64_t>(mSharkMovesSinceKill[pSharkIndex]);
-    aShark.mDead = true;
+    aShark.mDeadFlag = true;
     mSharkMovesSinceKill[pSharkIndex] = 0;
   }
-  if (!aRobot.mDead) {
+  if (!aRobot.mDeadFlag) {
     ++mRuntimeStats.mDeaths;
-    aRobot.mDead = true;
-    aRobot.mVictorious = false;
-    aRobot.mTargetCheese = nullptr;
-    aRobot.mPathLength = 0;
-    aRobot.mPathIndex = 0;
-    aRobot.mWasConfused = false;
-    aRobot.mConfusedTick = 0;
-    aRobot.mPowerUp = PowerUpType::kNone;
-    aRobot.mPowerUpTick = 0;
-    FinalizeRobotLife(pRobotIndex);
+    aRobot.Die();
   }
 }
 
@@ -606,15 +923,12 @@ void MazeDirector::PickDistinctCols(int* pCols, int pColCount) {
   }
 }
 
-void MazeDirector::TriggerSpecialEvents() {
-  const int aRobotCount = ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots);
-  const int aSharkCount = ClampConfiguredCount(mProbeConfig.mSharkCount, helpers::kMaxSharks);
-
+void MazeDirector::HandleSpecialEvents() {
   if (NextIndex(256) == 128 && NextIndex(256) < 16) {
-    MazeSpecialEvents::StarBurst(*this, mRobots, aRobotCount);
+    MazeSpecialEvents::StarBurst(*this, mRobotList, mRobotListCount);
   }
   if (NextIndex(256) == 76 && NextIndex(256) < 16) {
-    MazeSpecialEvents::ChaosStorm(*this, mSharks, aSharkCount);
+    MazeSpecialEvents::ChaosStorm(*this, mSharkList, mSharkListCount);
   }
   if (NextIndex(256) == 80 && NextIndex(256) < 8) {
     int aRows[3] = {};
@@ -629,14 +943,13 @@ void MazeDirector::TriggerSpecialEvents() {
 }
 
 bool MazeDirector::MoveSharks() {
-  const int aSharkCount = ClampConfiguredCount(mProbeConfig.mSharkCount, helpers::kMaxSharks);
-  for (int aSharkIndex = 0; aSharkIndex < aSharkCount; ++aSharkIndex) {
-    MazeShark& aShark = mSharks[aSharkIndex];
-    if (aShark.mDead) {
-      if (!RespawnShark(aSharkIndex)) {
-        ++mRuntimeStats.mInconsistentStateA;
-        return false;
-      }
+  for (int aSharkIndex = 0; aSharkIndex < mSharkListCount; ++aSharkIndex) {
+    MazeShark& aShark = *mSharkList[aSharkIndex];
+    if (aShark.mDeadFlag) {
+      continue;
+    }
+    if (aShark.mDidRecentlyRevive) {
+      aShark.mDidRecentlyRevive = false;
       continue;
     }
     MoveShark(aShark, aSharkIndex);
@@ -644,174 +957,70 @@ bool MazeDirector::MoveSharks() {
   return true;
 }
 
-void MazeDirector::CollideRobotsWithSharks() {
-  const int aRobotCount = ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots);
-  for (int aRobotIndex = 0; aRobotIndex < aRobotCount; ++aRobotIndex) {
-    MazeRobot& aRobot = mRobots[aRobotIndex];
-    if (aRobot.mDead || !InBounds(aRobot.mX, aRobot.mY)) {
+bool MazeDirector::MoveDolphins() {
+  for (int aDolphinIndex = 0; aDolphinIndex < mDolphinListCount; ++aDolphinIndex) {
+    MazeDolphin& aDolphin = *mDolphinList[aDolphinIndex];
+    if (aDolphin.mDeadFlag) {
+      continue;
+    }
+    if (aDolphin.mDidRecentlyRevive) {
+      aDolphin.mDidRecentlyRevive = false;
+      continue;
+    }
+
+    MoveDolphin(aDolphin, aDolphinIndex);
+    (void)RepaintOrFlushTile(aDolphin.mX, aDolphin.mY);
+    if (!MarkDolphinCheeseSteal(aDolphinIndex)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void MazeDirector::MarkRobotSharkCollisions() {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    MazeRobot& aRobot = *mRobotList[aRobotIndex];
+    if (aRobot.mDeadFlag || !InBounds(aRobot.mX, aRobot.mY)) {
       continue;
     }
     const int aSharkIndex = FindSharkAt(aRobot.mX, aRobot.mY);
     if (aSharkIndex >= 0) {
-      KillRobotAndShark(aRobotIndex, aSharkIndex);
+      MarkRobotAndSharkDead(aRobotIndex, aSharkIndex);
     }
   }
 }
 
-bool MazeDirector::ManageRobots(bool* pRobotCanMove, int* pActionCount, int* pOutActions) {
-  if (pRobotCanMove == nullptr) {
-    return false;
-  }
-
-  std::fill_n(pRobotCanMove, helpers::kMaxRobots, false);
-  const int aRobotCount = ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots);
-  for (int aRobotIndex = 0; aRobotIndex < aRobotCount; ++aRobotIndex) {
-    MazeRobot& aRobot = mRobots[aRobotIndex];
-    if (aRobot.mDead || aRobot.mVictorious) {
-      if (!RespawnRobot(aRobotIndex)) {
-        ++mRuntimeStats.mInconsistentStateA;
-        return false;
-      }
-      RepaintRobotSquare(aRobot.mX, aRobot.mY);
-      RecordRobotAction(pActionCount, pOutActions);
+void MazeDirector::MarkDolphinSharkCollisions() {
+  for (int aDolphinIndex = 0; aDolphinIndex < mDolphinListCount; ++aDolphinIndex) {
+    MazeDolphin& aDolphin = *mDolphinList[aDolphinIndex];
+    if (aDolphin.mDeadFlag || !InBounds(aDolphin.mX, aDolphin.mY)) {
       continue;
     }
-
-    if (aRobot.mTargetCheese == nullptr ||
-        !aRobot.mTargetCheese->mIsValid ||
-        aRobot.mPathLength <= 0 ||
-        aRobot.mPathIndex < 0 ||
-        aRobot.mPathIndex > aRobot.mPathLength) {
-      if (!AssignPathableCheese(&aRobot)) {
-        TriggerConfusedRobot(&aRobot);
-        RepaintRobotSquare(aRobot.mX, aRobot.mY);
-        RecordRobotAction(pActionCount, pOutActions);
-        continue;
-      }
+    const int aSharkIndex = FindSharkAt(aDolphin.mX, aDolphin.mY);
+    if (aSharkIndex >= 0) {
+      MarkDolphinAndSharkDead(aDolphinIndex, aSharkIndex);
     }
-
-    aRobot.mWasConfused = false;
-    aRobot.mConfusedTick = 0;
-    pRobotCanMove[aRobotIndex] = true;
   }
-
-  return true;
 }
 
-bool MazeDirector::MoveRobots(const bool* pRobotCanMove, int* pActionCount, int* pOutActions) {
-  if (pRobotCanMove == nullptr) {
-    return false;
-  }
-
-  const int aRobotCount = ClampConfiguredCount(mProbeConfig.mRobotCount, helpers::kMaxRobots);
-  for (int aRobotIndex = 0; aRobotIndex < aRobotCount; ++aRobotIndex) {
-    if (!pRobotCanMove[aRobotIndex]) {
+bool MazeDirector::ResolveCapturedCheeses() {
+  for (int aCheeseIndex = 0; aCheeseIndex < mCheeseListCount; ++aCheeseIndex) {
+    if (!mCapturedCheeseThisPulse[aCheeseIndex] || mCheeseList[aCheeseIndex] == nullptr) {
       continue;
     }
 
-    MazeRobot& aRobot = mRobots[aRobotIndex];
-    int aPaintX = aRobot.mX;
-    int aPaintY = aRobot.mY;
-
-    if (aRobot.mDead || aRobot.mVictorious) {
-      continue;
-    }
-
-    if (aRobot.mTargetCheese == nullptr || !aRobot.mTargetCheese->mIsValid) {
-      if (!AssignPathableCheese(&aRobot)) {
-        TriggerConfusedRobot(&aRobot);
-        RepaintRobotSquare(aPaintX, aPaintY);
-        RecordRobotAction(pActionCount, pOutActions);
+    MazeCheese& aCheese = *mCheeseList[aCheeseIndex];
+    for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+      MazeRobot* aRobot = mRobotList[aRobotIndex];
+      if (aRobot == nullptr || aRobot->mCheese != &aCheese) {
         continue;
       }
-      aRobot.mWasConfused = false;
-      aRobot.mConfusedTick = 0;
+      aRobot->mCheese = nullptr;
+      aRobot->mNeedsRepath = !aRobot->mDeadFlag && !aRobot->mIsVictorious;
+      (void)aRobot->AssignPathAndStartWalk(nullptr, nullptr, 0);
     }
 
-    if (aRobot.mPathLength <= 0 || aRobot.mPathIndex < 0 || aRobot.mPathIndex > aRobot.mPathLength) {
-      ++mRuntimeStats.mInconsistentStateE;
-      return false;
-    }
-
-    int aHopBudget = 1;
-    if (aRobot.mPowerUp == PowerUpType::kTeleport && aRobot.mPowerUpTick > 0) {
-      aHopBudget = 4;
-    } else if (aRobot.mPowerUp == PowerUpType::kSuperSpeed && aRobot.mPowerUpTick > 0) {
-      aHopBudget = 2;
-    }
-
-    for (int aHop = 0; aHop < aHopBudget; ++aHop) {
-      if (aRobot.mPathIndex <= 0 && aRobot.mPathLength > 1) {
-        aRobot.mPathIndex = 1;
-      }
-      if (aRobot.mPathIndex < 0 || aRobot.mPathIndex >= aRobot.mPathLength) {
-        break;
-      }
-
-      const int aNextX = aRobot.mPathX[aRobot.mPathIndex];
-      const int aNextY = aRobot.mPathY[aRobot.mPathIndex];
-      ++aRobot.mPathIndex;
-
-      aRobot.mX = aNextX;
-      aRobot.mY = aNextY;
-      aPaintX = aNextX;
-      aPaintY = aNextY;
-      ++mRobotWalks[aRobotIndex];
-
-      const int aSharkIndex = FindSharkAt(aRobot.mX, aRobot.mY);
-      if (aSharkIndex >= 0) {
-        KillRobotAndShark(aRobotIndex, aSharkIndex);
-        break;
-      }
-
-      ApplyRobotPowerUp(aRobotIndex);
-      if (CaptureCheese(aRobotIndex) || aRobot.mDead || aRobot.mVictorious) {
-        break;
-      }
-    }
-
-    if (!aRobot.mDead && !aRobot.mVictorious) {
-      (void)CaptureCheese(aRobotIndex);
-    }
-
-    if (!aRobot.mDead &&
-        !aRobot.mVictorious &&
-        aRobot.mTargetCheese != nullptr &&
-        aRobot.mTargetCheese->mIsValid &&
-        aRobot.mPathLength > 0 &&
-        aRobot.mPathIndex >= aRobot.mPathLength) {
-      ++mRuntimeStats.mInconsistentStateE;
-      return false;
-    }
-
-    if (!aRobot.mDead && aRobot.mPowerUpTick > 0) {
-      --aRobot.mPowerUpTick;
-      if (aRobot.mPowerUpTick <= 0) {
-        aRobot.mPowerUpTick = 0;
-        aRobot.mPowerUp = PowerUpType::kNone;
-      }
-    }
-
-    RepaintRobotSquare(aPaintX, aPaintY);
-    RecordRobotAction(pActionCount, pOutActions);
-  }
-
-  return true;
-}
-
-bool MazeDirector::ManageCheese() {
-  const int aCheeseCount = ClampConfiguredCount(mProbeConfig.mCheeseCount, helpers::kMaxCheeses);
-  for (int aCheeseIndex = 0; aCheeseIndex < aCheeseCount; ++aCheeseIndex) {
-    MazeCheese& aCheese = mCheeses[aCheeseIndex];
-    if (aCheese.mIsValid) {
-      continue;
-    }
-    if (aCheese.mRespawnTick > 0) {
-      --aCheese.mRespawnTick;
-      if (aCheese.mRespawnTick > 0) {
-        continue;
-      }
-    }
     if (!RespawnCheese(aCheeseIndex)) {
       ++mRuntimeStats.mInconsistentStateA;
       return false;
@@ -821,89 +1030,134 @@ bool MazeDirector::ManageCheese() {
   return true;
 }
 
-bool MazeDirector::Generate() {
-  Reset();
-  Build();
-  FinalizeWalls();
-  if (mWalkableListCount <= 0) {
-    SetFlushAccountingMode(FlushAccountingMode::kStalled);
-    Flush();
-    SetFlushAccountingMode(FlushAccountingMode::kRegular);
-    return false;
-  }
-  (void)PaintWalkableFromSeed();
-  return InitializePulseState();
-}
-
-bool MazeDirector::PathingLoopPulse(int* pOutActions) {
-  if (pOutActions != nullptr) {
-    *pOutActions = 0;
-  }
-
-  int aActions = 0;
-  bool aRobotCanMove[helpers::kMaxRobots] = {};
-
-  TriggerSpecialEvents();
-  if (!MoveSharks()) {
-    return false;
-  }
-  CollideRobotsWithSharks();
-  if (!ManageRobots(aRobotCanMove, &aActions, pOutActions)) {
-    return false;
-  }
-  if (!MoveRobots(aRobotCanMove, &aActions, pOutActions)) {
-    return false;
-  }
-  CollideRobotsWithSharks();
-  if (!ManageCheese()) {
-    return false;
-  }
-
-  return true;
-}
-
-bool MazeDirector::SimulationMainLoop() {
-  if (!Generate()) {
-    return false;
-  }
-
-  int aActionsThisMaze = 0;
-  while (aActionsThisMaze < kMazeRespawnActionThreshold && mResultBufferWriteProgress < mResultBufferLength) {
-    int aPulseActions = 0;
-    if (!PathingLoopPulse(&aPulseActions)) {
+bool MazeDirector::ResolveDeadEntities() {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    MazeRobot& aRobot = *mRobotList[aRobotIndex];
+    if (!aRobot.mDeadFlag && !aRobot.mIsVictorious) {
+      continue;
+    }
+    FinalizeRobotLife(aRobotIndex);
+    if (!RespawnRobot(aRobotIndex, true)) {
+      ++mRuntimeStats.mInconsistentStateA;
       return false;
     }
-    aActionsThisMaze += aPulseActions;
-    if (aPulseActions <= 0) {
-      break;
+    aRobot.mIsVictorious = false;
+    aRobot.mNeedsRepath = true;
+  }
+
+  for (int aSharkIndex = 0; aSharkIndex < mSharkListCount; ++aSharkIndex) {
+    if (!mSharkList[aSharkIndex]->mDeadFlag) {
+      continue;
+    }
+    if (!RespawnShark(aSharkIndex, true)) {
+      ++mRuntimeStats.mInconsistentStateA;
+      return false;
     }
   }
 
-  FinalizePulseStats();
+  for (int aDolphinIndex = 0; aDolphinIndex < mDolphinListCount; ++aDolphinIndex) {
+    if (!mDolphinList[aDolphinIndex]->mDeadFlag) {
+      continue;
+    }
+    if (!RespawnDolphin(aDolphinIndex, true)) {
+      ++mRuntimeStats.mInconsistentStateA;
+      return false;
+    }
+  }
+
   return true;
 }
 
-void MazeDirector::Simulation() {
-  int aStallCount = 0;
-  while (mResultBufferWriteProgress < mResultBufferLength && aStallCount < kSimulationStallThreshold) {
-    const std::uint64_t aWriteProgressBefore = mResultBufferWriteProgress;
-    if (!SimulationMainLoop()) {
-      break;
-    }
-
-    if (mResultBufferWriteProgress != aWriteProgressBefore) {
-      aStallCount = 0;
+bool MazeDirector::ResolveRobotRepaths() {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    MazeRobot& aRobot = *mRobotList[aRobotIndex];
+    if (aRobot.mDeadFlag || aRobot.mIsVictorious) {
       continue;
     }
 
-    ++mRuntimeStats.mSimulationStallCataclysmic;
-    ++aStallCount;
+    const bool aNeedsPath = aRobot.mNeedsRepath || aRobot.mCheese == nullptr || aRobot.mPathLength <= 0 ||
+                            aRobot.mPathIndex < 0 || aRobot.mPathIndex >= aRobot.mPathLength;
+    if (!aNeedsPath) {
+      continue;
+    }
+
+    if (!AssignPathableCheese(&aRobot)) {
+      ++mRuntimeStats.mInconsistentStateB;
+      return false;
+    }
+    aRobot.mNeedsRepath = false;
+    aRobot.mDidRecentlyRepath = true;
+    RepaintRobotSquare(aRobot.mX, aRobot.mY);
   }
 
-  if (mResultBufferWriteProgress < mResultBufferLength) {
-    ++mRuntimeStats.mSimulationStallApocalypse;
-    ApocalypseScenario();
+  return true;
+}
+
+bool MazeDirector::MoveRobots() {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    MazeRobot& aRobot = *mRobotList[aRobotIndex];
+    if (aRobot.mDeadFlag || aRobot.mIsVictorious) {
+      continue;
+    }
+    if (aRobot.mCheese == nullptr || aRobot.mPathLength <= 0 || aRobot.mPathIndex < 0) {
+      ++mRuntimeStats.mInconsistentStateE;
+      return false;
+    }
+    if (aRobot.mPathIndex >= aRobot.mPathLength) {
+      bool aCaptureFailure = false;
+      if (!MarkRobotVictory(aRobotIndex, &aCaptureFailure)) {
+        if (aCaptureFailure) {
+          return false;
+        }
+        ++mRuntimeStats.mInconsistentStateH;
+        return false;
+      }
+      continue;
+    }
+    if (aRobot.mDidRecentlyRepath) {
+      aRobot.mDidRecentlyRepath = false;
+      continue;
+    }
+
+    if (!aRobot.Update(static_cast<const MazeGrid&>(*this))) {
+      ++mRuntimeStats.mInconsistentStateE;
+      return false;
+    }
+
+    bool aCaptureFailure = false;
+    int aNextX = aRobot.mX;
+    int aNextY = aRobot.mY;
+    if (!aRobot.ReadPendingStep(0, &aNextX, &aNextY)) {
+      ++mRuntimeStats.mInconsistentStateE;
+      return false;
+    }
+
+    aRobot.ApplyPendingStep(0);
+    ++mRobotWalks[aRobotIndex];
+    ApplyRobotPowerUp(aRobotIndex);
+
+    if (MarkRobotVictory(aRobotIndex, &aCaptureFailure)) {
+      aRobot.FinishUpdate();
+      continue;
+    }
+    if (aCaptureFailure || aRobot.mDeadFlag) {
+      return false;
+    }
+
+    aRobot.FinishUpdate();
+
+    if (!aRobot.mDeadFlag && !aRobot.mIsVictorious && aRobot.mCheese != nullptr && aRobot.mPathLength > 0 &&
+        aRobot.mPathIndex > aRobot.mPathLength) {
+      ++mRuntimeStats.mInconsistentStateE;
+      return false;
+    }
+
+    if (!aRobot.mDeadFlag && !aRobot.mIsVictorious) {
+      RepaintRobotSquare(aRobot.mX, aRobot.mY);
+    }
   }
+
+  return true;
 }
 
 void MazeDirector::Build() {

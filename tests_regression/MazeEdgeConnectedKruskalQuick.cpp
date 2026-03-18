@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "tests/common/CounterSeedBuffer.hpp"
 #include "tests/common/MazeEdgeConnectedUtils.hpp"
 #include "tests/common/MazeGeneratorHarness.hpp"
@@ -30,7 +30,7 @@ int main() {
     std::vector<unsigned char> aInput(static_cast<std::size_t>(aSeedLength), 0U);
     peanutbutter::tests::maze_quality::FillInput(&aInput, aLoop, 0x299F31D0U);
     const std::vector<unsigned char> aSeed =
-        peanutbutter::tests::BuildCounterSeedBuffer<MersenneCounter>(aInput.data(), aSeedLength, aSeedLength);
+        peanutbutter::tests::BuildCounterSeedBuffer<ChaCha20Counter>(aInput.data(), aSeedLength, aSeedLength);
 
     peanutbutter::tests::maze_generation::MazeGeneratorHarness aMaze;
     aMaze.Seed(const_cast<unsigned char*>(aSeed.data()), aSeedLength);

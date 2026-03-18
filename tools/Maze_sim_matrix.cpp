@@ -5,7 +5,7 @@
 #include <limits>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "src/Tables/maze/MazeDirector.hpp"
 #include "src/Tables/maze/MazePolicy.hpp"
 #include "tests/common/CounterSeedBuffer.hpp"
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
       std::vector<unsigned char> aInput(64U, 0U);
       FillInput(&aInput, aRun, aGameIndex, aConfig.mGenerationMode, aConfig.mRobotCount, aConfig.mSharkCount,
                 aConfig.mCheeseCount);
-      const std::vector<unsigned char> aSeed = peanutbutter::tests::BuildCounterSeedBuffer<MersenneCounter>(
+      const std::vector<unsigned char> aSeed = peanutbutter::tests::BuildCounterSeedBuffer<ChaCha20Counter>(
           aInput.data(), static_cast<int>(aInput.size()), peanutbutter::maze::Maze::kSeedBufferCapacity);
 
       peanutbutter::maze::MazeDirector aMaze;

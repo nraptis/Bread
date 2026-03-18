@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "src/Tables/maze/MazeDirector.hpp"
 #include "src/Tables/maze/MazePolicy.hpp"
 #include "tests/common/CounterSeedBuffer.hpp"
@@ -42,12 +42,20 @@ struct StabilityAggregate {
   std::uint64_t mInconsistentStateC = 0U;
   std::uint64_t mInconsistentStateD = 0U;
   std::uint64_t mInconsistentStateE = 0U;
+  std::uint64_t mInconsistentStateF = 0U;
+  std::uint64_t mInconsistentStateG = 0U;
+  std::uint64_t mInconsistentStateH = 0U;
+  std::uint64_t mInconsistentStateI = 0U;
   std::uint64_t mSimulationStallCataclysmic = 0U;
   std::uint64_t mSimulationStallApocalypse = 0U;
   std::uint64_t mStarBurst = 0U;
   std::uint64_t mChaosStorm = 0U;
   std::uint64_t mCometTrailsHorizontal = 0U;
   std::uint64_t mCometTrailsVertical = 0U;
+  std::uint64_t mDolphinCheeseTriages = 0U;
+  std::uint64_t mDolphinSharkCollisions = 0U;
+  std::uint64_t mDolphinSharkKills = 0U;
+  std::uint64_t mDolphinDeaths = 0U;
   std::uint64_t mSimulationCount = 0U;
   std::uint64_t mRobotLifeCount = 0U;
   std::uint64_t mTotalRobotWalk = 0U;
@@ -122,12 +130,20 @@ std::uint64_t HashRuntimeStats(const peanutbutter::maze::Maze::RuntimeStats& pSt
   aDigest = HashMix(aDigest, pStats.mInconsistentStateC);
   aDigest = HashMix(aDigest, pStats.mInconsistentStateD);
   aDigest = HashMix(aDigest, pStats.mInconsistentStateE);
+  aDigest = HashMix(aDigest, pStats.mInconsistentStateF);
+  aDigest = HashMix(aDigest, pStats.mInconsistentStateG);
+  aDigest = HashMix(aDigest, pStats.mInconsistentStateH);
+  aDigest = HashMix(aDigest, pStats.mInconsistentStateI);
   aDigest = HashMix(aDigest, pStats.mSimulationStallCataclysmic);
   aDigest = HashMix(aDigest, pStats.mSimulationStallApocalypse);
   aDigest = HashMix(aDigest, pStats.mStarBurst);
   aDigest = HashMix(aDigest, pStats.mChaosStorm);
   aDigest = HashMix(aDigest, pStats.mCometTrailsHorizontal);
   aDigest = HashMix(aDigest, pStats.mCometTrailsVertical);
+  aDigest = HashMix(aDigest, pStats.mDolphinCheeseTriages);
+  aDigest = HashMix(aDigest, pStats.mDolphinSharkCollisions);
+  aDigest = HashMix(aDigest, pStats.mDolphinSharkKills);
+  aDigest = HashMix(aDigest, pStats.mDolphinDeaths);
   aDigest = HashMix(aDigest, pProbeStats.mSimulationCount);
   aDigest = HashMix(aDigest, pProbeStats.mRobotLifeCount);
   aDigest = HashMix(aDigest, pProbeStats.mTotalRobotWalk);
@@ -152,12 +168,20 @@ bool RuntimeStatsEqual(const peanutbutter::maze::Maze::RuntimeStats& pA,
          pA.mInconsistentStateC == pB.mInconsistentStateC &&
          pA.mInconsistentStateD == pB.mInconsistentStateD &&
          pA.mInconsistentStateE == pB.mInconsistentStateE &&
+         pA.mInconsistentStateF == pB.mInconsistentStateF &&
+         pA.mInconsistentStateG == pB.mInconsistentStateG &&
+         pA.mInconsistentStateH == pB.mInconsistentStateH &&
+         pA.mInconsistentStateI == pB.mInconsistentStateI &&
          pA.mSimulationStallCataclysmic == pB.mSimulationStallCataclysmic &&
          pA.mSimulationStallApocalypse == pB.mSimulationStallApocalypse &&
          pA.mStarBurst == pB.mStarBurst &&
          pA.mChaosStorm == pB.mChaosStorm &&
          pA.mCometTrailsHorizontal == pB.mCometTrailsHorizontal &&
-         pA.mCometTrailsVertical == pB.mCometTrailsVertical;
+         pA.mCometTrailsVertical == pB.mCometTrailsVertical &&
+         pA.mDolphinCheeseTriages == pB.mDolphinCheeseTriages &&
+         pA.mDolphinSharkCollisions == pB.mDolphinSharkCollisions &&
+         pA.mDolphinSharkKills == pB.mDolphinSharkKills &&
+         pA.mDolphinDeaths == pB.mDolphinDeaths;
 }
 
 bool ProbeStatsEqual(const peanutbutter::maze::MazeDirector::ProbeStats& pA,
@@ -245,12 +269,20 @@ void Accumulate(StabilityAggregate* pAggregate,
   pAggregate->mInconsistentStateC += pStats.mInconsistentStateC;
   pAggregate->mInconsistentStateD += pStats.mInconsistentStateD;
   pAggregate->mInconsistentStateE += pStats.mInconsistentStateE;
+  pAggregate->mInconsistentStateF += pStats.mInconsistentStateF;
+  pAggregate->mInconsistentStateG += pStats.mInconsistentStateG;
+  pAggregate->mInconsistentStateH += pStats.mInconsistentStateH;
+  pAggregate->mInconsistentStateI += pStats.mInconsistentStateI;
   pAggregate->mSimulationStallCataclysmic += pStats.mSimulationStallCataclysmic;
   pAggregate->mSimulationStallApocalypse += pStats.mSimulationStallApocalypse;
   pAggregate->mStarBurst += pStats.mStarBurst;
   pAggregate->mChaosStorm += pStats.mChaosStorm;
   pAggregate->mCometTrailsHorizontal += pStats.mCometTrailsHorizontal;
   pAggregate->mCometTrailsVertical += pStats.mCometTrailsVertical;
+  pAggregate->mDolphinCheeseTriages += pStats.mDolphinCheeseTriages;
+  pAggregate->mDolphinSharkCollisions += pStats.mDolphinSharkCollisions;
+  pAggregate->mDolphinSharkKills += pStats.mDolphinSharkKills;
+  pAggregate->mDolphinDeaths += pStats.mDolphinDeaths;
   pAggregate->mSimulationCount += pProbeStats.mSimulationCount;
   pAggregate->mRobotLifeCount += pProbeStats.mRobotLifeCount;
   pAggregate->mTotalRobotWalk += pProbeStats.mTotalRobotWalk;
@@ -301,7 +333,7 @@ int main(int argc, char** argv) {
     for (int aRun = 0; aRun < aRuns; ++aRun) {
       std::vector<unsigned char> aInput(64U, 0U);
       FillInput(&aInput, aRun, aGameIndex);
-      const std::vector<unsigned char> aSeed = peanutbutter::tests::BuildCounterSeedBuffer<MersenneCounter>(
+      const std::vector<unsigned char> aSeed = peanutbutter::tests::BuildCounterSeedBuffer<ChaCha20Counter>(
           aInput.data(), static_cast<int>(aInput.size()), peanutbutter::maze::Maze::kSeedBufferCapacity);
       const Histogram256 aSeedHistogram = BuildHistogram(aSeed);
 
@@ -390,12 +422,20 @@ int main(int argc, char** argv) {
               << " inconsistent_c=" << aAggregate.mInconsistentStateC
               << " inconsistent_d=" << aAggregate.mInconsistentStateD
               << " inconsistent_e=" << aAggregate.mInconsistentStateE
+              << " inconsistent_f=" << aAggregate.mInconsistentStateF
+              << " inconsistent_g=" << aAggregate.mInconsistentStateG
+              << " inconsistent_h=" << aAggregate.mInconsistentStateH
+              << " inconsistent_i=" << aAggregate.mInconsistentStateI
               << " stall_cataclysmic=" << aAggregate.mSimulationStallCataclysmic
               << " stall_apocalypse=" << aAggregate.mSimulationStallApocalypse << "\n";
     std::cout << "  star_burst=" << aAggregate.mStarBurst
               << " chaos_storm=" << aAggregate.mChaosStorm
               << " comet_horizontal=" << aAggregate.mCometTrailsHorizontal
               << " comet_vertical=" << aAggregate.mCometTrailsVertical << "\n";
+    std::cout << "  dolphin_cheese_triages=" << aAggregate.mDolphinCheeseTriages
+              << " dolphin_shark_collisions=" << aAggregate.mDolphinSharkCollisions
+              << " dolphin_shark_kills=" << aAggregate.mDolphinSharkKills
+              << " dolphin_deaths=" << aAggregate.mDolphinDeaths << "\n";
     std::cout << "  simulation_count=" << aAggregate.mSimulationCount
               << " robot_lives=" << aAggregate.mRobotLifeCount
               << " avg_robot_walk=" << std::fixed << std::setprecision(4)

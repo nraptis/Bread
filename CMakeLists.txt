@@ -8,24 +8,24 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(peanutbutter_core
   src/PeanutButter.cpp
+  src/ArchiverCompatibility.cpp
   src/Tables/password_expanders/ByteTwister.cpp
   src/Tables/password_expanders/PasswordExpander.cpp
   src/Tables/counters/AESCounter.cpp
   src/Tables/counters/ARIA256Counter.cpp
   src/Tables/counters/ChaCha20Counter.cpp
-  src/Tables/counters/MersenneCounter.cpp
   src/Tables/rng/Shuffler.cpp
   src/Tables/fast_rand/FastRand.cpp
-  src/Tables/matrices/FastMatrix.cpp
   src/Tables/maze/MazeGrid.cpp
   src/Tables/maze/Maze.cpp
+  src/Tables/maze/MazeCharacters.cpp
   src/Tables/maze/MazeHelpers.cpp
   src/Tables/maze/MazePolicy.cpp
   src/Tables/maze/MazeSpecialEvents.cpp
   src/Tables/maze/MazeDirector.cpp
-  src/Tables/games/engine/GameBoard.cpp
-  src/Tables/games/engine/GamePlayDirector.cpp
-  src/Tables/games/engine/GamePowerUp.cpp
+  src/Tables/games/GameBoard.cpp
+  src/Tables/games/GamePlayDirector.cpp
+  src/Tables/games/GamePowerUp.cpp
 )
 
 target_include_directories(peanutbutter_core
@@ -60,26 +60,23 @@ else()
   target_compile_options(maze_sim_matrix PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_smoke" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_regression")
-enable_testing()
-
-add_executable(fast_matrix_round_trip_tests
-  tests_smoke/FastMatrix_round_trip_tests.cpp
+add_executable(archiver_compat_runner
+  tools/Archiver_compat_runner.cpp
 )
-target_link_libraries(fast_matrix_round_trip_tests PRIVATE peanutbutter_core)
-target_include_directories(fast_matrix_round_trip_tests
+target_link_libraries(archiver_compat_runner PRIVATE peanutbutter_core)
+target_include_directories(archiver_compat_runner
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 if(MSVC)
-  target_compile_options(fast_matrix_round_trip_tests PRIVATE /W4)
+  target_compile_options(archiver_compat_runner PRIVATE /W4)
 else()
-  target_compile_options(fast_matrix_round_trip_tests PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(archiver_compat_runner PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-add_test(NAME FastMatrixRoundTripTests COMMAND fast_matrix_round_trip_tests)
-set_tests_properties(FastMatrixRoundTripTests PROPERTIES LABELS "smoke;verification;round_trip")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_smoke" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_regression")
+enable_testing()
 
 add_executable(maze_pathfinding_tests
   tests_smoke/Maze_pathfinding_tests.cpp
@@ -98,6 +95,24 @@ endif()
 
 add_test(NAME MazePathfindingTests COMMAND $<TARGET_FILE:maze_pathfinding_tests>)
 set_tests_properties(MazePathfindingTests PROPERTIES LABELS "smoke;verification;round_trip")
+
+add_executable(archiver_compat_smoke_tests
+  tests_smoke/ArchiverCompatibility_smoke_tests.cpp
+)
+target_link_libraries(archiver_compat_smoke_tests PRIVATE peanutbutter_core)
+target_include_directories(archiver_compat_smoke_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(archiver_compat_smoke_tests PRIVATE /W4)
+else()
+  target_compile_options(archiver_compat_smoke_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME ArchiverCompatibilitySmokeTests COMMAND archiver_compat_smoke_tests)
+set_tests_properties(ArchiverCompatibilitySmokeTests PROPERTIES LABELS "smoke;verification;compatibility")
 
 add_executable(maze_path_finding
   tests_regression/MazePathFinding.cpp
@@ -388,6 +403,29 @@ endif()
 
 add_test(NAME TestPasswordExpander COMMAND test_password_expander)
 set_tests_properties(TestPasswordExpander PROPERTIES LABELS "smoke;verification;repeatability")
+
+add_executable(TestAllScramblers
+  tests_regression/TestAllScramblers.cpp
+)
+target_link_libraries(TestAllScramblers PRIVATE peanutbutter_core)
+target_include_directories(TestAllScramblers
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(TestAllScramblers PRIVATE /W4)
+else()
+  target_compile_options(TestAllScramblers PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME TestAllScramblers
+  COMMAND $<TARGET_FILE:TestAllScramblers> 10 ${CMAKE_CURRENT_BINARY_DIR}/TestAllScramblers_report.html
+)
+set_tests_properties(TestAllScramblers PROPERTIES
+  LABELS "regression;verification;scramblers"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 add_test(
   NAME PasswordExpanderQualityReport

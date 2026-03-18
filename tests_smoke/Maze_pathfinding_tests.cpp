@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "src/Tables/maze/MazeDirector.hpp"
 #include "src/Tables/maze/MazePolicy.hpp"
 #include "tests/common/CounterSeedBuffer.hpp"
@@ -52,7 +52,7 @@ int main() {
   const unsigned char aDisplaySeed[] = "display_robot_maze";
 
   auto RunSeed = [](const unsigned char* pSeed, int pSeedLength, const char* pSeedName) -> bool {
-    const std::vector<unsigned char> aExpandedSeed = peanutbutter::tests::BuildCounterSeedBuffer<MersenneCounter>(
+    const std::vector<unsigned char> aExpandedSeed = peanutbutter::tests::BuildCounterSeedBuffer<ChaCha20Counter>(
         pSeed, pSeedLength, peanutbutter::maze::Maze::kSeedBufferCapacity);
     for (int aGameIndex = 0; aGameIndex < peanutbutter::maze::kGameCount; ++aGameIndex) {
       peanutbutter::maze::MazeDirector aMaze;

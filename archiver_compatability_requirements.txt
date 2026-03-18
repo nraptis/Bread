@@ -1,0 +1,431 @@
+Archiver Compatibility Requirements
+===================================
+
+Purpose
+-------
+
+This file describes what the sister password-expansion / salts library must do
+in order to integrate cleanly with the archiver.
+
+Scope
+-----
+
+This sister library is responsible for:
+
+- password expansion
+- expansion strength behavior
+- expander library version exposure
+- progress / logging integration during long-running expansion work
+
+This sister library is not responsible for:
+
+- archive file layout
+- archive block writing
+- archive recovery logic
+- cipher stack execution
+
+
+1. Core Compatibility Requirements
+----------------------------------
+
+1. The library must be callable as a plain C++ library with no GUI assumptions.
+
+2. The library must not own application logging.
+   - The caller provides logging hooks.
+
+3. The library must report progress through the archiver's existing progress system.
+
+4. The library must emit status and error logs with stable numeric IDs in the
+   100-199 range.
+
+5. The library must expose an expander library version byte.
+   - This is what gets packed into archive headers as the expander version.
+
+6. The library must accept expansion strength as a real behavioral input.
+   - It is not metadata only.
+
+7. The library must not require salts for normal operation.
+   - The archiver may be able to pass salt bytes in the future.
+   - For current compatibility, salts should not be required by version policy.
+
+8. The library must be deterministic.
+   - Same version + same strength + same password must produce the same table output.
+
+9. The library must not log secrets.
+   - no raw passwords
+   - no expanded key bytes
+   - no full salt dumps by default
+
+10. The library must distinguish:
+   - warning but continue
+   - hard failure
+
+11. The library should support cancellation checkpoints if expansion work can
+    take long enough to matter to the UI.
+
+12. The library must be testable with fixed input/output vectors.
+
+
+2. Required Archiver Hooks
+--------------------------
+
+The sister library must integrate with these existing concepts:
+
+```cpp
+struct ProgressInfo {
+  std::string mModeName;
+  ProgressPhase mPhase = ProgressPhase::kPreflight;
+  double mOverallFraction = 0.0;
+  std::string mDetail;
+};
+
+class Logger {
+ public:
+  virtual ~Logger() = default;
+  virtual void LogStatus(const std::string& pMessage) = 0;
+  virtual void LogError(const std::string& pMessage) = 0;
+  virtual void LogProgress(const ProgressInfo&) {}
+};
+
+void ReportProgress(Logger& pLogger,
+                    const std::string& pModeName,
+                    ProgressProfileKind pProfile,
+                    ProgressPhase pPhase,
+                    double pPhaseFraction,
+                    const std::string& pDetail = std::string());
+```
+
+Required rules:
+
+- `mModeName` comes from the caller.
+  - Usually `"Bundle"`, `"Unbundle"`, or `"Recover"`.
+
+- `mPhase` must use `ProgressPhase::kExpansion`.
+
+- `mOverallFraction` must always stay within `0.0 .. 1.0`.
+
+- `mDetail` should be short and UI-safe.
+
+- The sister library must not invent a second progress system.
+
+
+3. Logging Contract
+-------------------
+
+Use log IDs in the 100-199 range.
+
+Recommended ranges:
+
+- `100-109`
+  - startup / configuration
+
+- `110-129`
+  - salt policy / validation / loading
+
+- `130-159`
+  - active expansion progress
+
+- `160-179`
+  - compatibility warnings
+
+- `180-199`
+  - hard failures
+
+Recommended examples:
+
+```text
+[Expansion][100] Starting password expansion.
+[Expansion][111] Validating salt input.
+[Expansion][121] Using caller-provided salt.
+[Expansion][135] Expansion is 50% complete.
+[Expansion][161] Warning: expander library version is newer than this archiver expects.
+[Expansion][181] Expansion failed: invalid salt length.
+```
+
+Rules:
+
+- Log IDs must remain stable over time.
+- Warning logs should not stop decode by themselves unless policy changes.
+- Error logs should correspond to real failure returns.
+- No secret data in logs.
+
+
+4. Version Compatibility Policy
+-------------------------------
+
+For now:
+
+- expander library version mismatch should produce a warning
+- the archiver should still attempt to continue
+
+This mirrors current archive behavior for incompatible component library
+versions:
+
+```text
+[Discovery] Warning: this archive was created with an incompatible expander library version
+```
+
+Hard-gating can be added later if a future expander version becomes truly
+incompatible.
+
+
+5. Table Ownership Requirement
+------------------------------
+
+Expanded output is not returned through an output buffer.
+
+The sister library writes directly into the shared global tables:
+
+```cpp
+extern unsigned char gTableL1_A[BLOCK_SIZE_L1];
+extern unsigned char gTableL1_B[BLOCK_SIZE_L1];
+extern unsigned char gTableL1_C[BLOCK_SIZE_L1];
+extern unsigned char gTableL1_D[BLOCK_SIZE_L1];
+extern unsigned char gTableL1_E[BLOCK_SIZE_L1];
+extern unsigned char gTableL1_F[BLOCK_SIZE_L1];
+extern unsigned char gTableL1_G[BLOCK_SIZE_L1];
+extern unsigned char gTableL1_H[BLOCK_SIZE_L1];
+
+extern unsigned char gTableL2_A[BLOCK_SIZE_L2];
+extern unsigned char gTableL2_B[BLOCK_SIZE_L2];
+extern unsigned char gTableL2_C[BLOCK_SIZE_L2];
+extern unsigned char gTableL2_D[BLOCK_SIZE_L2];
+extern unsigned char gTableL2_E[BLOCK_SIZE_L2];
+extern unsigned char gTableL2_F[BLOCK_SIZE_L2];
+
+extern unsigned char gTableL3_A[BLOCK_SIZE_L3];
+extern unsigned char gTableL3_B[BLOCK_SIZE_L3];
+extern unsigned char gTableL3_C[BLOCK_SIZE_L3];
+extern unsigned char gTableL3_D[BLOCK_SIZE_L3];
+```
+
+Requirements:
+
+- `Launch(...)` fills those globals on success.
+- `Launch(...)` returns `false` on failure.
+- The caller does not pass `pOutputBytes`.
+- The caller does not need `pOutputLength`.
+- The caller does not need `pOutCode`.
+- The caller does not need `pOutMessage`.
+- The library logs its own failure reason through the provided logger.
+
+
+6. Single Hook Point Requirement
+--------------------------------
+
+The archiver talks to this sister library from exactly one hook point.
+
+That means everything the expander needs must be passed through that one call.
+
+Recommended shape:
+
+using ExpansionCancelFn = bool (*)(void* pUserData);
+
+bool Launch(unsigned char* pPassword,
+            int pPasswordLength,
+            std::uint8_t pExpanderVersion,
+            ExpansionStrength pExpansionStrength,
+            Logger* pLogger,
+            const char* pModeName,
+            ProgressProfileKind pProgressProfile,
+            ExpansionCancelFn pShouldCancel,
+            void* pCancelUserData);
+```
+
+If this remains a C++-only library, a request struct is also acceptable.
+But the one-call rule still applies.
+
+
+6a. What Must Be Passed In
+--------------------------
+
+The archiver must pass:
+
+1. `pPassword`
+   - password bytes
+
+2. `pPasswordLength`
+   - password byte length
+
+3. `pExpanderVersion`
+   - the requested expander version
+   - this must match what the archive header expects for encode
+   - for decode, mismatch may warn and still attempt
+
+4. `pExpansionStrength`
+   - the requested expansion strength
+   - this is behavioral input
+
+5. `pLogger`
+    - used for `LogStatus`, `LogError`, and `LogProgress`
+    - may be null only if silent operation is explicitly allowed
+
+6. `pModeName`
+    - `"Bundle"`, `"Unbundle"`, or `"Recover"`
+    - this is used to feed `ProgressInfo.mModeName`
+
+7. `pProgressProfile`
+    - needed for `ReportProgress(...)`
+    - usually `kBundle` or `kUnbundle`
+
+8. `pShouldCancel`
+    - optional cancellation callback
+
+9. `pCancelUserData`
+    - opaque pointer passed back to the cancellation callback
+
+
+6b. What Must Not Be Hidden
+---------------------------
+
+The sister library must not require hidden global state for:
+
+- mode name
+- logger
+- progress profile
+- password
+- expander version
+- expansion strength
+- cancellation
+
+If the archiver cannot pass one of those at the hook point, then the hook is not
+complete enough yet.
+
+
+6c. Hook-Point Rules
+--------------------
+
+Rules for the single hook:
+
+- return `true` only for a successful, fully valid expansion
+- return `false` on failure
+- never expose partial table state as valid output on hard failure
+- never log password contents
+- never log table contents
+
+Notes:
+
+- The expander library should not know about archive files.
+- The caller owns archive header stamping and storage of version / strength.
+- The expander library owns population of the global table memory.
+
+
+7. Progress Reporting Requirements
+----------------------------------
+
+If expansion is non-trivial, report progress periodically:
+
+```cpp
+if (pRequest.mLogger != nullptr) {
+  ReportProgress(*pRequest.mLogger,
+                 pRequest.mModeName,
+                 pRequest.mProgressProfile,
+                 ProgressPhase::kExpansion,
+                 0.0,
+                 "Starting password expansion.");
+}
+
+// ... work ...
+
+if (pRequest.mLogger != nullptr) {
+  ReportProgress(*pRequest.mLogger,
+                 pRequest.mModeName,
+                 pRequest.mProgressProfile,
+                 ProgressPhase::kExpansion,
+                 0.5,
+                 "Expanding password material.");
+}
+
+// ... work ...
+
+if (pRequest.mLogger != nullptr) {
+  ReportProgress(*pRequest.mLogger,
+                 pRequest.mModeName,
+                 pRequest.mProgressProfile,
+                 ProgressPhase::kExpansion,
+                 1.0,
+                 "Password expansion complete.");
+}
+```
+
+Rules:
+
+- Do not spam progress every loop iteration.
+- Progress should move monotonically forward.
+- Progress detail text should be short and stable.
+
+
+8. Cancellation Requirements
+----------------------------
+
+If the expansion algorithm can take noticeable time, it should support
+cooperative cancellation:
+
+```cpp
+if (pRequest.mShouldCancel && pRequest.mShouldCancel()) {
+  ExpansionResponse aResponse;
+  aResponse.mSucceeded = false;
+  aResponse.mCanceled = true;
+  aResponse.mCode = ExpansionResultCode::kCanceled;
+  aResponse.mMessage = "Password expansion canceled.";
+  return aResponse;
+}
+```
+
+Rules:
+
+- cancellation should happen only at safe checkpoints
+- cancellation must not return partially valid expanded output
+
+
+9. Optional Future Salt Path
+----------------------------
+
+Salt bytes can be added later if a future expander version truly needs them.
+
+If that happens:
+
+- add them as optional arguments to the same `Launch(...)` hook
+- older versions must continue to work without salt input
+- versioning must make the requirement explicit
+
+
+10. Test Requirements
+---------------------
+
+The sister library should ship with:
+
+- smoke tests
+  - basic valid expansion
+  - valid salt handling
+  - progress hook execution
+
+- regression tests
+  - one regression test for every discovered real bug
+
+- fixed-vector tests
+  - same input -> same exact output
+
+Minimum regression scenarios:
+
+- incompatible expander version warning path
+- cancellation path
+- strength-specific output differences
+- progress callback path
+- repeated launch determinism
+- successful population of all expected tables
+
+
+11. Practical Rule
+------------------
+
+The expander / salts library should be treated as a compatibility-sensitive
+sister library.
+
+That means:
+
+- stable version semantics
+- stable log IDs
+- stable progress semantics
+- no secret leakage
+- no casual output changes once shipped

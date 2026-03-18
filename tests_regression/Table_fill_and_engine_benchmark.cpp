@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "src/PeanutButter.hpp"
-#include "src/Tables/games/engine/GameBoard.hpp"
+#include "src/Tables/games/GameBoard.hpp"
 #include "src/Tables/password_expanders/PasswordExpander.hpp"
 #include "tests/common/Tests.hpp"
 

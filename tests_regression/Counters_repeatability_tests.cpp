@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "tests/common/Tests.hpp"
 
 int main() {
@@ -20,8 +20,8 @@ int main() {
   std::uint64_t aDigest = 1469598103934665603ULL;
   for (int aLoop = 0; aLoop < aLoops; ++aLoop) {
     const int aLoopSeed = peanutbutter::tests::config::ApplyGlobalSeed(aLoop);
-    MersenneCounter aCounterA;
-    MersenneCounter aCounterB;
+    ChaCha20Counter aCounterA;
+    ChaCha20Counter aCounterB;
     std::array<unsigned char, 8> aSeed = {{
         static_cast<unsigned char>(9U + static_cast<unsigned int>(aLoopSeed)),
         static_cast<unsigned char>(8U + static_cast<unsigned int>(aLoopSeed * 3)),

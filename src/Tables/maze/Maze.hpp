@@ -5,6 +5,7 @@
 
 #include "../../PeanutButter.hpp"
 #include "../rng/Shuffler.hpp"
+#include "MazeCharacters.hpp"
 #include "MazeGrid.hpp"
 
 namespace peanutbutter::fast_rand {
@@ -35,12 +36,20 @@ class Maze : public peanutbutter::rng::Shuffler, protected MazeGrid {
     std::uint64_t mInconsistentStateC = 0U;
     std::uint64_t mInconsistentStateD = 0U;
     std::uint64_t mInconsistentStateE = 0U;
+    std::uint64_t mInconsistentStateF = 0U;
+    std::uint64_t mInconsistentStateG = 0U;
+    std::uint64_t mInconsistentStateH = 0U;
+    std::uint64_t mInconsistentStateI = 0U;
     std::uint64_t mSimulationStallCataclysmic = 0U;
     std::uint64_t mSimulationStallApocalypse = 0U;
     std::uint64_t mStarBurst = 0U;
     std::uint64_t mChaosStorm = 0U;
     std::uint64_t mCometTrailsHorizontal = 0U;
     std::uint64_t mCometTrailsVertical = 0U;
+    std::uint64_t mDolphinCheeseTriages = 0U;
+    std::uint64_t mDolphinSharkCollisions = 0U;
+    std::uint64_t mDolphinSharkKills = 0U;
+    std::uint64_t mDolphinDeaths = 0U;
   };
 
   static constexpr int kGridWidth = MazeGrid::kGridWidth;
@@ -50,7 +59,6 @@ class Maze : public peanutbutter::rng::Shuffler, protected MazeGrid {
   static constexpr int kGridMask = MazeGrid::kGridMask;
   static constexpr int kMazeMaxGroups = MazeGrid::kMazeMaxGroups;
   static constexpr int kSeedBufferCapacity = PASSWORD_BALLOONED_SIZE;
-  static constexpr int kMazeRespawnActionThreshold = 16;
 
   Maze();
   ~Maze() override = default;
@@ -117,9 +125,22 @@ class Maze : public peanutbutter::rng::Shuffler, protected MazeGrid {
   void Flush(int pX, int pY);
   void SetByteCell(int pX, int pY, unsigned char pByte, bool pIsByte);
   void Flush();
+  void ResetCharacterLists(int pRobotCount, int pCheeseCount, int pSharkCount, int pDolphinCount);
 
   int mIsByte[kGridWidth][kGridHeight];
   unsigned char mByte[kGridWidth][kGridHeight];
+  helpers::Robot mRobotStorage[helpers::kMaxRobots];
+  helpers::Cheese mCheeseStorage[helpers::kMaxCheeses];
+  helpers::Shark mSharkStorage[helpers::kMaxSharks];
+  helpers::Dolphin mDolphinStorage[helpers::kMaxDolphins];
+  helpers::Robot* mRobotList[helpers::kMaxRobots];
+  int mRobotListCount;
+  helpers::Cheese* mCheeseList[helpers::kMaxCheeses];
+  int mCheeseListCount;
+  helpers::Shark* mSharkList[helpers::kMaxSharks];
+  int mSharkListCount;
+  helpers::Dolphin* mDolphinList[helpers::kMaxDolphins];
+  int mDolphinListCount;
   RuntimeStats mRuntimeStats;
   FlushAccountingMode mFlushAccountingMode;
   int mFlushX[kGridWidth];

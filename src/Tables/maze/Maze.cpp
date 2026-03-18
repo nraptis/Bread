@@ -13,6 +13,18 @@ Maze::Maze()
       MazeGrid(),
       mIsByte{},
       mByte{},
+      mRobotStorage{},
+      mCheeseStorage{},
+      mSharkStorage{},
+      mDolphinStorage{},
+      mRobotList{},
+      mRobotListCount(0),
+      mCheeseList{},
+      mCheeseListCount(0),
+      mSharkList{},
+      mSharkListCount(0),
+      mDolphinList{},
+      mDolphinListCount(0),
       mRuntimeStats{},
       mFlushAccountingMode(FlushAccountingMode::kRegular),
       mFlushX{},
@@ -162,6 +174,43 @@ void Maze::Flush() {
     ++mRuntimeStats.mFlush;
   } else {
     ++mRuntimeStats.mEmptyFlush;
+  }
+}
+
+void Maze::ResetCharacterLists(int pRobotCount, int pCheeseCount, int pSharkCount, int pDolphinCount) {
+  std::memset(mRobotList, 0, sizeof(mRobotList));
+  std::memset(mCheeseList, 0, sizeof(mCheeseList));
+  std::memset(mSharkList, 0, sizeof(mSharkList));
+  std::memset(mDolphinList, 0, sizeof(mDolphinList));
+  mRobotListCount = 0;
+  mCheeseListCount = 0;
+  mSharkListCount = 0;
+  mDolphinListCount = 0;
+
+  const int aRobotCount =
+      (pRobotCount <= 0) ? 0 : ((pRobotCount < helpers::kMaxRobots) ? pRobotCount : helpers::kMaxRobots);
+  const int aCheeseCount =
+      (pCheeseCount <= 0) ? 0 : ((pCheeseCount < helpers::kMaxCheeses) ? pCheeseCount : helpers::kMaxCheeses);
+  const int aSharkCount =
+      (pSharkCount <= 0) ? 0 : ((pSharkCount < helpers::kMaxSharks) ? pSharkCount : helpers::kMaxSharks);
+  const int aDolphinCount =
+      (pDolphinCount <= 0) ? 0 : ((pDolphinCount < helpers::kMaxDolphins) ? pDolphinCount : helpers::kMaxDolphins);
+
+  for (int aRobotIndex = 0; aRobotIndex < aRobotCount; ++aRobotIndex) {
+    mRobotList[mRobotListCount] = &mRobotStorage[aRobotIndex];
+    ++mRobotListCount;
+  }
+  for (int aCheeseIndex = 0; aCheeseIndex < aCheeseCount; ++aCheeseIndex) {
+    mCheeseList[mCheeseListCount] = &mCheeseStorage[aCheeseIndex];
+    ++mCheeseListCount;
+  }
+  for (int aSharkIndex = 0; aSharkIndex < aSharkCount; ++aSharkIndex) {
+    mSharkList[mSharkListCount] = &mSharkStorage[aSharkIndex];
+    ++mSharkListCount;
+  }
+  for (int aDolphinIndex = 0; aDolphinIndex < aDolphinCount; ++aDolphinIndex) {
+    mDolphinList[mDolphinListCount] = &mDolphinStorage[aDolphinIndex];
+    ++mDolphinListCount;
   }
 }
 

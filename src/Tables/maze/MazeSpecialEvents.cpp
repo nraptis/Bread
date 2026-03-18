@@ -11,16 +11,13 @@ int AbsInt(int pValue) {
   return (pValue < 0) ? -pValue : pValue;
 }
 
-bool IsInRobotCollectBox(const std::array<MazeRobot, helpers::kMaxRobots>& pRobots,
-                         int pRobotCount,
-                         int pX,
-                         int pY) {
+bool IsInRobotCollectBox(MazeRobot* const* pRobots, int pRobotCount, int pX, int pY) {
   for (int aRobotIndex = 0; aRobotIndex < pRobotCount; ++aRobotIndex) {
-    const MazeRobot& aRobot = pRobots[aRobotIndex];
-    if (aRobot.mDead) {
+    const MazeRobot* aRobot = pRobots[aRobotIndex];
+    if (aRobot == nullptr || aRobot->mDeadFlag) {
       continue;
     }
-    if (AbsInt(aRobot.mX - pX) <= 1 && AbsInt(aRobot.mY - pY) <= 1) {
+    if (AbsInt(aRobot->mX - pX) <= 1 && AbsInt(aRobot->mY - pY) <= 1) {
       return true;
     }
   }
@@ -47,7 +44,7 @@ bool MazeSpecialEvents::RepaintOrFlushTile(Maze& pMaze, int pX, int pY) {
 }
 
 void MazeSpecialEvents::StarBurst(Maze& pMaze,
-                                  const std::array<helpers::MazeRobot, helpers::kMaxRobots>& pRobots,
+                                  helpers::MazeRobot* const* pRobots,
                                   int pRobotCount) {
   ++pMaze.mRuntimeStats.mStarBurst;
   for (int aY = 0; aY < Maze::kGridHeight; ++aY) {
@@ -61,17 +58,17 @@ void MazeSpecialEvents::StarBurst(Maze& pMaze,
 }
 
 void MazeSpecialEvents::ChaosStorm(Maze& pMaze,
-                                   const std::array<helpers::MazeShark, helpers::kMaxSharks>& pSharks,
+                                   helpers::MazeShark* const* pSharks,
                                    int pSharkCount) {
   ++pMaze.mRuntimeStats.mChaosStorm;
   for (int aSharkIndex = 0; aSharkIndex < pSharkCount; ++aSharkIndex) {
-    const MazeShark& aShark = pSharks[aSharkIndex];
-    if (aShark.mDead) {
+    const MazeShark* aShark = pSharks[aSharkIndex];
+    if (aShark == nullptr || aShark->mDeadFlag) {
       continue;
     }
     for (int aYOffset = -1; aYOffset <= 1; ++aYOffset) {
       for (int aXOffset = -1; aXOffset <= 1; ++aXOffset) {
-        (void)RepaintOrFlushTile(pMaze, aShark.mX + aXOffset, aShark.mY + aYOffset);
+        (void)RepaintOrFlushTile(pMaze, aShark->mX + aXOffset, aShark->mY + aYOffset);
       }
     }
   }

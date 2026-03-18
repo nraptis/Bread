@@ -3,7 +3,7 @@
 
 #include <array>
 
-#include "src/Tables/games/engine/GameBoard.hpp"
+#include "src/Tables/games/GameBoard.hpp"
 
 namespace peanutbutter::tests::games {
 

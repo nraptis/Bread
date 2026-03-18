@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "tests/common/GameCatalog.hpp"
 #include "tests/common/GameChunkRunner.hpp"
 #include "tests/common/Tests.hpp"
@@ -389,7 +389,7 @@ int main() {
     for (int aGameIndex = 0; aGameIndex < kGameCount; ++aGameIndex) {
       aOutputs[aGameIndex].assign(static_cast<std::size_t>(aDataLength), 0U);
       peanutbutter::tests::games::GameRunSummary aSummary;
-      if (!peanutbutter::tests::games::RunGameChunksFromInput<MersenneCounter>(
+      if (!peanutbutter::tests::games::RunGameChunksFromInput<ChaCha20Counter>(
               peanutbutter::tests::games::kAllGames[static_cast<std::size_t>(aGameIndex)].mGameIndex,
               aInput.data(),
               aDataLength,

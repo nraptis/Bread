@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "src/Tables/maze/MazeDirector.hpp"
 #include "src/Tables/maze/MazePolicy.hpp"
 #include "tests/common/CounterSeedBuffer.hpp"
@@ -32,7 +32,7 @@ int main() {
     peanutbutter::tests::maze_quality::FillInput(&aInput, aLoop, 0x85EBCA6BU);
 
     const std::vector<unsigned char> aSeed =
-        peanutbutter::tests::BuildCounterSeedBuffer<MersenneCounter>(aInput.data(), aSeedLength, aSeedLength);
+        peanutbutter::tests::BuildCounterSeedBuffer<ChaCha20Counter>(aInput.data(), aSeedLength, aSeedLength);
     for (int aGameIndex = 0; aGameIndex < peanutbutter::maze::kGameCount; ++aGameIndex) {
       peanutbutter::maze::MazeDirector aMaze;
       aMaze.SetGame(aGameIndex);

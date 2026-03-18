@@ -12,22 +12,4 @@ int RandomDurationFromPick(int pPick) {
   return 10 + (pPick % 7);
 }
 
-bool AnyValidCheese(const std::array<MazeCheese, kMaxCheeses>& pCheeses, int pCheeseCount) {
-  for (int aIndex = 0; aIndex < pCheeseCount; ++aIndex) {
-    if (pCheeses[aIndex].mIsValid) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool AnyRunnableRobot(const std::array<MazeRobot, kMaxRobots>& pRobots, int pRobotCount) {
-  for (int aIndex = 0; aIndex < pRobotCount; ++aIndex) {
-    if (!pRobots[aIndex].mDead || pRobots[aIndex].mVictorious) {
-      return true;
-    }
-  }
-  return false;
-}
-
 }  // namespace peanutbutter::maze::helpers

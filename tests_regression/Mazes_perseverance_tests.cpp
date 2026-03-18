@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include "src/Tables/counters/MersenneCounter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "src/Tables/maze/MazeDirector.hpp"
 #include "src/Tables/maze/MazePolicy.hpp"
 #include "tests/common/CounterSeedBuffer.hpp"
@@ -34,7 +34,7 @@ bool RunPerseveranceCase(int pGameIndex, int pLoops, int pDataLength, int pSalt,
     std::vector<unsigned char> aOutputB(static_cast<std::size_t>(pDataLength), 0U);
     FillInput(&aInput, aLoop, pSalt);
     const std::vector<unsigned char> aSeed =
-        peanutbutter::tests::BuildCounterSeedBuffer<MersenneCounter>(aInput.data(), pDataLength, pDataLength);
+        peanutbutter::tests::BuildCounterSeedBuffer<ChaCha20Counter>(aInput.data(), pDataLength, pDataLength);
 
     peanutbutter::maze::MazeDirector aMazeA;
     aMazeA.SetGame(pGameIndex);

@@ -9,9 +9,9 @@
 #define BLOCK_GRANULARITY 192u
 #define ARCHIVE_HEADER_LENGTH 48u
 #define RECOVERY_HEADER_LENGTH 48u
-#define BLOCK_SIZE_L1 245760u
-#define BLOCK_SIZE_L2 491520u
-#define BLOCK_SIZE_L3 983040u
+#define BLOCK_SIZE_L1 261120u
+#define BLOCK_SIZE_L2 522240u
+#define BLOCK_SIZE_L3 1044480u
 
 #define MAX_VALID_FILE_PATH_LENGTH 2048u
 #define MAX_ARCHIVE_COUNT 65535u
@@ -205,8 +205,8 @@ static_assert((kBlockSizeL1 % kPasswordExpandedSize) == 0u,
               "BLOCK_SIZE_L1 must be divisible by PASSWORD_EXPANDED_SIZE.");
 static_assert((kBlockSizeL1 % kPasswordBalloonedSize) == 0u,
               "BLOCK_SIZE_L1 must be divisible by PASSWORD_BALLOONED_SIZE.");
-static_assert(kExpandedBuffersPerL1 == 32u, "BLOCK_SIZE_L1 must hold exactly 32 expanded buffers.");
-static_assert(kBalloonedBuffersPerL1 == 16u, "BLOCK_SIZE_L1 must hold exactly 16 ballooned buffers.");
+static_assert(kExpandedBuffersPerL1 == 34u, "BLOCK_SIZE_L1 must hold exactly 34 expanded buffers.");
+static_assert(kBalloonedBuffersPerL1 == 17u, "BLOCK_SIZE_L1 must hold exactly 17 ballooned buffers.");
 static_assert(kL1BlocksPerL2 == 2u, "BLOCK_SIZE_L2 must hold exactly 2 L1 tables.");
 static_assert(kL2BlocksPerL3 == 2u, "BLOCK_SIZE_L3 must hold exactly 2 L2 tables.");
 static_assert(kBlockSizeL2 == (kBlockSizeL1 * 2u), "BLOCK_SIZE_L2 must equal 2 * BLOCK_SIZE_L1.");

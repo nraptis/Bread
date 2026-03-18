@@ -19,7 +19,6 @@
 #include "src/Tables/counters/AESCounter.hpp"
 #include "src/Tables/counters/ARIA256Counter.hpp"
 #include "src/Tables/counters/ChaCha20Counter.hpp"
-#include "src/Tables/counters/MersenneCounter.hpp"
 #include "src/Tables/password_expanders/PasswordExpander.hpp"
 
 namespace peanutbutter::tests::password_expander_quality {
@@ -27,7 +26,7 @@ namespace peanutbutter::tests::password_expander_quality {
 using peanutbutter::expansion::key_expansion::PasswordExpander;
 
 constexpr int kTwisterCount = PasswordExpander::kTypeCount;
-constexpr int kCounterCount = 4;
+constexpr int kCounterCount = 3;
 constexpr int kWindow64Bytes = 64;
 constexpr int kWindow16Bytes = 16;
 
@@ -36,7 +35,7 @@ inline constexpr std::array<const char*, kTwisterCount> kTwisterLabels = {
     "BT08", "BT09", "BT10", "BT11", "BT12", "BT13", "BT14", "BT15"};
 
 inline constexpr std::array<const char*, kCounterCount> kCounterLabels = {
-    "ARIA", "AES", "CHACHA", "MERSENNE"};
+    "ARIA", "AES", "CHACHA"};
 
 struct StreamMetrics {
   double mPredictabilityScore = 0.0;
@@ -244,9 +243,6 @@ inline bool GenerateCounterStream(int pCounterIndex,
       return true;
     case 2:
       GenerateCounterStreamBytes<ChaCha20Counter>(aPasswordPtr, aPasswordLength, pOutput);
-      return true;
-    case 3:
-      GenerateCounterStreamBytes<MersenneCounter>(aPasswordPtr, aPasswordLength, pOutput);
       return true;
     default:
       return false;

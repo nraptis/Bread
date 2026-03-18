@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstring>
 
-#include "src/Tables/games/engine/GameBoard.hpp"
+#include "src/Tables/games/GameBoard.hpp"
 #include "tests/common/CounterSeedBuffer.hpp"
 
 namespace peanutbutter::tests::games {

@@ -2,13 +2,12 @@
 
 ## Counters
 
-The four counters in this repo are `MersenneCounter`, `ChaCha20Counter`, `AESCounter`, and `ARIA256Counter`.
+The three counters in this repo are `ChaCha20Counter`, `AESCounter`, and `ARIA256Counter`.
 Measured locally on this workspace with a one-off `-O3` 8 MiB generation harness, the speed order was:
 
 | Counter | Approx. speed | Relative note |
 | --- | ---: | --- |
-| `MersenneCounter` | ~379 MB/s | Fastest by a wide margin |
-| `ChaCha20Counter` | ~210 MB/s | Roughly half of Mersenne |
+| `ChaCha20Counter` | ~210 MB/s | Fastest of the remaining set |
 | `AESCounter` | ~98 MB/s | Slower software AES-CTR |
 | `ARIA256Counter` | ~49 MB/s | Slowest in this repo |
 
@@ -18,14 +17,12 @@ If you swap compilers, machines, or optimization flags, the exact numbers will m
 
 ### Limitations vs real library versions
 
-- `MersenneCounter` is not a cryptographic counter at all; it is a deterministic MT-style PRNG with a large state and easy predictability once enough output is seen.
 - `ChaCha20Counter` uses the normal 20-round ChaCha core, but it is still an in-repo implementation with no third-party audit, no SIMD/vector fast path, and no hardening claims.
 - `AESCounter` is a straightforward software AES-256-CTR implementation, but it does not use AES-NI, does not claim side-channel resistance, and should not be treated as a drop-in replacement for a vetted crypto library.
 - `ARIA256Counter` is explicitly not a real ARIA implementation here; its block core is a SHA-256-based placeholder, so its behavior and security are not representative of true ARIA-256 CTR mode.
 
 ### Cryptographic security read
 
-- `MersenneCounter`: not cryptographically secure. It is fine for deterministic testing and cheap pseudorandomness, but it should be treated as broken for secrecy, forward secrecy, or adversarial use.
 - `ChaCha20Counter`: the strongest design in this repo on paper, because the core primitive is standard ChaCha20 and the seed derivation uses HKDF-SHA256. Even so, it still lacks the implementation assurance, review depth, misuse resistance, and constant-time confidence you would expect from a production crypto library.
 - `AESCounter`: conceptually sound as AES-256 in CTR mode with HKDF-based key/IV derivation, but the implementation is homemade and not hardened. The biggest risk is not the AES design itself, but using an unaudited software implementation as if it had the guarantees of OpenSSL, libsodium, BoringSSL, or a platform crypto API.
 - `ARIA256Counter`: do not treat it as cryptographically secure ARIA. In this repo it is best described as a deterministic keyed stream generator with an ARIA-shaped API, not as a real ARIA construction.
@@ -34,12 +31,12 @@ If you swap compilers, machines, or optimization flags, the exact numbers will m
 
 - `PasswordExpanderA`: Seeds an AES-backed workspace, then runs two full passes of byte-wise mixing over the expanded buffer. It leans on multiply, add, rotate, and nearby wraparound reads to spread local changes. It is the “AES + two-pass mixer” member of the family and is used by `MatchThreeTapStreaks`.
 - `PasswordExpanderB`: Seeds a ChaCha20-backed workspace, then uses two forward passes with XOR-heavy and multiply-heavy byte updates. Its indexing jumps are more irregular than `A`, so it diffuses bytes through a less local access pattern. It is the ChaCha-flavored companion used by `MatchThreeTapIslands`.
-- `PasswordExpanderC`: Seeds from `MersenneCounter`, then writes through the buffer with a hopping index and a running carry-like state before doing a cleanup diffusion pass. That gives it a more sequential state-machine feel than the purely local mixers. It is the Mersenne-based expander used by `MatchThreeSwapStreaks`.
+- `PasswordExpanderC`: Writes through the buffer with a hopping index and a running carry-like state before doing a cleanup diffusion pass. That gives it a more sequential state-machine feel than the purely local mixers. It is used by `MatchThreeSwapStreaks`.
 - `PasswordExpanderD`: Seeds from the repo’s `ARIA256Counter`, mixes backward through the buffer, then does an even/odd pair recombination pass. It uses nibble swapping more visibly than the other expanders, so its byte structure is a little more “shuffle then blend.” It is the ARIA-family member used by `MatchThreeSwapIslands`.
 - `PasswordExpanderE`: Seeds an AES-backed workspace and performs a single dense pass with subtract, multiply, rotate, and XOR interactions. It is simpler than `A` because it skips the second cleanup pass and just commits the one main transform. It is the AES-side expander used by `MatchThreeSlideStreaks`.
-- `PasswordExpanderF`: Seeds from ChaCha20 and is the busiest mixer in the family. It does a main pass, then three extra diffusion rounds, then a final even/odd recombination pass. It is the most layered expander in the set, even though it is not currently wired into one of the six mini-games.
-- `PasswordExpanderG`: Seeds from `MersenneCounter` and walks the buffer with a single hopping-index loop driven by a carry byte. That makes it compact and cheap compared with the heavier multi-pass expanders. It is the Mersenne-side expander used by `MatchThreeSlideIslands`.
-- `PasswordExpanderH`: Seeds from the repo’s `ARIA256Counter`, mixes backward, and uses nibble swapping plus rotated neighbor blending. It is structurally simpler than `D` because it keeps only one main pass. It is the lighter ARIA-family variant and is currently unused by the six mini-games.
+- `PasswordExpanderF`: Seeds from ChaCha20 and is the busiest mixer in the family. It does a main pass, then three extra diffusion rounds, then a final even/odd recombination pass. It is the most layered expander in the set, even though it is not currently wired into one of the six games.
+- `PasswordExpanderG`: Walks the buffer with a single hopping-index loop driven by a carry byte. That makes it compact and cheap compared with the heavier multi-pass expanders. It is used by `MatchThreeSlideIslands`.
+- `PasswordExpanderH`: Seeds from the repo’s `ARIA256Counter`, mixes backward, and uses nibble swapping plus rotated neighbor blending. It is structurally simpler than `D` because it keeps only one main pass. It is the lighter ARIA-family variant and is currently unused by the six games.
 
 ## Games
 
@@ -50,7 +47,7 @@ If you swap compilers, machines, or optimization flags, the exact numbers will m
 - `MatchThreeSlideStreaks`: The move is “slide a whole row or column” by 1 through 7 cells. A move is legal only if the resulting board contains a streak match. It uses `PasswordExpanderE`.
 - `MatchThreeSlideIslands`: The move is “slide a whole row or column” by 1 through 7 cells. A move is legal only if the resulting board contains an island match. It uses `PasswordExpanderG`.
 
-### Mini-game diagrams
+### Game diagrams
 
 All six games are `8x8`, use `4` tile types, and differ by move family (`tap`, `swap`, `slide`) and match rule (`streak`, `island`).
 
@@ -293,14 +290,14 @@ Second, Kruskal is still asymptotically worse than it needs to be in this repo b
 [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
 ```
 
-## Security audit: `AES8192` vs `AES8192 -> mini-game`
+## Security audit: `AES8192` vs `AES8192 -> game`
 
 Measured locally in this workspace with a one-off harness over `32` independent trials of `8192` output bytes each.
-The pipeline for the mini-game rows was:
+The pipeline for the game rows was:
 
-`password -> AESCounter -> 8192 bytes -> mini-game -> 8192 bytes`
+`password -> AESCounter -> 8192 bytes -> game -> 8192 bytes`
 
-So this compares a raw `8192`-byte AES-backed stream against the same `8192` AES bytes post-processed by each mini-game.
+So this compares a raw `8192`-byte AES-backed stream against the same `8192` AES bytes post-processed by each game.
 
 | Stream | Entropy (bits/byte) | Reduced chi^2 | Lag-1 equal rate | Lag-1 abs corr | Avalanche |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -312,10 +309,10 @@ So this compares a raw `8192`-byte AES-backed stream against the same `8192` AES
 | `AES8192 -> MatchThreeSlideStreaks` | 7.9774 | 0.9969 | 0.0038 | 0.0083 | 0.5001 |
 | `AES8192 -> MatchThreeSlideIslands` | 7.9779 | 0.9786 | 0.0040 | 0.0093 | 0.5002 |
 
-For these coarse black-box tests, every mini-game stayed very close to the raw AES baseline.
-On simple histogram, lag-1, and one-bit avalanche checks, none of the six mini-games obviously damaged the byte-level randomness of an `8192`-byte AES stream.
+For these coarse black-box tests, every game stayed very close to the raw AES baseline.
+On simple histogram, lag-1, and one-bit avalanche checks, none of the six games obviously damaged the byte-level randomness of an `8192`-byte AES stream.
 
-That does **not** make the mini-games cryptographically secure.
+That does **not** make the games cryptographically secure.
 These are still ad hoc, branch-heavy, unaudited transforms built from small game state and custom mixers, not vetted cipher rounds.
 At best they preserve “random-looking” output on these quick tests; they do not earn the trust level of “one more AES round.”
 
@@ -325,13 +322,13 @@ At best they preserve “random-looking” output on these quick tests; they do 
 | --- | --- |
 | `MatchThreeTapStreaks` | Best case of the set on paper because its fast-rand expander is AES-backed, but it is still not a standard or audited cryptographic round. |
 | `MatchThreeTapIslands` | ChaCha-backed expander, but still an ad hoc game transform rather than a cryptographic primitive. |
-| `MatchThreeSwapStreaks` | Not a sound cryptographic strengthening layer: its fast-rand expander is `MersenneCounter`-backed. |
+| `MatchThreeSwapStreaks` | Not a sound cryptographic strengthening layer: it is still an ad hoc game transform rather than a standard primitive. |
 | `MatchThreeSwapIslands` | Not a sound cryptographic strengthening layer: its fast-rand expander depends on the repo’s placeholder `ARIA256Counter`. |
 | `MatchThreeSlideStreaks` | AES-backed expander, but still only a novelty post-processing layer, not a substitute for another AES round. |
-| `MatchThreeSlideIslands` | Not a sound cryptographic strengthening layer: its fast-rand expander is `MersenneCounter`-backed. |
+| `MatchThreeSlideIslands` | Not a sound cryptographic strengthening layer: it is still an ad hoc game transform rather than a standard primitive. |
 
 ### Bottom line
 
-- If the goal is entertainment, novelty, or extra diffusion, the mini-games are interesting and the quick stats do not show an obvious collapse.
-- If the goal is actual cryptographic hardening, the security boundary should stay with vetted primitives like AES or ChaCha, not with the mini-games.
-- Comparing “one more AES round” against “AES output crunched through a mini-game,” the extra AES round is the defensible security choice every time.
+- If the goal is entertainment, novelty, or extra diffusion, the games are interesting and the quick stats do not show an obvious collapse.
+- If the goal is actual cryptographic hardening, the security boundary should stay with vetted primitives like AES or ChaCha, not with the games.
+- Comparing “one more AES round” against “AES output crunched through a game,” the extra AES round is the defensible security choice every time.
