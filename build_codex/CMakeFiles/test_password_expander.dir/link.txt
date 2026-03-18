@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/test_password_expander.dir/test_password_expander_autogen/mocs_compilation.cpp.o CMakeFiles/test_password_expander.dir/tests_smoke/Test_PasswordExpander.cpp.o -o test_password_expander  libpeanutbutter_core.a

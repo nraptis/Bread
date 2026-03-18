@@ -1,402 +1,736 @@
 # Bread
 
-## Counters
+Bread is a password-driven table-generation and byte-confusion library.
 
-The three counters in this repo are `ChaCha20Counter`, `AESCounter`, and `ARIA256Counter`.
-Measured locally on this workspace with a one-off `-O3` 8 MiB generation harness, the speed order was:
+Its purpose is not to be "just another wrapper around a standard cipher." The project is built around a different idea:
 
-| Counter | Approx. speed | Relative note |
-| --- | ---: | --- |
-| `ChaCha20Counter` | ~210 MB/s | Fastest of the remaining set |
-| `AESCounter` | ~98 MB/s | Slower software AES-CTR |
-| `ARIA256Counter` | ~49 MB/s | Slowest in this repo |
+- start from a user password
+- expand that password into large deterministic seed regions
+- build 22 large tables from several seed families
+- run those tables through puzzle-game and maze-simulation confusion stages
+- use the finished tables as a substrate for masking, mixing, archive workflows, and recovery-aware encryption designs
 
-This ranking is about this codebase, not the algorithms in the abstract.
-The benchmark target named `benchmark_counter_speed_comparison` is currently a placeholder, so the numbers above come from a direct local timing pass over the real counter implementations.
-If you swap compilers, machines, or optimization flags, the exact numbers will move.
+The original vision came from a gap in the archiver world.
 
-### Limitations vs real library versions
+Classic archive tools were shaped by an era where compression had to be a first-class concern. In 2025 and onward, that pressure is much lower for many real-world use cases. That opens a design space where more effort can be spent on recoverability, deterministic rebuildability, table generation, and byte confusion rather than compression ratios alone.
 
-- `ChaCha20Counter` uses the normal 20-round ChaCha core, but it is still an in-repo implementation with no third-party audit, no SIMD/vector fast path, and no hardening claims.
-- `AESCounter` is a straightforward software AES-256-CTR implementation, but it does not use AES-NI, does not claim side-channel resistance, and should not be treated as a drop-in replacement for a vetted crypto library.
-- `ARIA256Counter` is explicitly not a real ARIA implementation here; its block core is a SHA-256-based placeholder, so its behavior and security are not representative of true ARIA-256 CTR mode.
+Recovery mode was treated as a first-class citizen in this project from the beginning.
 
-### Cryptographic security read
+## Important disclaimer
 
-- `ChaCha20Counter`: the strongest design in this repo on paper, because the core primitive is standard ChaCha20 and the seed derivation uses HKDF-SHA256. Even so, it still lacks the implementation assurance, review depth, misuse resistance, and constant-time confidence you would expect from a production crypto library.
-- `AESCounter`: conceptually sound as AES-256 in CTR mode with HKDF-based key/IV derivation, but the implementation is homemade and not hardened. The biggest risk is not the AES design itself, but using an unaudited software implementation as if it had the guarantees of OpenSSL, libsodium, BoringSSL, or a platform crypto API.
-- `ARIA256Counter`: do not treat it as cryptographically secure ARIA. In this repo it is best described as a deterministic keyed stream generator with an ARIA-shaped API, not as a real ARIA construction.
+Bread is intended for entertainment, experimentation, and research-oriented use.
 
-## PasswordExpander Family
+It is not presented as a formally audited cryptographic standard, a government-certified product, or a compliance-ready replacement for mature external crypto libraries.
 
-- `PasswordExpanderA`: Seeds an AES-backed workspace, then runs two full passes of byte-wise mixing over the expanded buffer. It leans on multiply, add, rotate, and nearby wraparound reads to spread local changes. It is the “AES + two-pass mixer” member of the family and is used by `MatchThreeTapStreaks`.
-- `PasswordExpanderB`: Seeds a ChaCha20-backed workspace, then uses two forward passes with XOR-heavy and multiply-heavy byte updates. Its indexing jumps are more irregular than `A`, so it diffuses bytes through a less local access pattern. It is the ChaCha-flavored companion used by `MatchThreeTapIslands`.
-- `PasswordExpanderC`: Writes through the buffer with a hopping index and a running carry-like state before doing a cleanup diffusion pass. That gives it a more sequential state-machine feel than the purely local mixers. It is used by `MatchThreeSwapStreaks`.
-- `PasswordExpanderD`: Seeds from the repo’s `ARIA256Counter`, mixes backward through the buffer, then does an even/odd pair recombination pass. It uses nibble swapping more visibly than the other expanders, so its byte structure is a little more “shuffle then blend.” It is the ARIA-family member used by `MatchThreeSwapIslands`.
-- `PasswordExpanderE`: Seeds an AES-backed workspace and performs a single dense pass with subtract, multiply, rotate, and XOR interactions. It is simpler than `A` because it skips the second cleanup pass and just commits the one main transform. It is the AES-side expander used by `MatchThreeSlideStreaks`.
-- `PasswordExpanderF`: Seeds from ChaCha20 and is the busiest mixer in the family. It does a main pass, then three extra diffusion rounds, then a final even/odd recombination pass. It is the most layered expander in the set, even though it is not currently wired into one of the six games.
-- `PasswordExpanderG`: Walks the buffer with a single hopping-index loop driven by a carry byte. That makes it compact and cheap compared with the heavier multi-pass expanders. It is used by `MatchThreeSlideIslands`.
-- `PasswordExpanderH`: Seeds from the repo’s `ARIA256Counter`, mixes backward, and uses nibble swapping plus rotated neighbor blending. It is structurally simpler than `D` because it keeps only one main pass. It is the lighter ARIA-family variant and is currently unused by the six games.
+At the same time, the author holds a very strong personal opinion:
 
-## Games
+- in the author's opinion, Bread is the backbone of the strongest cryptographic tool to date
+- in the author's opinion, the final tables are not meaningfully traceable backward to recover the original password
+- in the author's opinion, the byte twisters are materially stronger and more structurally interesting than many 1990s-era counter constructions
 
-- `MatchThreeTapStreaks`: The move is “tap one cell.” A tap removes a classic streak match, meaning a horizontal or vertical run of 3 or more equal tiles. It uses collapse-style gravity and `PasswordExpanderA`.
-- `MatchThreeTapIslands`: The move is still “tap one cell.” A tap removes a connected island of 3 or more equal tiles, so blobs matter instead of only straight lines. It also uses collapse-style gravity and `PasswordExpanderB`.
-- `MatchThreeSwapStreaks`: The move is “swap two adjacent tiles.” A move is legal only if the swap creates a classic streak match. It uses Bejeweled-style play flow and `PasswordExpanderC`.
-- `MatchThreeSwapIslands`: The move is “swap two adjacent tiles.” A move is legal only if the swap creates an island-style connected match. It uses Bejeweled-style flow and `PasswordExpanderD`.
-- `MatchThreeSlideStreaks`: The move is “slide a whole row or column” by 1 through 7 cells. A move is legal only if the resulting board contains a streak match. It uses `PasswordExpanderE`.
-- `MatchThreeSlideIslands`: The move is “slide a whole row or column” by 1 through 7 cells. A move is legal only if the resulting board contains an island match. It uses `PasswordExpanderG`.
+Those are author beliefs and design goals, not formal proofs.
 
-### Game diagrams
+## Open code, closed password
 
-All six games are `8x8`, use `4` tile types, and differ by move family (`tap`, `swap`, `slide`) and match rule (`streak`, `island`).
+The project is designed with an openly stated philosophy:
 
-#### `MatchThreeTapStreaks`
+- the code can be public
+- the algorithms can be studied
+- the table layouts can be understood
+- the original user password should still remain the true secret
 
-```text
-tap one tile inside a straight run
+The author is not afraid of people seeing the code, because seeing the code is not the same thing as possessing the user's password.
 
-[ A B C D ]
-[ B A A A ]  <- tap any A in the run
-[ C D B C ]
-[ D C B D ]
+## Authorized recovery
 
-remove matched row/column of 3+
-            |
-            v
-gravity collapses downward
-            |
-            v
-new tiles spawn from the top
-```
+Bread is not meant to deny rightful recovery.
 
-#### `MatchThreeTapIslands`
+If a lawful owner, custodian, enterprise operator, government agency, or forensic team has the user's actual password, the system is designed so the tables can be regenerated deterministically and the protected data can be recovered through that password.
 
-```text
-tap one tile inside a connected blob
+That is a major part of the project's philosophy:
 
-[ A B C D ]
-[ B A A D ]
-[ C A B C ]  <- tap any connected A in the island
-[ D C B D ]
+- strong resistance to backward tracing without the password
+- straightforward deterministic recovery with the password
 
-remove connected island of 3+
-            |
-            v
-gravity collapses downward
-            |
-            v
-new tiles spawn from the top
-```
+## High-level architecture
 
-#### `MatchThreeSwapStreaks`
+Bread currently builds:
 
-```text
-swap two neighbors to create a streak
+- 12 `L1` tables
+- 6 `L2` tables
+- 4 `L3` tables
+- 22 total tables
 
-before:               after:
-[ C A D ]             [ C B D ]
-[ A B A ]   swap      [ A A A ]  -> now row 2 is a streak
-[ E F G ]  ------>    [ E F G ]
-```
+Important sizes in the current code:
 
-#### `MatchThreeSwapIslands`
+- `PASSWORD_EXPANDED_SIZE = 7680`
+- `PASSWORD_BALLOONED_SIZE = 15360`
+- `BLOCK_SIZE_L1 = 261120`
+- `BLOCK_SIZE_L2 = 522240`
+- `BLOCK_SIZE_L3 = 1044480`
 
-```text
-swap two neighbors to create an island
+Those tables are filled from:
 
-before:               after:
-[ C A D ]             [ C B D ]
-[ A B D ]   swap      [ A A D ]
-[ E A G ]  ------>    [ E A G ]  -> now A forms an L-shaped island of 3
-```
+- 3 AES-like table fills
+- 1 ChaCha-like table fill
+- 1 ARIA-like table fill
+- 16 custom byte-twister fills
 
-#### `MatchThreeSlideStreaks`
+The result is a wide password-derived memory field rather than a single narrow keystream.
 
-```text
-rotate one whole row or column by 1..7 cells
+## The counters
 
-row before: [ A B C D E F G H ]
-slide left by 3
-row after : [ D E F G H A B C ]
+Bread uses in-repo seed-generator families named:
 
-the move is legal only if the wrapped board
-now contains a row/column streak of 3+
-```
+- `AESCounter`
+- `ChaCha20Counter`
+- `ARIA256Counter`
 
-#### `MatchThreeSlideIslands`
+The honest interpretation is:
 
-```text
-rotate one whole row or column by 1..7 cells
+- these are AES-like, ChaCha-like, and ARIA-like seeded stream families used inside Bread's pipeline
+- `ARIA256Counter` is currently a placeholder-style ARIA-like path rather than a formally validated ARIA implementation
+- these families provide multiple seed styles before the custom twister stage even begins
 
-col before:    col after sliding down by 2:
-[ A ]          [ G ]
-[ B ]          [ H ]
-[ C ]   --->   [ A ]
-[ D ]          [ B ]
-[ E ]          [ C ]
-[ F ]          [ D ]
-[ G ]          [ E ]
-[ H ]          [ F ]
+In the current codebase, the three AES-derived fills are intentionally separated so they do not collapse into byte-identical same-sized tables:
 
-the move is legal only if the wrapped board
-now contains a connected island of 3+
-```
+- one AES table is used directly
+- one AES table is reversed
+- one AES table is bit-inverted
 
-## Maze
+That is a practical domain-separation measure inside the current implementation.
 
-Let `N = width * height`; in this repo `N = 32 * 32 = 1024`, so every algorithm is practically bounded, but the asymptotic costs are still useful.
+## The 16 byte twisters
 
-Pure accessors such as `IsWall`, `IsEdge`, `PathLength`, `PathNode`, `ToIndex`, `ToX`, and `ToY` are all `O(1)`.
+The 16 production byte twisters live in:
 
-| Algorithm | Time complexity | Notes |
-| --- | --- | --- |
-| `FinalizeWalls()` | `O(N)` | One full scan to rebuild wall and walkable lists |
-| `GetRandomWall()` | `O(1)` after finalize | `O(N)` only if it lazily triggers `FinalizeWalls()` first |
-| `GetRandomWalkable()` | `O(1)` after finalize | Same cache behavior as `GetRandomWall()` |
-| `Flush(x, y)` | `O(1)` | Single tile byte flush |
-| `Flush()` | `O(N)` | Full scan of byte cells |
-| `FillStackAllCoords()` | `O(N)` | Writes every coordinate once |
-| `FindEdgeWalls(x, y)` | `O(N)` | Flood fill over one open component plus adjacent wall discovery |
-| `BreakDownOneCellGroups()` | `O(N)` | Two bounded grid scans |
-| `InitializeDisjointSets()` | `O(N * alpha(N))` | Grid scan plus near-constant-time unions |
-| `FindSetRoot()` | `O(alpha(N))` amortized | Path-compressed DSU find |
-| `UnionSetRoots()` | `O(alpha(N))` amortized | Union by rank + path compression |
-| `OpenWallAndUnion()` | `O(alpha(N))` amortized | Opens one wall and unions with up to 4 neighbors |
-| `EnsureSingleConnectedOpenGroup()` | `O(N^2 * alpha(N))` worst-case | Repeated whole-grid wall scans with incremental DSU updates |
-| `GeneratePrims()` | `O(N)` | Frontier walls are pushed and removed a bounded number of times |
-| `InitializeKruskals()` | `O(N)` | Initializes odd-cell groups and candidate walls |
-| `ExecuteKruskals()` | `O(N^2)` | Current version rewrites group ids across the odd lattice on merges |
-| `IsConnected_Slow()` | `O(N)` | DFS/BFS-style reachability check |
-| `FindPath()` | `O(N log N)` worst-case | A* on a 4-neighbor grid with a binary heap |
-| `ReconstructPath()` | `O(N)` | Walks parent pointers back once |
-| `MazeRobotCheese::Build()` | `O(N^2 * alpha(N))` | Dominated by `EnsureSingleConnectedOpenGroup()` |
-| `MazeDolphinSharks::Build()` | `O(N^2 * alpha(N))` | Same dominant cost |
+- [`src/Tables/password_expanders/ByteTwister.hpp`](/Users/magneto/Desktop/Codex%20Playground/Bread/src/Tables/password_expanders/ByteTwister.hpp)
+- [`src/Tables/password_expanders/ByteTwister.cpp`](/Users/magneto/Desktop/Codex%20Playground/Bread/src/Tables/password_expanders/ByteTwister.cpp)
 
-Two practical notes matter here.
-First, the recent DSU rewrite removed the older “full regroup every iteration” behavior, which used to be the main avoidable hotspot.
-Second, Kruskal is still asymptotically worse than it needs to be in this repo because it rewrites `mGroupId` directly instead of using DSU there too.
+The active production set is:
 
-### Example mazes
+- `kType00`
+- `kType01`
+- `kType02`
+- `kType03`
+- `kType04`
+- `kType05`
+- `kType06`
+- `kType07`
+- `kType08`
+- `kType09`
+- `kType10`
+- `kType11`
+- `kType12`
+- `kType13`
+- `kType14`
+- `kType15`
 
-#### `RobotCheese`
+What these twisters do:
 
-```text
-[   OO O   O       O OO          ]
-[       OO        OO   O  OO     ]
-[   O  O               OO        ]
-[    O     OO O    O  O O        ]
-[O       OO   O      OO    O   O ]
-[   O    O  O        O      O    ]
-[  O     O          OO    O     O]
-[   O        O        OO         ]
-[   O   O O            O         ]
-[  O    O  O          O          ]
-[   O     O   O  O  O        OOO ]
-[  O          O O               O]
-[O O  O O     O    O  O  O O     ]
-[ O    O     O   O    O   O  O OO]
-[       O OO      OO OO         O]
-[     OO   O OOOO   O     OO     ]
-[ O  O O       O   O   O  O  O  O]
-[ OO O O          O         OO   ]
-[  O   O        OO   O OOO OO O  ]
-[O   O  O  O                    O]
-[  O O   O     O    O O     O  O ]
-[ O         OO           O       ]
-[ O O   O  O  O      OO    O O   ]
-[   O           O     OO         ]
-[O  OO O O       O     O     O O ]
-[  O O    O   O     OO       O O ]
-[       O             OO   OO O O]
-[O   O O  O       O O           O]
-[  O  O   O O  O   OO   O       O]
-[  O O  O     O   O    O      O  ]
-[O   O     OO   O O  OOO      O  ]
-[     O  O O      O OO       O   ]
-```
+- operate on a full `PASSWORD_EXPANDED_SIZE` block
+- use wrapped reads across the block
+- repeatedly load 16-byte neighborhoods
+- mix rows, columns, offsets, folds, rotates, XORs, and byte injection patterns
+- apply more structure than a simple "increment counter and copy bytes" design
 
-#### `Prim`
+### Their origin
 
-```text
-[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
-[x x x x     x   x x   x x     xx]
-[x x x xxx xxxxx x xxx x xxx xxxx]
-[x       x x       x x x       xx]
-[xxx xxx x xxx xxxxx x xxxxx xxxx]
-[x x x               x   x     xx]
-[x xxxxxxx x xxxxxxxxx xxx xxxxxx]
-[x x       x     x   x x x x   xx]
-[x xxxxx xxxxxxxxx xxx x x x xxxx]
-[x     x x x x x   x x         xx]
-[x xxx x x x x xxx x x x x xxxxxx]
-[x x         x x   x   x x x   xx]
-[xxx x x xxx x xxx x xxxxxxx xxxx]
-[x   x x   x   x x   x     x   xx]
-[xxxxxxx xxxxxxx x xxx xxx x xxxx]
-[x     x x x x   x     x x   x xx]
-[xxx xxx x x xxx x xxxxx xxxxx xx]
-[x   x     x     x x           xx]
-[xxx xxxxx xxxxx x x xxx xxxxx xx]
-[x                   x       x xx]
-[x xxx xxx xxx xxx x xxxxxxxxx xx]
-[x x     x x     x x x x     x xx]
-[x xxx xxxxxxx x xxx x x xxx x xx]
-[x x   x       x   x       x x xx]
-[xxx xxx xxxxx x xxxxxxx x xxx xx]
-[x   x   x     x     x x x   x xx]
-[xxxxx x xxx xxx x xxx xxx xxxxxx]
-[x   x x x   x   x       x x x xx]
-[xxx x x x x x xxx xxxxxxx x x xx]
-[x     x x x x x         x     xx]
-[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
-[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
-```
+The author's account of the project is that these 16 production byte twisters were selected from a much larger search space of more than `700,000` candidate twisters.
 
-#### `Kruskal`
+The author's view is that these were the least-predictable survivors from that larger search.
 
-```text
-[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
-[x     x   x x   x   x x   x   xx]
-[x xxx xxx x xxx x x x x xxx x xx]
-[x   x x x x   x   x x       x xx]
-[x xxx x x x x xxx xxx xxxxxxxxxx]
-[x   x       x x   x   x   x   xx]
-[xxxxx xxxxxxx x xxx x x xxxxx xx]
-[x x     x         x x     x   xx]
-[x xxx xxxxxxxxx xxx xxx x xxx xx]
-[x     x   x x x x x   x x   x xx]
-[xxxxx xxx x x xxx xxx x x xxx xx]
-[x x   x x   x   x x   x x     xx]
-[x x xxx x xxx x x xxx x x x xxxx]
-[x x     x x x x   x   x x x   xx]
-[x xxxxx x x x x xxxxx xxxxxxx xx]
-[x x x   x   x x x     x       xx]
-[x x xxx x x x xxx x xxx x x xxxx]
-[x         x x   x x x x x x   xx]
-[xxx xxxxx x xxx xxx x xxxxx xxxx]
-[x   x x   x x       x   x x   xx]
-[x xxx xxxxx xxx xxxxx xxx xxx xx]
-[x     x       x           x   xx]
-[xxx xxxxxxx xxxxx x x xxx x xxxx]
-[x x     x         x x x   x   xx]
-[x xxxxxxxxxxx xxx xxxxx xxx x xx]
-[x           x x     x   x x x xx]
-[x x x x x x xxx xxx x x x x xxxx]
-[x x x x x x     x x x x x x   xx]
-[x xxx xxx x xxx x x xxxxx x xxxx]
-[x x     x x x     x   x       xx]
-[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
-[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
-```
+The repo contains the final production twisters, not the full historical search archive.
 
-## Security audit: `AES8192` vs `AES8192 -> game`
+### Author opinion on strength
 
-Measured locally in this workspace with a one-off harness over `32` independent trials of `8192` output bytes each.
-The pipeline for the game rows was:
+In the author's opinion, these twisters are stronger and harder to predict than many 1990s-era counter-style designs because they use:
 
-`password -> AESCounter -> 8192 bytes -> game -> 8192 bytes`
+- extra mixing steps
+- more complex matrix-like neighborhood logic
+- wrapped reads over the whole expansion block
+- chained block evolution
+- repeated comparison pressure against AES-like, ARIA-like, and ChaCha-like counter families during development
 
-So this compares a raw `8192`-byte AES-backed stream against the same `8192` AES bytes post-processed by each game.
+The codebase supports that this system is more structurally elaborate than a plain counter stream.
+The codebase does not provide a formal proof that these twisters are cryptographically superior to modern audited primitives.
 
-| Stream | Entropy (bits/byte) | Reduced chi^2 | Lag-1 equal rate | Lag-1 abs corr | Avalanche |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `AES8192` | 7.9775 | 0.9955 | 0.0040 | 0.0097 | 0.5002 |
-| `AES8192 -> MatchThreeTapStreaks` | 7.9776 | 0.9945 | 0.0039 | 0.0077 | 0.5006 |
-| `AES8192 -> MatchThreeTapIslands` | 7.9774 | 1.0029 | 0.0038 | 0.0078 | 0.4994 |
-| `AES8192 -> MatchThreeSwapStreaks` | 7.9775 | 0.9993 | 0.0039 | 0.0084 | 0.5005 |
-| `AES8192 -> MatchThreeSwapIslands` | 7.9774 | 1.0001 | 0.0039 | 0.0082 | 0.5001 |
-| `AES8192 -> MatchThreeSlideStreaks` | 7.9774 | 0.9969 | 0.0038 | 0.0083 | 0.5001 |
-| `AES8192 -> MatchThreeSlideIslands` | 7.9779 | 0.9786 | 0.0040 | 0.0093 | 0.5002 |
+## The password expanders
 
-For these coarse black-box tests, every game stayed very close to the raw AES baseline.
-On simple histogram, lag-1, and one-bit avalanche checks, none of the six games obviously damaged the byte-level randomness of an `8192`-byte AES stream.
+The password-expansion layer lives in:
 
-That does **not** make the games cryptographically secure.
-These are still ad hoc, branch-heavy, unaudited transforms built from small game state and custom mixers, not vetted cipher rounds.
-At best they preserve “random-looking” output on these quick tests; they do not earn the trust level of “one more AES round.”
+- [`src/Tables/password_expanders/PasswordExpander.hpp`](/Users/magneto/Desktop/Codex%20Playground/Bread/src/Tables/password_expanders/PasswordExpander.hpp)
+- [`src/Tables/password_expanders/PasswordExpander.cpp`](/Users/magneto/Desktop/Codex%20Playground/Bread/src/Tables/password_expanders/PasswordExpander.cpp)
 
-### Per-game security floor
+The current expansion model is:
 
-| Mini-game | Security read |
-| --- | --- |
-| `MatchThreeTapStreaks` | Best case of the set on paper because its fast-rand expander is AES-backed, but it is still not a standard or audited cryptographic round. |
-| `MatchThreeTapIslands` | ChaCha-backed expander, but still an ad hoc game transform rather than a cryptographic primitive. |
-| `MatchThreeSwapStreaks` | Not a sound cryptographic strengthening layer: it is still an ad hoc game transform rather than a standard primitive. |
-| `MatchThreeSwapIslands` | Not a sound cryptographic strengthening layer: its fast-rand expander depends on the repo’s placeholder `ARIA256Counter`. |
-| `MatchThreeSlideStreaks` | AES-backed expander, but still only a novelty post-processing layer, not a substitute for another AES round. |
-| `MatchThreeSlideIslands` | Not a sound cryptographic strengthening layer: it is still an ad hoc game transform rather than a standard primitive. |
+1. repeat-fill the user's password into one full `PASSWORD_EXPANDED_SIZE` source block
+2. apply one byte twister to create expanded block `0`
+3. copy the previous block forward
+4. twist again to create block `1`
+5. keep evolving the prior block until enough output exists
 
-### Bottom line
+That means the password is not just hashed once and forgotten. It becomes the start of a deterministic evolving block chain.
 
-- If the goal is entertainment, novelty, or extra diffusion, the games are interesting and the quick stats do not show an obvious collapse.
-- If the goal is actual cryptographic hardening, the security boundary should stay with vetted primitives like AES or ChaCha, not with the games.
-- Comparing “one more AES round” against “AES output crunched through a game,” the extra AES round is the defensible security choice every time.
+### One simple example
 
-## Honest security analysis
+Take a password like:
 
-The notes below are intentionally conservative.
-They describe what this project appears to do well, where it likely adds confusion, and where it would be misleading to make stronger claims.
+`apple wolf blazer`
+
+The mental model is:
+
+1. repeat that string until one full `PASSWORD_EXPANDED_SIZE` block is filled
+2. run one selected twister such as `kType00`
+3. that produces expanded block `0`
+4. copy block `0`
+5. twist again to produce block `1`
+6. copy block `1`
+7. twist again to produce block `2`
+
+So the chain is:
+
+`password -> repeated source block -> twist -> block 0 -> twist -> block 1 -> twist -> block 2 -> ...`
+
+This is one reason the author talks about non-retraceability. The final data is many deterministic transformations away from the original human-readable password.
+
+## Honest analysis
+
+These are the most important claims, stated as honestly as possible.
 
 ### 1. The user's original password cannot be recovered after these operations complete
 
-- The generated tables do not store the original password in clear form after the normal table-generation flow completes.
-- The password is expanded, mixed, copied into large buffers, and then further transformed by game or maze stages, so the final table bytes are far removed from the caller's original string.
-- That said, this repo does not prove irrecoverability in a formal sense.
-- The caller may still retain the password in its own memory, logs, UI state, crash dumps, or swap.
-- Because the entire pipeline is deterministic and custom, it is more honest to say "the original password is not directly present in the finished tables" than to say "the password can never be recovered."
+- This is the design goal of the project.
+- The tables, game stages, and maze stages move the data far away from a human-readable password string.
+- The code does not include a reverse path that reconstructs the original password from finished tables.
+- The project does not provide a formal mathematical proof that password recovery is impossible.
+- The author believes the original password is not practically recoverable from finished outputs without already knowing the password.
 
 ### 2. The user's password is expanded with impossible-to-reverse logic
 
-- The password expansion pipeline is nontrivial, multi-stage, and not obviously invertible by inspection.
-- It uses repeated-source expansion, byte twisters, large table fills, and optional game or maze post-processing.
-- It is still custom deterministic logic, not a proven one-way function.
-- This means it may be difficult to reverse in practice, but "impossible to reverse" would be too strong a claim for the current codebase.
-- The strongest honest statement is that the expansion is highly lossy in structure and operationally inconvenient to invert, but it is not backed by a formal security reduction or external audit.
+- The expansion logic is multi-step and stateful, not a simple direct copy.
+- The byte twisters repeatedly mix neighborhoods and evolve whole blocks.
+- Later blocks are generated from prior expanded blocks rather than from the raw password alone.
+- The code strongly supports the statement that reversing the pipeline is nontrivial.
+- The word "impossible" should be understood here as a design claim and author opinion, not as a proven theorem.
 
-### 3. Using these tables for masked byte XOR or masked byte XOR with noise tables, combined with other ciphers, produces difficult-to-unweave encryption
+### 3. Using these tables for masked byte operations can produce difficult-to-unweave encryption when combined with other ciphers
 
-- Using these tables as extra masking material would add another keyed, stateful transformation layer that is harder to reason about than plain XOR against a short repeating mask.
-- The tables are large, password-derived, and optionally post-processed by puzzle-game or maze logic, so byte provenance becomes harder to track by hand.
-- Combined with a standard cipher, they may increase attacker workload by adding diffusion and irregular byte dependencies around the edges of the main cipher.
-- The caution is that "harder to unweave" does not automatically mean "cryptographically stronger."
-- In general, compositions with standard vetted ciphers are safest when the extra layer is simple, well-defined, and easy to analyze; homebrew masking layers can also create subtle failure modes.
+- This is a reasonable engineering claim about layering confusion on top of other crypto operations.
+- A table-driven masked byte XOR or masked byte XOR with a noise table can make byte origin stories harder to narrate.
+- When combined with external ciphers, these tables can add extra deterministic structure, hopping, and data-dependent confusion.
+- The repo does not currently contain a formal cryptanalysis proving the combined construction is secure.
+- The project is best understood as a strong confusion substrate, not as a substitute for standard audited cryptographic review.
 
 ### 4. The result of the game-board makes it statistically impossible to derive the original seed, aside from the histogram
 
-- The game-board stage destroys a large amount of positional information.
-- Bytes are consumed as tile values, moved through legal-move logic, match resolution, cascades, power-up effects, and reshuffling before being emitted back into the output buffer.
-- That means the output is not a simple permutation of the seed window; it is a stateful simulation result.
-- In that sense, it is reasonable to say the game stage makes seed reconstruction substantially harder than direct table use.
-- It is not honest to claim "statistically impossible" from the current evidence.
-- Some coarse information can survive, especially frequency-style summaries, repeated-value tendencies, or other aggregate traits, and the project does not include a formal inversion-resistance proof for the game transform.
+- The game-board does substantially scramble byte position, byte emission order, and local causality.
+- Output bytes are emitted when tiles are matched and committed, not simply copied out in seed order.
+- Moves, cascades, power-ups, and rare events all push the output further away from a simple positional mapping.
+- Histogram information can still survive because byte values themselves are reused and re-emitted.
+- "Statistically impossible" is the author's intended claim, but the codebase does not provide a formal statistical proof.
 
 ### 5. The result of the maze makes it statistically impossible to derive the original seed, aside from the histogram
 
-- The maze stage is even more structurally disruptive than the game stage because it operates on a `PASSWORD_EXPANDED_SIZE * 2` window and routes bytes through map generation, entity placement, pathing, flush order, and special-event handling.
-- The emitted bytes come from simulation state transitions rather than direct byte-by-byte copying, so straightforward reversal is not available.
-- As with the game stage, this likely makes exact seed reconstruction much harder in practice.
-- As with the game stage, "statistically impossible" is stronger than the current project can defend.
-- The honest position is that maze processing appears to discard or scramble most direct positional relationships from the seed, while still leaving open the possibility that aggregate properties or future analysis could recover more structure than expected.
+- The maze stage repaints and flushes walkable cells based on topology, robot motion, predator motion, respawns, and special events.
+- Output bytes come from simulation history rather than a direct positional replay of the seed.
+- The resulting byte stream is meaningfully separated from the original walkable-cell order.
+- Histogram-style information can still leak in the broad sense that the same byte values continue to exist in the system.
+- As with the game stage, the impossibility language is best read as design intent and author opinion, not a formal proof.
 
-## Game-based byte confusion
+## Why byte confusion matters
 
-Game-based byte confusion means a `PASSWORD_EXPANDED_SIZE` window is treated as the seed for a puzzle simulation instead of as a plain byte array.
-Once the bytes become board state, move ordering, cascades, and power-up triggers, the output is shaped by gameplay rules rather than by a direct algebraic transform.
-That is useful because it replaces simple byte locality with branch-heavy state evolution: a small change in the seed can alter legal moves, match timing, cascade length, and which bytes are emitted first.
+Bread uses the phrase "byte confusion" to describe transforms that make a finished byte harder to explain as a direct derivative of a single input position.
 
-One practical benefit is that the game stage tends to damage easy positional reasoning.
-A raw table fill can still be thought about as "derived bytes in derived positions."
-A game board is harder to narrate that way, because the output depends on many interacting board events instead of one clean pass over the input.
-That makes it a reasonable confusion layer when the goal is novelty, diffusion, and non-obvious structure, even though it should not be advertised as a substitute for standard cryptographic rounds.
+That matters because a plain expanded password buffer is still, at the end of the day, just transformed bytes. A confusion layer tries to break the reverse narrative:
+
+- where exactly did this byte come from
+- what local neighborhood influenced it
+- why was it emitted now and not earlier
+- what simulation event caused this output order
+
+Bread has two large confusion families:
+
+- game-based byte confusion
+- maze-based byte confusion
+
+## Puzzle-game byte confusion
+
+Puzzle-game byte confusion uses a `PASSWORD_EXPANDED_SIZE` seed window and turns it into an `8 x 8` board of tiles.
+
+Each tile has:
+
+- a tile type
+- a stored byte payload
+- an optional power-up type
+
+The board then runs moves, matches, cascades, topples, rare events, and re-spawns until the output buffer has been filled.
+
+The important point is this:
+
+the emitted bytes are not copied out by original position. They are emitted when matched tiles are committed and removed from the board.
+
+That makes the output feel more like simulation residue than a neat permutation.
+
+### Why the puzzle stage is useful
+
+- it damages direct byte-position traceability
+- it introduces stateful move logic instead of one-pass arithmetic
+- small seed changes can alter move selection, cascades, power-up triggers, and emission order
+- output bytes are shaped by board history, not just by adjacency math
+
+### The 16 puzzle modes
+
+The board engine combines:
+
+- move families: `tap`, `swap`, `slide`
+- match families: `streak`, `island`
+- play policies: `greedy`, `random`, `first`
+
+Representative names include:
+
+- `StreakSwapGreedy`
+- `StreakSlideGreedy`
+- `IslandSwapGreedy`
+- `IslandSlideGreedy`
+- `StreakTapGreedy`
+- `IslandTapGreedy`
+- `StreakSwapRandom`
+- `IslandSwapRandom`
+- `StreakSwapFirst`
+- `IslandSlideFirst`
+
+### Example puzzle boards
+
+These are illustrative board sketches, not exact runtime dumps.
+
+Legend:
+
+- `A B C D` are the four tile types
+- `*` means "this tile currently carries a power-up"
+
+Example 1: a streak-heavy board
+
+```text
+A A A B C D B C
+B C D B A C D A
+C D A C B D A B
+D B C D C A B C
+A C B A D B C D
+B D C B A C D A
+C A D C B D A B
+D B A D C A B C
+```
+
+Example 2: an island-heavy board
+
+```text
+A A B C C D D B
+A A B C C D D B
+B B A A D C C A
+C D A A B B D C
+C D D B B A A C
+D C C B A A B D
+B D C D C B A A
+A B D C D B C A
+```
+
+Example 3: power-up tiles mixed into normal play
+
+```text
+A  B  C* D  A  B  C  D
+B  C  D  A  B* C  D  A
+C  D  A  B  C  D  A* B
+D  A  B  C  D  A  B  C
+A* B  C  D  A  B  C  D
+B  C  D  A  B  C* D  A
+C  D  A  B  C  D  A  B
+D  A  B  C  D* A  B  C
+```
+
+### Streak matching
+
+`Streak` matching is the classic match style:
+
+- three or more same-type tiles in a horizontal line match
+- three or more same-type tiles in a vertical line match
+
+That is the `kStreak` path in the board logic.
+
+### Island matching
+
+`Island` matching treats same-type blobs as connected components instead of simple lines.
+
+If enough like-typed tiles touch orthogonally and form a connected region, that region can be marked as a match.
+
+This produces a more blob-oriented board behavior than traditional match-three rows and columns.
+
+### Guarantee match and guarantee no-match
+
+Bread contains explicit board-correction logic in [`src/Tables/games/GamePlayDirector.cpp`](/Users/magneto/Desktop/Codex%20Playground/Bread/src/Tables/games/GamePlayDirector.cpp).
+
+There are four important guarantee helpers:
+
+- `GuaranteeMatchDoesExist`
+- `GuaranteeMatchDoesNotExist`
+- `GuaranteeMoveExistsForNewTiles_MatchDoesExist`
+- `GuaranteeMoveExistsForNewTiles_MatchDoesNotExist`
+
+What they do:
+
+- flip tile types until a fresh board has at least one match when the mode wants an immediate match
+- flip tile types until a fresh board has no match when the mode wants a clean board
+- try to preserve the stronger property that a legal move exists after new tiles appear
+- restart and randomize if earlier repair passes fail
+
+So "guarantee match" means the board shaper keeps editing tile types until a valid match exists.
+"Guarantee no-match" means it keeps editing until the board is clean of immediate matches while still trying to preserve playability.
+
+### Puzzle power-ups
+
+Power-up tiles are spawned from the seed and stored on individual tiles.
+
+Current power-ups in the code:
+
+- `ZoneBomb`: marks a `3 x 3` area around the triggered tile
+- `Rocket`: clears the full row and full column through the tile
+- `ColorBomb`: clears every tile of the same type as the center tile
+- `CrossBomb`: clears diagonals radiating from the center
+- `PlasmaBeamV`: clears three vertical columns centered on the tile
+- `PlasmaBeamH`: clears three horizontal rows centered on the tile
+- `PlasmaBeamQuad`: combines the horizontal and vertical plasma beams
+- `Nuke`: clears a `5 x 5` square around the tile
+- `CornerBomb`: clears four `4 x 4` corner regions
+- `VerticalBombs`: clears every other column using a random parity
+- `HorizontalBombs`: clears every other row using a random parity
+
+These are real mechanics in [`src/Tables/games/GamePowerUp.cpp`](/Users/magneto/Desktop/Codex%20Playground/Bread/src/Tables/games/GamePowerUp.cpp).
+
+### Puzzle special events
+
+The current puzzle engine has two named rare events:
+
+- `RiddlerAttack`
+- `DragonAttack`
+
+`RiddlerAttack`:
+
+- swaps every adjacent row pair
+- swaps every adjacent column pair
+- effectively scrambles the board geometry in-place
+
+`DragonAttack`:
+
+- walks the board
+- randomly marks a large portion of non-matched tiles for removal
+- forces a chaotic flush-and-topple situation
+
+There is no third named puzzle special event in the current code.
+
+### How the puzzle games work bytes
+
+This is the important byte story:
+
+1. a `PASSWORD_EXPANDED_SIZE` seed buffer is loaded
+2. tile types are derived from seed-driven type bytes
+3. each tile also stores a real byte payload from the seed
+4. when a match is committed, the matched tiles' stored bytes are enqueued into the result buffer
+5. power-ups can mark extra tiles
+6. topples and respawns bring in fresh seed-driven tiles
+7. cascades continue changing emission order
+
+So the output is produced by:
+
+- match timing
+- board topology
+- move policy
+- cascade order
+- special events
+- power-up activation
+
+not by simply reading the seed window left-to-right.
+
+### Puzzle failure behavior
+
+The board has recovery logic for stuck states and repeated failure to make output progress.
+
+If the board cannot keep making progress after repeated rescue attempts, it eventually falls back to an apocalypse path that fills the result buffer from the seed and reverses it.
+
+That fallback exists for deterministic completion, not as the preferred confusion path.
 
 ## Maze-based byte confusion
 
-Maze-based byte confusion applies the same idea to a larger `PASSWORD_BALLOONED_SIZE` window.
-Instead of match-three rules, the bytes feed a maze world with generation mode, walkable topology, robots, sharks, dolphins, cheese, flush order, and rare events.
-The bytes that come back out are therefore tied to simulation history, not just to input order.
+Maze-based byte confusion works on a larger `PASSWORD_BALLOONED_SIZE` seed window.
 
-The main benefit of the maze stage is that it mixes topology with state progression.
-Pathfinding, respawns, occupancy conflicts, and event-driven repaint or flush behavior create a more irregular output path than a simple shuffler or byte twister.
-That can be attractive when the project wants a large, expensive, hard-to-describe confusion layer.
-The honest caveat is the same as with the games: this is an interesting custom transformation with plausible diffusion benefits, not a replacement for audited cryptographic design.
+The maze stage builds a walkable maze, paints walkable cells from the seed, populates characters, and then lets the simulation repaint and flush bytes based on motion and events.
+
+This creates a very different kind of confusion from the puzzle board.
+
+The puzzle board is about matches and cascades.
+The maze is about topology, pursuit, respawn, repainting, and local disruption.
+
+### Why the maze stage is useful
+
+- it ties bytes to map topology rather than to board matches
+- it introduces moving agents with competing goals
+- it repeatedly repaints and flushes walkable cells
+- it makes output order depend on motion, collisions, captures, and special events
+
+### The maze families
+
+The code currently supports three generation families:
+
+- `Custom`
+- `Prim`
+- `Kruskal`
+
+These family names are visible in [`src/Tables/maze/MazePolicy.hpp`](/Users/magneto/Desktop/Codex%20Playground/Bread/src/Tables/maze/MazePolicy.hpp).
+
+### Example maze sketches
+
+These are representative illustrations, not exact runtime dumps.
+
+Legend:
+
+- `#` wall
+- `.` open path
+- `R` robot
+- `C` cheese
+- `D` dolphin
+- `S` shark
+
+Example: `Custom`
+
+```text
+#################
+#R....#...#....C#
+#.###.#.#.#.###.#
+#...#...#...#...#
+###.#####.###.#.#
+#...#...D...#.#.#
+#.###.#####.#.#.#
+#.....#...#...S.#
+#################
+```
+
+Example: `Prim`
+
+```text
+#################
+#R#...#.....#...#
+#.#.#.#.###.#.#.#
+#...#...#.#...#.#
+###.#####.#.###.#
+#...#...#.#...#.#
+#.###.#.#.###.#.#
+#C....#...D..S#.#
+#################
+```
+
+Example: `Kruskal`
+
+```text
+#################
+#R..#...#...#..C#
+###.#.#.#.#.#.###
+#...#.#...#.#...#
+#.###.#####.###.#
+#.#...#D..#...#.#
+#.#.###.#.###.#.#
+#S#.....#.....#.#
+#################
+```
+
+### The maze actors
+
+The maze stage uses four named actor types:
+
+- `Robot`
+- `Cheese`
+- `Dolphin`
+- `Shark`
+
+Their basic roles are:
+
+- `Robot`: the main collector. Robots path toward cheese and try to win by reaching it.
+- `Cheese`: the target object. When cheese is captured, it is marked and later respawned.
+- `Dolphin`: a roaming disruptor. Dolphins can steal cheese before robots collect it.
+- `Shark`: a predator. Sharks can kill robots and can also collide with dolphins.
+
+### Deaths, victories, and lives
+
+The maze does not use "lives" like a campaign game. It uses a repeated pulse model.
+
+In the current implementation:
+
+- a robot can become victorious by reaching nearby cheese
+- a robot can die from shark collision
+- a dolphin can die from shark collision
+- a shark can die in robot or dolphin collisions
+- cheese is captured and then respawned
+- dead or completed actors are respawned into the simulation
+
+So "life" in the maze means:
+
+- an active run for that entity inside the current pulse
+- followed by death or victory
+- followed by deterministic respawn if the simulation continues
+
+That is why the runtime statistics track counts such as:
+
+- robot victories
+- robot deaths
+- dolphin deaths
+- dolphin cheese steals
+
+### Maze power-ups
+
+The current code defines four maze power-up labels:
+
+- `Invincible`: the protective power-up class
+- `Magnet`: the attraction or pull-oriented power-up class
+- `SuperSpeed`: the fast-traversal power-up class
+- `Teleport`: the abrupt repositioning power-up class
+
+What the current implementation definitely does:
+
+- randomly places these power-up labels on walkable cells
+- lets a robot collect a power-up from its nearby `3 x 3` neighborhood
+- stores the collected type on the robot
+- keeps it for a timed duration
+
+Important honest note:
+
+in the current code, these four power-up types are collected and timed, but they are not yet given separate downstream behavior branches. In other words, the names exist, the robot can hold them, and the state is tracked, but the movement logic does not yet branch into four distinct mechanical effects.
+
+So the current truth is:
+
+- the power-up names and categories are real
+- the pickup and timed-hold behavior is real
+- the distinct per-type gameplay effects are not fully wired yet
+
+### Maze special events
+
+The maze stage has three rare-event families:
+
+- `StarBurst`
+- `ChaosStorm`
+- `CometTrails`
+
+`StarBurst`:
+
+- sweeps broadly across the maze
+- repaints or flushes most non-wall cells
+- deliberately avoids the immediate `3 x 3` collect boxes around living robots
+
+`ChaosStorm`:
+
+- centers on living sharks
+- repaints or flushes `3 x 3` neighborhoods around them
+- turns shark zones into local disruption fields
+
+`CometTrails`:
+
+- chooses rows or columns
+- repaints or flushes along those full lines
+- exists in horizontal and vertical forms in the code
+
+For user-facing discussion, it is reasonable to think of horizontal and vertical comet trails as two directions of the same event family.
+
+### How the mazes work bytes
+
+This is the byte story for the maze stage:
+
+1. a `PASSWORD_BALLOONED_SIZE` seed buffer is loaded
+2. the maze topology is built
+3. walkable cells are painted from seed bytes
+4. robots, cheese, sharks, and dolphins move through the walkable region
+5. cells are repainted from seed or flushed into the result buffer during movement and events
+6. captures, deaths, respawns, and special events keep changing which cells are emitted and when
+
+So the output bytes come from:
+
+- topology
+- repainting
+- flushing
+- entity movement
+- predator collisions
+- cheese capture
+- special-event sweeps
+
+not from a direct replay of original seed positions.
+
+### Maze failure behavior
+
+Like the puzzle stage, the maze stage has a deterministic fallback.
+
+If the simulation cannot keep making valid progress, it can fall back to an apocalypse path that writes the seed into the result buffer and reverses it.
+
+Again, that exists as a completion guarantee, not as the intended high-value confusion path.
+
+## Why games and mazes are valuable confusion layers
+
+The best way to think about Bread's game and maze layers is not "they replace audited ciphers."
+
+The better way to think about them is:
+
+- they are deterministic confusion engines
+- they create long, password-derived, stateful byte histories
+- they add causality that is harder to narrate backward
+- they make byte origin depend on simulation state instead of simple arithmetic alone
+
+The practical benefits are:
+
+- more distance between the final output and the original password
+- less obvious positional inheritance
+- more opportunities to interleave with masking and table-hopping designs
+- a substrate that is interesting for recoverable archive systems, byte masking, and entertainment-focused crypto experiments
+
+## Non-recoverability and non-retraceability
+
+Bread is built around two ideas:
+
+- without the password, the author believes the final tables should not be realistically traceable backward to the original password
+- with the password, the system should be reproducible and recoverable by the rightful user
+
+That is why the project combines:
+
+- password expansion
+- counter families
+- 16 byte twisters
+- table hopping
+- puzzle confusion
+- maze confusion
+
+The design tries to move the finished output far enough away from the original password that open code does not become open recovery.
+
+## Combined use with other ciphers
+
+Bread is especially interesting as a library layer when used to drive:
+
+- masked byte XOR
+- masked byte XOR with a second noise table
+- table-driven byte substitution
+- deterministic stream shaping around other ciphers
+- recovery-aware archive workflows
+
+In that role, Bread is not pretending to be a formal replacement for external cryptographic review.
+It is offering a large, deterministic, password-driven confusion substrate that can make combined systems harder to unwind.
+
+## Project posture
+
+The strongest honest summary of Bread is this:
+
+- it is ambitious
+- it is original
+- it is heavily opinionated
+- it is open about its goals
+- it is willing to say that recovery matters
+- it is willing to say that code visibility is acceptable
+- it is willing to use custom deterministic confusion engines where mainstream tools usually stop early
+
+And the strongest positive summary is this:
+
+Bread is trying to build a recoverable, password-centered, table-heavy, byte-confusion backbone for a new class of archive and encryption tooling.
+
+That vision is the reason the project exists.

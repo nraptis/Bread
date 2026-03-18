@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/archiver_compat_smoke_tests.dir/archiver_compat_smoke_tests_autogen/mocs_compilation.cpp.o CMakeFiles/archiver_compat_smoke_tests.dir/tests_smoke/ArchiverCompatibility_smoke_tests.cpp.o -o archiver_compat_smoke_tests  libpeanutbutter_core.a
