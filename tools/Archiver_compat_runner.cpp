@@ -12,20 +12,15 @@
 
 namespace {
 
-using peanutbutter::archiver::ExpansionStrength;
 using peanutbutter::archiver::Logger;
 using peanutbutter::archiver::ProgressInfo;
 using peanutbutter::archiver::ProgressPhase;
-using peanutbutter::archiver::ProgressProfileKind;
 
 struct Options {
   std::string mPassword = "hotdog";
   std::uint8_t mVersion = peanutbutter::archiver::ExpanderLibraryVersion();
-  ExpansionStrength mStrength = ExpansionStrength::kNormal;
   peanutbutter::archiver::GameStyle mGameStyle = peanutbutter::archiver::GameStyle::kNone;
   peanutbutter::archiver::MazeStyle mMazeStyle = peanutbutter::archiver::MazeStyle::kNone;
-  std::string mModeName = "Bundle";
-  ProgressProfileKind mProfile = ProgressProfileKind::kBundle;
   bool mIsFastMode = false;
   bool mQuiet = false;
 };
@@ -79,45 +74,8 @@ std::uint64_t HashValue(std::uint64_t pDigest, std::uint64_t pValue) {
 
 void PrintUsage(const char* pProgramName) {
   std::cout << "Usage: " << pProgramName
-            << " [--password TEXT] [--strength low|normal|high|extreme] [--version N]"
-            << " [--mode Bundle|Unbundle|Recover] [--profile bundle|unbundle|recover]"
+            << " [--password TEXT] [--version N]"
             << " [--game-style none|sparse|full] [--maze-style none|sparse|full] [--fast] [--quiet]\n";
-}
-
-bool ParseStrength(const std::string& pText, ExpansionStrength* pOutStrength) {
-  if (pText == "low") {
-    *pOutStrength = ExpansionStrength::kLow;
-    return true;
-  }
-  if (pText == "normal" || pText == "medium") {
-    *pOutStrength = ExpansionStrength::kNormal;
-    return true;
-  }
-  if (pText == "high") {
-    *pOutStrength = ExpansionStrength::kHigh;
-    return true;
-  }
-  if (pText == "extreme") {
-    *pOutStrength = ExpansionStrength::kExtreme;
-    return true;
-  }
-  return false;
-}
-
-bool ParseProfile(const std::string& pText, ProgressProfileKind* pOutProfile) {
-  if (pText == "bundle") {
-    *pOutProfile = ProgressProfileKind::kBundle;
-    return true;
-  }
-  if (pText == "unbundle") {
-    *pOutProfile = ProgressProfileKind::kUnbundle;
-    return true;
-  }
-  if (pText == "recover") {
-    *pOutProfile = ProgressProfileKind::kRecover;
-    return true;
-  }
-  return false;
 }
 
 bool ParseVersion(const std::string& pText, std::uint8_t* pOutVersion) {
@@ -177,8 +135,7 @@ bool ParseArgs(int pArgc, char** pArgv, Options* pOptions) {
       pOptions->mIsFastMode = true;
       continue;
     }
-    if ((aArg == "--password" || aArg == "--strength" || aArg == "--version" || aArg == "--mode" ||
-         aArg == "--profile" || aArg == "--game-style" || aArg == "--maze-style") &&
+    if ((aArg == "--password" || aArg == "--version" || aArg == "--game-style" || aArg == "--maze-style") &&
         (aIndex + 1) >= pArgc) {
       std::cerr << "[FAIL] missing value for " << aArg << "\n";
       return false;
@@ -187,27 +144,9 @@ bool ParseArgs(int pArgc, char** pArgv, Options* pOptions) {
       pOptions->mPassword = pArgv[++aIndex];
       continue;
     }
-    if (aArg == "--strength") {
-      if (!ParseStrength(pArgv[++aIndex], &pOptions->mStrength)) {
-        std::cerr << "[FAIL] unsupported strength value\n";
-        return false;
-      }
-      continue;
-    }
     if (aArg == "--version") {
       if (!ParseVersion(pArgv[++aIndex], &pOptions->mVersion)) {
         std::cerr << "[FAIL] invalid version value\n";
-        return false;
-      }
-      continue;
-    }
-    if (aArg == "--mode") {
-      pOptions->mModeName = pArgv[++aIndex];
-      continue;
-    }
-    if (aArg == "--profile") {
-      if (!ParseProfile(pArgv[++aIndex], &pOptions->mProfile)) {
-        std::cerr << "[FAIL] unsupported profile value\n";
         return false;
       }
       continue;
@@ -247,13 +186,10 @@ int main(int pArgc, char** pArgv) {
   aRequest.mPassword = reinterpret_cast<unsigned char*>(aOptions.mPassword.data());
   aRequest.mPasswordLength = static_cast<int>(aOptions.mPassword.size());
   aRequest.mExpanderVersion = aOptions.mVersion;
-  aRequest.mExpansionStrength = aOptions.mStrength;
   aRequest.mGameStyle = aOptions.mGameStyle;
   aRequest.mMazeStyle = aOptions.mMazeStyle;
   aRequest.mIsFastMode = aOptions.mIsFastMode;
   aRequest.mLogger = aLoggerPtr;
-  aRequest.mModeName = aOptions.mModeName.c_str();
-  aRequest.mProgressProfile = aOptions.mProfile;
   aRequest.mShouldCancel = nullptr;
   aRequest.mCancelUserData = nullptr;
 
@@ -278,7 +214,6 @@ int main(int pArgc, char** pArgv) {
   std::cout << "[PASS] archiver compatibility runner complete"
             << " version=" << static_cast<unsigned int>(peanutbutter::archiver::ExpanderLibraryVersion())
             << " requested_version=" << static_cast<unsigned int>(aOptions.mVersion)
-            << " strength=" << peanutbutter::archiver::ExpansionStrengthName(aOptions.mStrength)
             << " fast=" << (aOptions.mIsFastMode ? "on" : "off")
             << " game_style=" << peanutbutter::tables::GameStyleName(aOptions.mGameStyle)
             << " maze_style=" << peanutbutter::tables::MazeStyleName(aOptions.mMazeStyle)

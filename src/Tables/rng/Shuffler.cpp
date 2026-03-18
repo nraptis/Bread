@@ -37,6 +37,9 @@ void Shuffler::Get(unsigned char* pDestination, int pDestinationLength) {
     AbortInvalidShufflerUsage();
   }
 
+  if (pDestination == mResultBuffer) {
+    return;
+  }
   std::memcpy(pDestination, mResultBuffer, static_cast<std::size_t>(mResultBufferLength));
 }
 
@@ -53,9 +56,21 @@ void Shuffler::InitializeSeedBuffer(unsigned char* pPassword, int pPasswordLengt
   mResultBufferWriteProgress = 0U;
   std::memcpy(mSeedBuffer, pPassword, static_cast<std::size_t>(pPasswordLength));
   std::memset(mResultBufferStorage, 0, sizeof(mResultBufferStorage));
+  UseExternalResultBuffer(pPassword);
   if (pPasswordLength < kSeedBufferCapacity) {
     std::memset(mSeedBuffer + pPasswordLength, 0, static_cast<std::size_t>(kSeedBufferCapacity - pPasswordLength));
   }
+}
+
+void Shuffler::UseExternalResultBuffer(unsigned char* pBuffer) {
+  if (pBuffer == nullptr) {
+    mResultBuffer = mResultBufferStorage;
+    if (mResultBufferLength > 0U) {
+      std::memset(mResultBufferStorage, 0, static_cast<std::size_t>(mResultBufferLength));
+    }
+    return;
+  }
+  mResultBuffer = pBuffer;
 }
 
 bool Shuffler::SeedCanDequeue() const {

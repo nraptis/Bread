@@ -1,0 +1,12 @@
+{
+  "cmake.buildDirectory": "${workspaceFolder}/build_codex_bundle",
+  "cmake.configureOnOpen": true,
+  "cmake.statusbar.advanced": {
+    "debug": {
+      "visibility": "visible"
+    },
+    "launch": {
+      "visibility": "visible"
+    }
+  }
+}

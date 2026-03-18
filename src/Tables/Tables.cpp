@@ -3,33 +3,103 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <string>
-#include <vector>
 
 #include "src/Tables/TablesHelpers.hpp"
 #include "src/Tables/TablesTiming.hpp"
+#include "src/Tables/counters/AESCounter.hpp"
+#include "src/Tables/counters/ARIA256Counter.hpp"
+#include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "src/Tables/games/GameBoard.hpp"
 #include "src/Tables/maze/MazeDirector.hpp"
 
 namespace peanutbutter::tables {
 
-std::uint8_t ExpanderLibraryVersion() {
-  return 1U;
+namespace {
+
+constexpr const char* kDefaultModeName = "Bundle";
+
+struct PuzzleGameSummary {
+  const char* mName = nullptr;
+  std::uint64_t mCompletedGames = 0U;
+  std::uint64_t mMatchedTiles = 0U;
+  std::uint64_t mPowerUpsCollected = 0U;
+  std::uint64_t mCascadesTriggered = 0U;
+  std::uint64_t mDragonAttacks = 0U;
+  std::uint64_t mRiddlerAttacks = 0U;
+};
+
+struct MazeSummary {
+  std::uint64_t mCompletedRounds = 0U;
+  std::uint64_t mCheeseCollected = 0U;
+  std::uint64_t mRobotVictories = 0U;
+  std::uint64_t mRobotDeaths = 0U;
+  std::uint64_t mDolphinDeaths = 0U;
+  std::uint64_t mDolphinCheeseSteals = 0U;
+  std::uint64_t mStarBursts = 0U;
+  std::uint64_t mChaosStorms = 0U;
+  std::uint64_t mCometTrails = 0U;
+};
+
+std::string MazeSimulationName(int pGameIndex) {
+  char aSuffix = static_cast<char>('A' + (pGameIndex % 26));
+  return std::string("Maze-") + aSuffix;
 }
 
-const char* ExpansionStrengthName(ExpansionStrength pStrength) {
-  switch (pStrength) {
-    case ExpansionStrength::kLow:
-      return "low";
-    case ExpansionStrength::kNormal:
-      return "normal";
-    case ExpansionStrength::kHigh:
-      return "high";
-    case ExpansionStrength::kExtreme:
-      return "extreme";
+void LogPuzzleGameSummaries(Logger* pLogger,
+                            const std::array<PuzzleGameSummary, peanutbutter::games::GameBoard::kGameCount>& pSummaries) {
+  std::uint64_t aDragonAttacks = 0U;
+  std::uint64_t aRiddlerAttacks = 0U;
+  for (const PuzzleGameSummary& aSummary : pSummaries) {
+    aDragonAttacks += aSummary.mDragonAttacks;
+    aRiddlerAttacks += aSummary.mRiddlerAttacks;
+    if (aSummary.mCompletedGames == 0U || aSummary.mName == nullptr) {
+      continue;
+    }
+    helpers::LogStatus(pLogger,
+                       "Completed " + std::to_string(aSummary.mCompletedGames) + " games of " + aSummary.mName +
+                           " puzzle game, matching " + std::to_string(aSummary.mMatchedTiles) + " tiles.");
+    helpers::LogStatus(pLogger,
+                       "Player collected " + std::to_string(aSummary.mPowerUpsCollected) + " power ups, triggered " +
+                           std::to_string(aSummary.mCascadesTriggered) + " cascades.");
   }
-  return "unknown";
+  helpers::LogStatus(pLogger,
+                     "Puzzle game rare events: " + std::to_string(aDragonAttacks) + " dragon attacks, " +
+                         std::to_string(aRiddlerAttacks) + " riddler attacks.");
+}
+
+void LogMazeSummaries(Logger* pLogger, const std::array<MazeSummary, peanutbutter::maze::MazeDirector::kGameCount>& pSummaries) {
+  std::uint64_t aStarBursts = 0U;
+  std::uint64_t aChaosStorms = 0U;
+  std::uint64_t aCometTrails = 0U;
+  for (int aGameIndex = 0; aGameIndex < peanutbutter::maze::MazeDirector::kGameCount; ++aGameIndex) {
+    const MazeSummary& aSummary = pSummaries[static_cast<std::size_t>(aGameIndex)];
+    aStarBursts += aSummary.mStarBursts;
+    aChaosStorms += aSummary.mChaosStorms;
+    aCometTrails += aSummary.mCometTrails;
+    if (aSummary.mCompletedRounds == 0U) {
+      continue;
+    }
+    helpers::LogStatus(pLogger,
+                       "Completed " + std::to_string(aSummary.mCompletedRounds) + " rounds of " +
+                           MazeSimulationName(aGameIndex) + " simulation, collecting " +
+                           std::to_string(aSummary.mCheeseCollected) + " pieces of cheese.");
+    helpers::LogStatus(pLogger,
+                       std::to_string(aSummary.mRobotVictories) + " robot victories, " +
+                           std::to_string(aSummary.mRobotDeaths) + " robot deaths, " +
+                           std::to_string(aSummary.mDolphinDeaths) + " dolphin deaths, " +
+                           std::to_string(aSummary.mDolphinCheeseSteals) + " dolphin cheese steals.");
+  }
+  helpers::LogStatus(pLogger,
+                     "Maze simulation rare events: " + std::to_string(aStarBursts) + " star bursts, " +
+                         std::to_string(aChaosStorms) + " chaos storms, " + std::to_string(aCometTrails) +
+                         " comet trails.");
+}
+
+}  // namespace
+
+std::uint8_t ExpanderLibraryVersion() {
+  return 1U;
 }
 
 const char* GameStyleName(GameStyle pStyle) {
@@ -74,20 +144,19 @@ void ReportProgress(Logger& pLogger,
 bool Launch(unsigned char* pPassword,
             int pPasswordLength,
             std::uint8_t pExpanderVersion,
-            ExpansionStrength pExpansionStrength,
             Logger* pLogger,
             const char* pModeName,
             ProgressProfileKind pProgressProfile,
             ExpansionCancelFn pShouldCancel,
             void* pCancelUserData) {
+  (void)pModeName;
+  (void)pProgressProfile;
+
   LaunchRequest aRequest;
   aRequest.mPassword = pPassword;
   aRequest.mPasswordLength = pPasswordLength;
   aRequest.mExpanderVersion = pExpanderVersion;
-  aRequest.mExpansionStrength = pExpansionStrength;
   aRequest.mLogger = pLogger;
-  aRequest.mModeName = pModeName;
-  aRequest.mProgressProfile = pProgressProfile;
   aRequest.mShouldCancel = pShouldCancel;
   aRequest.mCancelUserData = pCancelUserData;
   return Launch(aRequest);
@@ -122,10 +191,16 @@ unsigned char Tables::gTableL3_B[BLOCK_SIZE_L3] = {};
 unsigned char Tables::gTableL3_C[BLOCK_SIZE_L3] = {};
 unsigned char Tables::gTableL3_D[BLOCK_SIZE_L3] = {};
 
-unsigned char Tables::mScratch[Tables::kScratchSize] = {};
+peanutbutter::fast_rand::FastRand Tables::gFastRand = {};
+TableFillKind Tables::gFillOrder[Tables::kTableCount] = {};
+unsigned char Tables::gExpanderWorker[PASSWORD_EXPANDED_SIZE] = {};
 int Tables::mRandomTableIndex = 0;
 int Tables::mRandomByteIndex = static_cast<int>(BLOCK_SIZE_L1) - 1;
-int Tables::mPlayOrder[16] = {};
+AESCounter* Tables::gAesCounter = nullptr;
+ARIA256Counter* Tables::gAriaCounter = nullptr;
+ChaCha20Counter* Tables::gChaChaCounter = nullptr;
+peanutbutter::games::GameBoard* Tables::gGameBoard = nullptr;
+peanutbutter::maze::MazeDirector* Tables::gMazeDirector = nullptr;
 
 const std::array<Tables::TableDescriptor, Tables::kTableCount>& Tables::All() {
   static const std::array<TableDescriptor, kTableCount> kAllTables = {{
@@ -139,6 +214,24 @@ const std::array<Tables::TableDescriptor, Tables::kTableCount>& Tables::All() {
       {"L3_D", gTableL3_D, BLOCK_SIZE_L3},
   }};
   return kAllTables;
+}
+
+void Tables::EnsureRuntimeObjects() {
+  if (gAesCounter == nullptr) {
+    gAesCounter = new AESCounter();
+  }
+  if (gAriaCounter == nullptr) {
+    gAriaCounter = new ARIA256Counter();
+  }
+  if (gChaChaCounter == nullptr) {
+    gChaChaCounter = new ChaCha20Counter();
+  }
+  if (gGameBoard == nullptr) {
+    gGameBoard = new peanutbutter::games::GameBoard();
+  }
+  if (gMazeDirector == nullptr) {
+    gMazeDirector = new peanutbutter::maze::MazeDirector();
+  }
 }
 
 void Tables::ResetRandomCursor() {
@@ -167,19 +260,6 @@ unsigned char Tables::Get(int pMax) {
   return static_cast<unsigned char>(static_cast<int>(Get()) % pMax);
 }
 
-void Tables::ShufflePlayOrder() {
-  for (int aIndex = 0; aIndex < 16; ++aIndex) {
-    mPlayOrder[aIndex] = aIndex;
-  }
-
-  for (int aIndex = 0; aIndex < 16; ++aIndex) {
-    const int aWhich = static_cast<int>(gTableL1_A[aIndex % static_cast<int>(BLOCK_SIZE_L1)] % 16U);
-    const int aTemp = mPlayOrder[aIndex];
-    mPlayOrder[aIndex] = mPlayOrder[aWhich];
-    mPlayOrder[aWhich] = aTemp;
-  }
-}
-
 bool Tables::Launch(const LaunchRequest& pRequest) {
   if (pRequest.mPasswordLength < 0) {
     helpers::LogError(pRequest.mLogger, "Expansion failed: invalid password length.");
@@ -190,21 +270,9 @@ bool Tables::Launch(const LaunchRequest& pRequest) {
     return false;
   }
 
-  const std::string aModeName = helpers::ResolveModeName(pRequest.mModeName);
   helpers::LogStatus(pRequest.mLogger, "Password expansion and table generation has started.");
   helpers::LogStatus(pRequest.mLogger,
-                     "Expanding passwords across " + std::to_string(kL1TableCount) + " L1 buffers.");
-  helpers::LogStatus(pRequest.mLogger,
-                     "Expanding passwords across " + std::to_string(kL2TableCount) + " L2 buffers.");
-  helpers::LogStatus(pRequest.mLogger,
-                     "Expanding passwords across " + std::to_string(kL3TableCount) + " L3 buffers.");
-  helpers::LogStatus(pRequest.mLogger, "Seeding 3 buffers with AES counter.");
-  helpers::LogStatus(pRequest.mLogger, "Seeding 1 buffer with Aria counter.");
-  helpers::LogStatus(pRequest.mLogger, "Seeding 1 buffer with ChaCha20 counter.");
-  helpers::LogStatus(pRequest.mLogger, "Seeding 16 buffers with A.I. generated counters 1-16.");
-  helpers::LogStatus(pRequest.mLogger, "Seeded 22 buffers.");
-  
-
+                     "Generating " + std::to_string(kTableCount) + " table buffers for the release bundle.");
 
   if (pRequest.mExpanderVersion != ExpanderLibraryVersion()) {
     helpers::LogStatus(pRequest.mLogger,
@@ -216,19 +284,20 @@ bool Tables::Launch(const LaunchRequest& pRequest) {
     return false;
   }
 
-  helpers::BuildScratch(pRequest);
-  const auto aPlan = helpers::BuildTablePlan();
+  EnsureRuntimeObjects();
+  helpers::SeedFastRand(pRequest);
+  helpers::ShuffleFillOrder();
+
   const auto& aTables = All();
   const timing::WorkEstimate aWork = timing::BuildWorkEstimate(pRequest.mGameStyle,
                                                                pRequest.mMazeStyle,
                                                                pRequest.mIsFastMode);
-  std::vector<std::vector<unsigned char>> aScratchTables(kTableCount);
   double aCompletedMilliseconds = 0.0;
 
   if (pRequest.mLogger != nullptr) {
     ReportProgress(*pRequest.mLogger,
-                   aModeName,
-                   pRequest.mProgressProfile,
+                   kDefaultModeName,
+                   ProgressProfileKind::kBundle,
                    ProgressPhase::kExpansion,
                    0.0,
                    "Starting table generation.");
@@ -240,14 +309,12 @@ bool Tables::Launch(const LaunchRequest& pRequest) {
       return false;
     }
 
-    aScratchTables[aIndex].assign(aTables[aIndex].mSize, 0U);
-    unsigned char* const aDestination = aScratchTables[aIndex].data();
     const bool aFillOk = pRequest.mIsFastMode
-                             ? helpers::FastFillTable(aIndex, aPlan[aIndex], aDestination, aTables[aIndex].mSize)
-                             : helpers::FillTable(aPlan[aIndex],
+                             ? helpers::FastFillTable(aIndex, gFillOrder[aIndex], aTables[aIndex].mData, aTables[aIndex].mSize)
+                             : helpers::FillTable(gFillOrder[aIndex],
                                                   pRequest.mPassword,
                                                   pRequest.mPasswordLength,
-                                                  aDestination,
+                                                  aTables[aIndex].mData,
                                                   aTables[aIndex].mSize);
     if (!aFillOk) {
       helpers::LogError(pRequest.mLogger, "Expansion failed while generating table memory.");
@@ -255,135 +322,137 @@ bool Tables::Launch(const LaunchRequest& pRequest) {
     }
 
     aCompletedMilliseconds += timing::EstimateSeedMilliseconds(aTables[aIndex].mSize, pRequest.mIsFastMode);
-    if (pRequest.mLogger != nullptr) {
-      const double aFraction = aCompletedMilliseconds / aWork.mTotalMilliseconds;
-      ReportProgress(*pRequest.mLogger,
-                     aModeName,
-                     pRequest.mProgressProfile,
-                     ProgressPhase::kExpansion,
-                     aFraction,
-                     std::string("Filled table ") + aTables[aIndex].mName + " with " +
-                         (pRequest.mIsFastMode ? std::string("fastfill") : helpers::FillLabel(aPlan[aIndex])) + ".");
-    }
   }
 
-  helpers::ShufflePlayOrderFromBuffer(aScratchTables[0].data(), aScratchTables[0].size(), mPlayOrder, 16);
+  if (pRequest.mLogger != nullptr) {
+    ReportProgress(*pRequest.mLogger,
+                   kDefaultModeName,
+                   ProgressProfileKind::kBundle,
+                   ProgressPhase::kExpansion,
+                   aCompletedMilliseconds / aWork.mTotalMilliseconds,
+                   "All buffers seeded.");
+  }
 
   if (pRequest.mIsFastMode || pRequest.mGameStyle == GameStyle::kNone) {
-    helpers::LogStatus(pRequest.mLogger, "Skipping match-three game play confusion.");
+    helpers::LogStatus(pRequest.mLogger, "Skipping puzzle simulation stage.");
   } else {
+    std::array<PuzzleGameSummary, peanutbutter::games::GameBoard::kGameCount> aPuzzleSummaries = {};
     helpers::LogStatus(pRequest.mLogger,
-                       "Appling game play confusion with " + std::to_string(games::GameBoard::kGameCount) +
-                           " match-three puzzle games.");
-    std::array<unsigned char, games::GameBoard::kSeedBufferCapacity> aOutput = {};
-    games::GameBoard aBoard;
+                       "Running puzzle simulation stage with " +
+                           std::to_string(peanutbutter::games::GameBoard::kGameCount) + " match-three puzzle games.");
     const std::size_t aStride = helpers::GameStride(pRequest.mGameStyle);
-    std::size_t aProcessedGameBlocks = 0U;
     for (std::size_t aTableIndex = 0; aTableIndex < kTableCount; ++aTableIndex) {
-      if ((aTables[aTableIndex].mSize % static_cast<std::size_t>(games::GameBoard::kSeedBufferCapacity)) != 0U) {
+      if ((aTables[aTableIndex].mSize % static_cast<std::size_t>(peanutbutter::games::GameBoard::kSeedBufferCapacity)) != 0U) {
         continue;
       }
       const std::size_t aBlockCount =
-          aTables[aTableIndex].mSize / static_cast<std::size_t>(games::GameBoard::kSeedBufferCapacity);
-      std::size_t aProcessedIndex = 0U;
+          aTables[aTableIndex].mSize / static_cast<std::size_t>(peanutbutter::games::GameBoard::kSeedBufferCapacity);
       for (std::size_t aBlockIndex = 0; aBlockIndex < aBlockCount; aBlockIndex += aStride) {
         if (helpers::ShouldCancel(pRequest)) {
           helpers::LogStatus(pRequest.mLogger, "Table generation canceled.");
           return false;
         }
-        const int aGameIndex = mPlayOrder[aProcessedIndex % 16U];
-        unsigned char* const aBlock =
-            aScratchTables[aTableIndex].data() +
-            (aBlockIndex * static_cast<std::size_t>(games::GameBoard::kSeedBufferCapacity));
-        aBoard.SetGame(aGameIndex);
-        aBoard.Seed(aBlock, games::GameBoard::kSeedBufferCapacity);
-        aBoard.Get(aOutput.data(), games::GameBoard::kSeedBufferCapacity);
-        std::memcpy(aBlock, aOutput.data(), aOutput.size());
-        ++aProcessedIndex;
-        ++aProcessedGameBlocks;
 
+        unsigned char* const aBlock =
+            aTables[aTableIndex].mData +
+            (aBlockIndex * static_cast<std::size_t>(peanutbutter::games::GameBoard::kSeedBufferCapacity));
+        const int aGameIndex = static_cast<int>(gFastRand.Get(peanutbutter::games::GameBoard::kGameCount));
+        gGameBoard->SetGame(aGameIndex);
+        gGameBoard->Seed(aBlock, peanutbutter::games::GameBoard::kSeedBufferCapacity);
+        gGameBoard->Get(aBlock, peanutbutter::games::GameBoard::kSeedBufferCapacity);
+        const peanutbutter::games::GameBoard::RuntimeStats aStats = gGameBoard->GetRuntimeStats();
+        PuzzleGameSummary& aSummary = aPuzzleSummaries[static_cast<std::size_t>(aGameIndex)];
+        aSummary.mName = gGameBoard->GetName();
+        ++aSummary.mCompletedGames;
+        aSummary.mMatchedTiles += aStats.mUserMatch + aStats.mCascadeMatch;
+        aSummary.mPowerUpsCollected += aStats.mPowerUpConsumed;
+        aSummary.mCascadesTriggered += aStats.mCascadeMatch;
+        aSummary.mDragonAttacks += aStats.mDragonAttack;
+        aSummary.mRiddlerAttacks += aStats.mRiddlerAttack;
         aCompletedMilliseconds += timing::ActiveTimingProfile().mGameBlockMilliseconds;
-        if (pRequest.mLogger != nullptr) {
-          const double aFraction = aCompletedMilliseconds / aWork.mTotalMilliseconds;
-          ReportProgress(*pRequest.mLogger,
-                         aModeName,
-                         pRequest.mProgressProfile,
-                         ProgressPhase::kExpansion,
-                         aFraction,
-                         "Applied match-three game play confusion block " + std::to_string(aProcessedGameBlocks) +
-                             " of " + std::to_string(aWork.mGameBlockCount) + ".");
-        }
       }
+    }
+    LogPuzzleGameSummaries(pRequest.mLogger, aPuzzleSummaries);
+
+    if (pRequest.mLogger != nullptr) {
+      ReportProgress(*pRequest.mLogger,
+                     kDefaultModeName,
+                     ProgressProfileKind::kBundle,
+                     ProgressPhase::kExpansion,
+                     aCompletedMilliseconds / aWork.mTotalMilliseconds,
+                     "Puzzle simulation stage complete.");
     }
   }
 
   if (pRequest.mIsFastMode || pRequest.mMazeStyle == MazeStyle::kNone) {
-    helpers::LogStatus(pRequest.mLogger, "Skipping maze game play confusion.");
+    helpers::LogStatus(pRequest.mLogger, "Skipping maze simulation stage.");
   } else {
+    std::array<MazeSummary, peanutbutter::maze::MazeDirector::kGameCount> aMazeSummaries = {};
     helpers::LogStatus(pRequest.mLogger,
-                       "Appling maze game play confusion with " + std::to_string(maze::MazeDirector::kGameCount) +
-                           " maze simulations.");
-    std::array<unsigned char, maze::MazeDirector::kSeedBufferCapacity> aOutput = {};
-    maze::MazeDirector aMaze;
+                       "Running maze simulation stage with " +
+                           std::to_string(peanutbutter::maze::MazeDirector::kGameCount) + " maze simulations.");
     const std::size_t aStride = helpers::MazeStride(pRequest.mMazeStyle);
-    std::size_t aProcessedMazeBlocks = 0U;
     for (std::size_t aTableIndex = 0; aTableIndex < kTableCount; ++aTableIndex) {
-      if ((aTables[aTableIndex].mSize % static_cast<std::size_t>(maze::MazeDirector::kSeedBufferCapacity)) != 0U) {
+      if ((aTables[aTableIndex].mSize % static_cast<std::size_t>(peanutbutter::maze::MazeDirector::kSeedBufferCapacity)) != 0U) {
         continue;
       }
       const std::size_t aBlockCount =
-          aTables[aTableIndex].mSize / static_cast<std::size_t>(maze::MazeDirector::kSeedBufferCapacity);
-      std::size_t aProcessedIndex = 0U;
+          aTables[aTableIndex].mSize / static_cast<std::size_t>(peanutbutter::maze::MazeDirector::kSeedBufferCapacity);
       for (std::size_t aBlockIndex = 0; aBlockIndex < aBlockCount; aBlockIndex += aStride) {
         if (helpers::ShouldCancel(pRequest)) {
           helpers::LogStatus(pRequest.mLogger, "Table generation canceled.");
           return false;
         }
-        const int aMazeIndex = mPlayOrder[aProcessedIndex % 16U];
-        unsigned char* const aBlock =
-            aScratchTables[aTableIndex].data() +
-            (aBlockIndex * static_cast<std::size_t>(maze::MazeDirector::kSeedBufferCapacity));
-        aMaze.SetGame(aMazeIndex);
-        aMaze.Seed(aBlock, maze::MazeDirector::kSeedBufferCapacity);
-        aMaze.Get(aOutput.data(), maze::MazeDirector::kSeedBufferCapacity);
-        std::memcpy(aBlock, aOutput.data(), aOutput.size());
-        ++aProcessedIndex;
-        ++aProcessedMazeBlocks;
 
+        unsigned char* const aBlock =
+            aTables[aTableIndex].mData +
+            (aBlockIndex * static_cast<std::size_t>(peanutbutter::maze::MazeDirector::kSeedBufferCapacity));
+        const int aGameIndex = static_cast<int>(gFastRand.Get(peanutbutter::maze::MazeDirector::kGameCount));
+        gMazeDirector->SetGame(aGameIndex);
+        gMazeDirector->Seed(aBlock, peanutbutter::maze::MazeDirector::kSeedBufferCapacity);
+        gMazeDirector->Get(aBlock, peanutbutter::maze::MazeDirector::kSeedBufferCapacity);
+        const peanutbutter::maze::Maze::RuntimeStats aStats = gMazeDirector->GetRuntimeStats();
+        MazeSummary& aSummary = aMazeSummaries[static_cast<std::size_t>(aGameIndex)];
+        ++aSummary.mCompletedRounds;
+        aSummary.mCheeseCollected += aStats.mVictories + aStats.mDolphinCheeseTriages;
+        aSummary.mRobotVictories += aStats.mVictories;
+        aSummary.mRobotDeaths += aStats.mDeaths;
+        aSummary.mDolphinDeaths += aStats.mDolphinDeaths;
+        aSummary.mDolphinCheeseSteals += aStats.mDolphinCheeseTriages;
+        aSummary.mStarBursts += aStats.mStarBurst;
+        aSummary.mChaosStorms += aStats.mChaosStorm;
+        aSummary.mCometTrails += aStats.mCometTrailsHorizontal + aStats.mCometTrailsVertical;
         aCompletedMilliseconds += timing::ActiveTimingProfile().mMazeBlockMilliseconds;
-        if (pRequest.mLogger != nullptr) {
-          const double aFraction = aCompletedMilliseconds / aWork.mTotalMilliseconds;
-          ReportProgress(*pRequest.mLogger,
-                         aModeName,
-                         pRequest.mProgressProfile,
-                         ProgressPhase::kExpansion,
-                         aFraction,
-                         "Applied maze game play confusion block " + std::to_string(aProcessedMazeBlocks) +
-                             " of " + std::to_string(aWork.mMazeBlockCount) + ".");
-        }
       }
+    }
+    LogMazeSummaries(pRequest.mLogger, aMazeSummaries);
+
+    if (pRequest.mLogger != nullptr) {
+      ReportProgress(*pRequest.mLogger,
+                     kDefaultModeName,
+                     ProgressProfileKind::kBundle,
+                     ProgressPhase::kExpansion,
+                     aCompletedMilliseconds / aWork.mTotalMilliseconds,
+                     "Maze simulation stage complete.");
     }
   }
 
   helpers::LogStatus(pRequest.mLogger, "Finalizing tables...");
-  for (std::size_t aIndex = 0; aIndex < kTableCount; ++aIndex) {
-    std::memcpy(aTables[aIndex].mData, aScratchTables[aIndex].data(), aTables[aIndex].mSize);
-  }
+  ResetRandomCursor();
   if (pRequest.mLogger != nullptr) {
     aCompletedMilliseconds += aWork.mFinalizeMilliseconds;
     ReportProgress(*pRequest.mLogger,
-                   aModeName,
-                   pRequest.mProgressProfile,
+                   kDefaultModeName,
+                   ProgressProfileKind::kBundle,
                    ProgressPhase::kFinalize,
                    aCompletedMilliseconds / aWork.mTotalMilliseconds,
                    "Finalizing tables.");
   }
-  ResetRandomCursor();
   helpers::LogStatus(pRequest.mLogger, "Password expansion and table generation has completed.");
   if (pRequest.mLogger != nullptr) {
     ReportProgress(*pRequest.mLogger,
-                   aModeName,
-                   pRequest.mProgressProfile,
+                   kDefaultModeName,
+                   ProgressProfileKind::kBundle,
                    ProgressPhase::kFinalize,
                    1.0,
                    "Tables are ready.");

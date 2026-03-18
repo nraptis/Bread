@@ -6,24 +6,14 @@ namespace peanutbutter::tables::timing {
 
 namespace {
 
-constexpr TimingProfile kSoftwareProfile = {
-    2.192,
-    3.450,
-    8.068,
-    17.653,
-    8.869,
+constexpr TimingProfile kAverageProfile = {
+    2.039,
+    3.308,
+    7.724,
+    17.363,
+    8.757,
     4.000,
-    900.0,
-};
-
-constexpr TimingProfile kArmNeonProfile = {
-    1.885,
-    3.166,
-    7.380,
-    17.072,
-    8.645,
-    4.000,
-    1200.0,
+    1050.0,
 };
 
 double BytesToMilliseconds(std::size_t pBytes, double pMegabytesPerSecond) {
@@ -36,16 +26,8 @@ double BytesToMilliseconds(std::size_t pBytes, double pMegabytesPerSecond) {
 
 }  // namespace
 
-TimingMode ActiveTimingMode() {
-#if defined(__ARM_NEON) && !defined(PB_FORCE_SOFTWARE_MODE)
-  return TimingMode::kArmNeon;
-#else
-  return TimingMode::kSoftware;
-#endif
-}
-
 const TimingProfile& ActiveTimingProfile() {
-  return (ActiveTimingMode() == TimingMode::kArmNeon) ? kArmNeonProfile : kSoftwareProfile;
+  return kAverageProfile;
 }
 
 double EstimateSeedMilliseconds(std::size_t pTableSize, bool pIsFastMode) {
@@ -62,11 +44,7 @@ double EstimateSeedMilliseconds(std::size_t pTableSize, bool pIsFastMode) {
   return aProfile.mL3SeedMilliseconds;
 }
 
-WorkEstimate BuildWorkEstimate(GameStyle pGameStyle,
-                               MazeStyle pMazeStyle,
-                               bool pIsFastMode) {
-  (void)pIsFastMode;
-
+WorkEstimate BuildWorkEstimate(GameStyle pGameStyle, MazeStyle pMazeStyle, bool pIsFastMode) {
   WorkEstimate aEstimate;
   const TimingProfile& aProfile = ActiveTimingProfile();
   const auto& aTables = Tables::All();

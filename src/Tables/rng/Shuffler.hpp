@@ -20,6 +20,7 @@ class Shuffler : public Digest {
   Shuffler();
 
   void InitializeSeedBuffer(unsigned char* pPassword, int pPasswordLength);
+  void UseExternalResultBuffer(unsigned char* pBuffer);
   bool SeedCanDequeue() const;
   unsigned char SeedDequeue();
   void EnqueueByte(unsigned char pByte);

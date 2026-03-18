@@ -48,6 +48,7 @@ print_usage() {
   echo "  ${0} build"
   echo "  ${0} run [runner args]"
   echo "  ${0} test"
+  echo "  ${0} qt"
 }
 
 case "${COMMAND}" in
@@ -63,6 +64,11 @@ case "${COMMAND}" in
     configure_build archiver_compat_smoke_tests
     echo "[STEP] Running archiver compatibility smoke tests"
     ctest --test-dir "${BUILD_DIR}" -R ArchiverCompatibilitySmokeTests --output-on-failure
+    ;;
+  qt)
+    configure_build main_qt
+    echo "[STEP] Running Qt shell"
+    "${BUILD_DIR}/main_qt"
     ;;
   help|-h|--help)
     print_usage

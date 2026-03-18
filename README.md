@@ -332,3 +332,71 @@ At best they preserve “random-looking” output on these quick tests; they do 
 - If the goal is entertainment, novelty, or extra diffusion, the games are interesting and the quick stats do not show an obvious collapse.
 - If the goal is actual cryptographic hardening, the security boundary should stay with vetted primitives like AES or ChaCha, not with the games.
 - Comparing “one more AES round” against “AES output crunched through a game,” the extra AES round is the defensible security choice every time.
+
+## Honest security analysis
+
+The notes below are intentionally conservative.
+They describe what this project appears to do well, where it likely adds confusion, and where it would be misleading to make stronger claims.
+
+### 1. The user's original password cannot be recovered after these operations complete
+
+- The generated tables do not store the original password in clear form after the normal table-generation flow completes.
+- The password is expanded, mixed, copied into large buffers, and then further transformed by game or maze stages, so the final table bytes are far removed from the caller's original string.
+- That said, this repo does not prove irrecoverability in a formal sense.
+- The caller may still retain the password in its own memory, logs, UI state, crash dumps, or swap.
+- Because the entire pipeline is deterministic and custom, it is more honest to say "the original password is not directly present in the finished tables" than to say "the password can never be recovered."
+
+### 2. The user's password is expanded with impossible-to-reverse logic
+
+- The password expansion pipeline is nontrivial, multi-stage, and not obviously invertible by inspection.
+- It uses repeated-source expansion, byte twisters, large table fills, and optional game or maze post-processing.
+- It is still custom deterministic logic, not a proven one-way function.
+- This means it may be difficult to reverse in practice, but "impossible to reverse" would be too strong a claim for the current codebase.
+- The strongest honest statement is that the expansion is highly lossy in structure and operationally inconvenient to invert, but it is not backed by a formal security reduction or external audit.
+
+### 3. Using these tables for masked byte XOR or masked byte XOR with noise tables, combined with other ciphers, produces difficult-to-unweave encryption
+
+- Using these tables as extra masking material would add another keyed, stateful transformation layer that is harder to reason about than plain XOR against a short repeating mask.
+- The tables are large, password-derived, and optionally post-processed by puzzle-game or maze logic, so byte provenance becomes harder to track by hand.
+- Combined with a standard cipher, they may increase attacker workload by adding diffusion and irregular byte dependencies around the edges of the main cipher.
+- The caution is that "harder to unweave" does not automatically mean "cryptographically stronger."
+- In general, compositions with standard vetted ciphers are safest when the extra layer is simple, well-defined, and easy to analyze; homebrew masking layers can also create subtle failure modes.
+
+### 4. The result of the game-board makes it statistically impossible to derive the original seed, aside from the histogram
+
+- The game-board stage destroys a large amount of positional information.
+- Bytes are consumed as tile values, moved through legal-move logic, match resolution, cascades, power-up effects, and reshuffling before being emitted back into the output buffer.
+- That means the output is not a simple permutation of the seed window; it is a stateful simulation result.
+- In that sense, it is reasonable to say the game stage makes seed reconstruction substantially harder than direct table use.
+- It is not honest to claim "statistically impossible" from the current evidence.
+- Some coarse information can survive, especially frequency-style summaries, repeated-value tendencies, or other aggregate traits, and the project does not include a formal inversion-resistance proof for the game transform.
+
+### 5. The result of the maze makes it statistically impossible to derive the original seed, aside from the histogram
+
+- The maze stage is even more structurally disruptive than the game stage because it operates on a `PASSWORD_EXPANDED_SIZE * 2` window and routes bytes through map generation, entity placement, pathing, flush order, and special-event handling.
+- The emitted bytes come from simulation state transitions rather than direct byte-by-byte copying, so straightforward reversal is not available.
+- As with the game stage, this likely makes exact seed reconstruction much harder in practice.
+- As with the game stage, "statistically impossible" is stronger than the current project can defend.
+- The honest position is that maze processing appears to discard or scramble most direct positional relationships from the seed, while still leaving open the possibility that aggregate properties or future analysis could recover more structure than expected.
+
+## Game-based byte confusion
+
+Game-based byte confusion means a `PASSWORD_EXPANDED_SIZE` window is treated as the seed for a puzzle simulation instead of as a plain byte array.
+Once the bytes become board state, move ordering, cascades, and power-up triggers, the output is shaped by gameplay rules rather than by a direct algebraic transform.
+That is useful because it replaces simple byte locality with branch-heavy state evolution: a small change in the seed can alter legal moves, match timing, cascade length, and which bytes are emitted first.
+
+One practical benefit is that the game stage tends to damage easy positional reasoning.
+A raw table fill can still be thought about as "derived bytes in derived positions."
+A game board is harder to narrate that way, because the output depends on many interacting board events instead of one clean pass over the input.
+That makes it a reasonable confusion layer when the goal is novelty, diffusion, and non-obvious structure, even though it should not be advertised as a substitute for standard cryptographic rounds.
+
+## Maze-based byte confusion
+
+Maze-based byte confusion applies the same idea to a larger `PASSWORD_BALLOONED_SIZE` window.
+Instead of match-three rules, the bytes feed a maze world with generation mode, walkable topology, robots, sharks, dolphins, cheese, flush order, and rare events.
+The bytes that come back out are therefore tied to simulation history, not just to input order.
+
+The main benefit of the maze stage is that it mixes topology with state progression.
+Pathfinding, respawns, occupancy conflicts, and event-driven repaint or flush behavior create a more irregular output path than a simple shuffler or byte twister.
+That can be attractive when the project wants a large, expensive, hard-to-describe confusion layer.
+The honest caveat is the same as with the games: this is an interesting custom transformation with plausible diffusion benefits, not a replacement for audited cryptographic design.

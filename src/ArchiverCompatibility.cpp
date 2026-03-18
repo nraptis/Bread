@@ -8,10 +8,6 @@ std::uint8_t ExpanderLibraryVersion() {
   return peanutbutter::tables::ExpanderLibraryVersion();
 }
 
-const char* ExpansionStrengthName(ExpansionStrength pStrength) {
-  return peanutbutter::tables::ExpansionStrengthName(pStrength);
-}
-
 void ReportProgress(Logger& pLogger,
                     const std::string& pModeName,
                     ProgressProfileKind pProfile,
@@ -24,20 +20,19 @@ void ReportProgress(Logger& pLogger,
 bool Launch(unsigned char* pPassword,
             int pPasswordLength,
             std::uint8_t pExpanderVersion,
-            ExpansionStrength pExpansionStrength,
             Logger* pLogger,
             const char* pModeName,
             ProgressProfileKind pProgressProfile,
             ExpansionCancelFn pShouldCancel,
             void* pCancelUserData) {
+  (void)pModeName;
+  (void)pProgressProfile;
+
   LaunchRequest aRequest;
   aRequest.mPassword = pPassword;
   aRequest.mPasswordLength = pPasswordLength;
   aRequest.mExpanderVersion = pExpanderVersion;
-  aRequest.mExpansionStrength = pExpansionStrength;
   aRequest.mLogger = pLogger;
-  aRequest.mModeName = pModeName;
-  aRequest.mProgressProfile = pProgressProfile;
   aRequest.mShouldCancel = pShouldCancel;
   aRequest.mCancelUserData = pCancelUserData;
   return peanutbutter::archiver::Launch(aRequest);

@@ -5,6 +5,29 @@ project(Bread LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_AUTOMOC ON)
+
+option(BREAD_BUILD_TOOLS "Build standalone Bread helper tools" OFF)
+option(BREAD_BUILD_QT_APP "Build the Qt shell app when Qt is available" ON)
+option(BREAD_BUILD_TESTS "Build Bread smoke and regression targets" OFF)
+
+if(BREAD_BUILD_QT_APP)
+  find_package(Qt5 COMPONENTS Widgets QUIET)
+  if(NOT Qt5Widgets_FOUND)
+    find_program(QMAKE_EXECUTABLE qmake)
+    if(QMAKE_EXECUTABLE)
+      execute_process(
+        COMMAND ${QMAKE_EXECUTABLE} -query QT_INSTALL_PREFIX
+        OUTPUT_VARIABLE QT_INSTALL_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+      if(QT_INSTALL_PREFIX)
+        list(APPEND CMAKE_PREFIX_PATH "${QT_INSTALL_PREFIX}")
+        find_package(Qt5 COMPONENTS Widgets QUIET)
+      endif()
+    endif()
+  endif()
+endif()
 
 set(PEANUTBUTTER_CORE_SOURCES
   src/PeanutButter.cpp
@@ -65,6 +88,7 @@ add_executable(bread_main
 )
 target_link_libraries(bread_main PRIVATE peanutbutter_core)
 
+if(BREAD_BUILD_TOOLS)
 add_executable(maze_sim_matrix
   tools/Maze_sim_matrix.cpp
 )
@@ -94,8 +118,56 @@ if(MSVC)
 else()
   target_compile_options(archiver_compat_runner PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_smoke" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_regression")
+if(BREAD_BUILD_QT_APP AND Qt5Widgets_FOUND)
+add_executable(main_qt MACOSX_BUNDLE WIN32
+  main_qt.cpp
+)
+target_link_libraries(main_qt PRIVATE peanutbutter_core Qt5::Widgets)
+target_include_directories(main_qt
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(main_qt PRIVATE /W4)
+else()
+  target_compile_options(main_qt PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(APPLE)
+  get_filename_component(QT_LIBRARY_DIR "${Qt5Core_DIR}/../../" ABSOLUTE)
+
+  set_target_properties(main_qt PROPERTIES
+    MACOSX_BUNDLE_BUNDLE_NAME "Bread"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.codex.bread"
+    MACOSX_BUNDLE_BUNDLE_VERSION "1.0.0"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0.0"
+    BUILD_RPATH "${QT_LIBRARY_DIR}"
+    INSTALL_RPATH "@executable_path/../Frameworks"
+  )
+
+  find_program(MACDEPLOYQT_EXECUTABLE
+    NAMES macdeployqt
+    HINTS
+      "${QT_INSTALL_PREFIX}/bin"
+  )
+
+  if(MACDEPLOYQT_EXECUTABLE)
+    add_custom_target(deploy_main_qt_bundle
+      COMMAND "${MACDEPLOYQT_EXECUTABLE}" "$<TARGET_BUNDLE_DIR:main_qt>" -always-overwrite -verbose=0
+      COMMENT "Deploying Qt runtime into the main_qt app bundle"
+      DEPENDS main_qt
+      VERBATIM
+    )
+  else()
+    message(STATUS "macdeployqt was not found; skipping the deploy_main_qt_bundle target.")
+  endif()
+endif()
+endif()
+
+if(BREAD_BUILD_TESTS AND (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_smoke" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests_regression"))
 enable_testing()
 
 add_executable(maze_pathfinding_tests
@@ -244,51 +316,6 @@ set_tests_properties(MazeEdgeConnectedKruskalQuick PROPERTIES
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_executable(game_confusion_matrix
-  tests_regression/Game_confusion_matrix.cpp
-)
-target_link_libraries(game_confusion_matrix PRIVATE peanutbutter_core)
-target_include_directories(game_confusion_matrix
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(game_confusion_matrix PRIVATE /W4)
-else()
-  target_compile_options(game_confusion_matrix PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_executable(password_expander_quality_report
-  tests_regression/PasswordExpander_quality_report.cpp
-)
-target_link_libraries(password_expander_quality_report PRIVATE peanutbutter_core)
-target_include_directories(password_expander_quality_report
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(password_expander_quality_report PRIVATE /W4)
-else()
-  target_compile_options(password_expander_quality_report PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_executable(password_expander_confusion_matrix
-  tests_regression/PasswordExpander_confusion_matrix.cpp
-)
-target_link_libraries(password_expander_confusion_matrix PRIVATE peanutbutter_core)
-target_include_directories(password_expander_confusion_matrix
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(password_expander_confusion_matrix PRIVATE /W4)
-else()
-  target_compile_options(password_expander_confusion_matrix PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
 add_executable(game_repeatability_tests
   tests_regression/Games_repeatability_tests.cpp
   tests_regression/RepeatabilitySuiteCore.cpp
@@ -330,6 +357,24 @@ endif()
 
 add_test(NAME CounterRepeatabilityTests COMMAND counter_repeatability_tests)
 set_tests_properties(CounterRepeatabilityTests PROPERTIES LABELS "regression;verification;repeatability")
+
+add_executable(password_expander_insane_tests
+  tests_regression/PasswordExpanderInsaneTest.cpp
+)
+target_link_libraries(password_expander_insane_tests PRIVATE peanutbutter_core)
+target_include_directories(password_expander_insane_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(password_expander_insane_tests PRIVATE /W4)
+else()
+  target_compile_options(password_expander_insane_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME PasswordExpanderInsaneTests COMMAND password_expander_insane_tests)
+set_tests_properties(PasswordExpanderInsaneTests PROPERTIES LABELS "regression;verification;password_expander")
 
 add_executable(fast_rand_repeatability_tests
   tests_regression/FastRand_repeatability_tests.cpp
@@ -457,47 +502,6 @@ endif()
 
 add_test(NAME TestPasswordExpander COMMAND test_password_expander)
 set_tests_properties(TestPasswordExpander PROPERTIES LABELS "smoke;verification;repeatability")
-
-add_executable(TestAllScramblers
-  tests_regression/TestAllScramblers.cpp
-)
-target_link_libraries(TestAllScramblers PRIVATE peanutbutter_core)
-target_include_directories(TestAllScramblers
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-if(MSVC)
-  target_compile_options(TestAllScramblers PRIVATE /W4)
-else()
-  target_compile_options(TestAllScramblers PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME TestAllScramblers
-  COMMAND $<TARGET_FILE:TestAllScramblers> 10 ${CMAKE_CURRENT_BINARY_DIR}/TestAllScramblers_report.html
-)
-set_tests_properties(TestAllScramblers PROPERTIES
-  LABELS "regression;verification;scramblers"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-add_test(
-  NAME PasswordExpanderQualityReport
-  COMMAND password_expander_quality_report 2 hotdog password_expander_quality_report.html
-)
-set_tests_properties(PasswordExpanderQualityReport PROPERTIES
-  LABELS "regression;verification;quality"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-add_test(
-  NAME PasswordExpanderConfusionMatrix
-  COMMAND password_expander_confusion_matrix 2 hotdog password_expander_confusion_matrix.html
-)
-set_tests_properties(PasswordExpanderConfusionMatrix PROPERTIES
-  LABELS "regression;verification;quality"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
 
 add_executable(game_perseverance_tests
   tests_regression/Games_perseverance_tests.cpp

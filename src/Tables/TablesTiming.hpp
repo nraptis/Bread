@@ -7,11 +7,6 @@
 
 namespace peanutbutter::tables::timing {
 
-enum class TimingMode : unsigned char {
-  kSoftware = 0,
-  kArmNeon = 1,
-};
-
 struct TimingProfile {
   double mL1SeedMilliseconds = 0.0;
   double mL2SeedMilliseconds = 0.0;
@@ -32,12 +27,9 @@ struct WorkEstimate {
   std::size_t mMazeBlockCount = 0U;
 };
 
-TimingMode ActiveTimingMode();
 const TimingProfile& ActiveTimingProfile();
 double EstimateSeedMilliseconds(std::size_t pTableSize, bool pIsFastMode);
-WorkEstimate BuildWorkEstimate(GameStyle pGameStyle,
-                               MazeStyle pMazeStyle,
-                               bool pIsFastMode);
+WorkEstimate BuildWorkEstimate(GameStyle pGameStyle, MazeStyle pMazeStyle, bool pIsFastMode);
 
 }  // namespace peanutbutter::tables::timing
 

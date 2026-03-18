@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/main_qt.dir/main_qt_autogen/mocs_compilation.cpp.o CMakeFiles/main_qt.dir/main_qt.cpp.o -o main_qt  -Wl,-rpath,/opt/anaconda3/lib libpeanutbutter_core.a /opt/anaconda3/lib/libQt5Widgets.5.15.2.dylib /opt/anaconda3/lib/libQt5Gui.5.15.2.dylib /opt/anaconda3/lib/libQt5Core.5.15.2.dylib

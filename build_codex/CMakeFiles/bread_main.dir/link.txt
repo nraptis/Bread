@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/bread_main.dir/bread_main_autogen/mocs_compilation.cpp.o CMakeFiles/bread_main.dir/src/core/main.cpp.o -o bread_main  libpeanutbutter_core.a

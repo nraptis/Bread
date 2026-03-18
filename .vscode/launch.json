@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Qt",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build_codex_bundle/main_qt.app/Contents/MacOS/main_qt",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "MIMode": "lldb",
+      "miDebuggerPath": "${env:HOME}/.vscode/extensions/ms-vscode.cpptools-1.30.5-darwin-arm64/debugAdapters/lldb-mi/bin/lldb-mi",
+      "externalConsole": false,
+      "preLaunchTask": "CMake: Build main_qt"
+    },
+    {
+      "name": "Debug CLI",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build_codex_bundle/bread_main",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "MIMode": "lldb",
+      "miDebuggerPath": "${env:HOME}/.vscode/extensions/ms-vscode.cpptools-1.30.5-darwin-arm64/debugAdapters/lldb-mi/bin/lldb-mi",
+      "externalConsole": false,
+      "preLaunchTask": "CMake: Build bread_main"
+    }
+  ]
+}

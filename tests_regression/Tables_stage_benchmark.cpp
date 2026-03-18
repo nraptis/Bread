@@ -73,7 +73,7 @@ struct StageStat {
 };
 
 constexpr int kIterations = 10;
-constexpr std::size_t kScratchSize = peanutbutter::tables::Tables::kScratchSize;
+constexpr std::size_t kScratchSize = peanutbutter::tables::Tables::kTableCount;
 
 std::uint64_t HashBytes(const unsigned char* pBytes, std::size_t pLength) {
   std::uint64_t aDigest = 1469598103934665603ULL;
@@ -256,13 +256,13 @@ StageStat& FindOrCreateStage(std::vector<StageStat>* pStages, const std::string&
 
 std::string FormatGameBlockLabel(std::size_t pBlockIndex) {
   char aBuffer[64];
-  std::snprintf(aBuffer, sizeof(aBuffer), "game confusion block %03zu", pBlockIndex);
+  std::snprintf(aBuffer, sizeof(aBuffer), "game simulation block %03zu", pBlockIndex);
   return std::string(aBuffer);
 }
 
 std::string FormatMazeBlockLabel(std::size_t pBlockIndex) {
   char aBuffer[64];
-  std::snprintf(aBuffer, sizeof(aBuffer), "maze confusion block %03zu", pBlockIndex);
+  std::snprintf(aBuffer, sizeof(aBuffer), "maze simulation block %03zu", pBlockIndex);
   return std::string(aBuffer);
 }
 

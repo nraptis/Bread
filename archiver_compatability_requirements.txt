@@ -224,7 +224,6 @@ using ExpansionCancelFn = bool (*)(void* pUserData);
 bool Launch(unsigned char* pPassword,
             int pPasswordLength,
             std::uint8_t pExpanderVersion,
-            ExpansionStrength pExpansionStrength,
             Logger* pLogger,
             const char* pModeName,
             ProgressProfileKind pProgressProfile,
@@ -252,11 +251,7 @@ The archiver must pass:
    - this must match what the archive header expects for encode
    - for decode, mismatch may warn and still attempt
 
-4. `pExpansionStrength`
-   - the requested expansion strength
-   - this is behavioral input
-
-5. `pLogger`
+4. `pLogger`
     - used for `LogStatus`, `LogError`, and `LogProgress`
     - may be null only if silent operation is explicitly allowed
 

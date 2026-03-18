@@ -6,29 +6,23 @@
 #include <cstdint>
 #include <string>
 
+#include "MOCK_WRAPPERS.hpp"
 #include "src/PeanutButter.hpp"
+#include "src/Tables/fast_rand/FastRand.hpp"
+
+class AESCounter;
+class ARIA256Counter;
+class ChaCha20Counter;
+
+namespace peanutbutter::games {
+class GameBoard;
+}
+
+namespace peanutbutter::maze {
+class MazeDirector;
+}
 
 namespace peanutbutter::tables {
-
-enum class ExpansionStrength : std::uint8_t {
-  kLow = 0,
-  kNormal = 1,
-  kHigh = 2,
-  kExtreme = 3,
-};
-
-enum class ProgressPhase : std::uint8_t {
-  kPreflight = 0,
-  kExpansion = 1,
-  kFinalize = 2,
-};
-
-enum class ProgressProfileKind : std::uint8_t {
-  kBundle = 0,
-  kUnbundle = 1,
-  kRecover = 2,
-  kUnknown = 3,
-};
 
 enum class GameStyle : std::uint8_t {
   kNone = 0,
@@ -42,40 +36,43 @@ enum class MazeStyle : std::uint8_t {
   kFull = 2,
 };
 
-struct ProgressInfo {
-  std::string mModeName;
-  ProgressPhase mPhase = ProgressPhase::kPreflight;
-  double mOverallFraction = 0.0;
-  std::string mDetail;
+enum class TableFillKind : std::uint8_t {
+  kAesCounter1 = 0,
+  kAesCounter2 = 1,
+  kAesCounter3 = 2,
+  kAriaCounter = 3,
+  kChaChaCounter = 4,
+  kPasswordExpander00 = 5,
+  kPasswordExpander01 = 6,
+  kPasswordExpander02 = 7,
+  kPasswordExpander03 = 8,
+  kPasswordExpander04 = 9,
+  kPasswordExpander05 = 10,
+  kPasswordExpander06 = 11,
+  kPasswordExpander07 = 12,
+  kPasswordExpander08 = 13,
+  kPasswordExpander09 = 14,
+  kPasswordExpander10 = 15,
+  kPasswordExpander11 = 16,
+  kPasswordExpander12 = 17,
+  kPasswordExpander13 = 18,
+  kPasswordExpander14 = 19,
+  kPasswordExpander15 = 20,
 };
-
-class Logger {
- public:
-  virtual ~Logger() = default;
-  virtual void LogStatus(const std::string& pMessage) = 0;
-  virtual void LogError(const std::string& pMessage) = 0;
-  virtual void LogProgress(const ProgressInfo&) {}
-};
-
-using ExpansionCancelFn = bool (*)(void* pUserData);
 
 struct LaunchRequest {
   unsigned char* mPassword = nullptr;
   int mPasswordLength = 0;
   std::uint8_t mExpanderVersion = 0;
-  ExpansionStrength mExpansionStrength = ExpansionStrength::kNormal;
   GameStyle mGameStyle = GameStyle::kNone;
   MazeStyle mMazeStyle = MazeStyle::kNone;
   bool mIsFastMode = false;
   Logger* mLogger = nullptr;
-  const char* mModeName = "Bundle";
-  ProgressProfileKind mProgressProfile = ProgressProfileKind::kBundle;
   ExpansionCancelFn mShouldCancel = nullptr;
   void* mCancelUserData = nullptr;
 };
 
 std::uint8_t ExpanderLibraryVersion();
-const char* ExpansionStrengthName(ExpansionStrength pStrength);
 const char* GameStyleName(GameStyle pStyle);
 const char* MazeStyleName(MazeStyle pStyle);
 void ReportProgress(Logger& pLogger,
@@ -87,7 +84,6 @@ void ReportProgress(Logger& pLogger,
 bool Launch(unsigned char* pPassword,
             int pPasswordLength,
             std::uint8_t pExpanderVersion,
-            ExpansionStrength pExpansionStrength,
             Logger* pLogger,
             const char* pModeName,
             ProgressProfileKind pProgressProfile,
@@ -107,7 +103,7 @@ class Tables final {
   static constexpr std::size_t kL2TableCount = 6u;
   static constexpr std::size_t kL3TableCount = 4u;
   static constexpr std::size_t kTableCount = kL1TableCount + kL2TableCount + kL3TableCount;
-  static constexpr std::size_t kScratchSize = kTableCount;
+  static constexpr std::size_t kBaseFillKindCount = 21u;
 
   static unsigned char gTableL1_A[BLOCK_SIZE_L1];
   static unsigned char gTableL1_B[BLOCK_SIZE_L1];
@@ -134,16 +130,22 @@ class Tables final {
   static unsigned char gTableL3_C[BLOCK_SIZE_L3];
   static unsigned char gTableL3_D[BLOCK_SIZE_L3];
 
-  static unsigned char mScratch[kScratchSize];
+  static peanutbutter::fast_rand::FastRand gFastRand;
+  static TableFillKind gFillOrder[kTableCount];
+  static unsigned char gExpanderWorker[PASSWORD_EXPANDED_SIZE];
   static int mRandomTableIndex;
   static int mRandomByteIndex;
-  static int mPlayOrder[16];
+  static AESCounter* gAesCounter;
+  static ARIA256Counter* gAriaCounter;
+  static ChaCha20Counter* gChaChaCounter;
+  static peanutbutter::games::GameBoard* gGameBoard;
+  static peanutbutter::maze::MazeDirector* gMazeDirector;
 
   static const std::array<TableDescriptor, kTableCount>& All();
+  static void EnsureRuntimeObjects();
   static void ResetRandomCursor();
   static unsigned char Get();
   static unsigned char Get(int pMax);
-  static void ShufflePlayOrder();
   static bool Launch(const LaunchRequest& pRequest);
 };
 

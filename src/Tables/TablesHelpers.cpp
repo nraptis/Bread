@@ -1,22 +1,46 @@
 #include "src/Tables/TablesHelpers.hpp"
 
-#include <algorithm>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <string>
 
-#include "src/Tables/Tables.hpp"
 #include "src/Tables/counters/AESCounter.hpp"
 #include "src/Tables/counters/ARIA256Counter.hpp"
 #include "src/Tables/counters/ChaCha20Counter.hpp"
 #include "src/Tables/games/GameBoard.hpp"
 #include "src/Tables/maze/MazeDirector.hpp"
+#include "src/Tables/password_expanders/PasswordExpander.hpp"
 
 namespace peanutbutter::tables::helpers {
 
 namespace {
+
+using peanutbutter::expansion::key_expansion::PasswordExpander;
+
+constexpr TableFillKind kBaseFillKinds[Tables::kBaseFillKindCount] = {
+    TableFillKind::kAesCounter1,
+    TableFillKind::kAesCounter2,
+    TableFillKind::kAesCounter3,
+    TableFillKind::kAriaCounter,
+    TableFillKind::kChaChaCounter,
+    TableFillKind::kPasswordExpander00,
+    TableFillKind::kPasswordExpander01,
+    TableFillKind::kPasswordExpander02,
+    TableFillKind::kPasswordExpander03,
+    TableFillKind::kPasswordExpander04,
+    TableFillKind::kPasswordExpander05,
+    TableFillKind::kPasswordExpander06,
+    TableFillKind::kPasswordExpander07,
+    TableFillKind::kPasswordExpander08,
+    TableFillKind::kPasswordExpander09,
+    TableFillKind::kPasswordExpander10,
+    TableFillKind::kPasswordExpander11,
+    TableFillKind::kPasswordExpander12,
+    TableFillKind::kPasswordExpander13,
+    TableFillKind::kPasswordExpander14,
+    TableFillKind::kPasswordExpander15,
+};
 
 void FastFill(unsigned char* pBuffer, int pLength, int pSeed) {
   if (pBuffer == nullptr || pLength <= 0) {
@@ -38,25 +62,67 @@ void FastFill(unsigned char* pBuffer, int pLength, int pSeed) {
   }
 }
 
-template <std::size_t kCount>
-void ShuffleInstructions(std::array<FillInstruction, kCount>& pInstructions, std::size_t pScratchOffset) {
-  for (std::size_t aIndex = 0; aIndex < kCount; ++aIndex) {
-    const std::size_t aRemaining = kCount - aIndex;
-    const std::size_t aSwapIndex =
-        aIndex + (static_cast<std::size_t>(Tables::mScratch[(pScratchOffset + aIndex) % Tables::kScratchSize]) %
-                  aRemaining);
-    std::swap(pInstructions[aIndex], pInstructions[aSwapIndex]);
+unsigned char ExpanderIndexForKind(TableFillKind pKind) {
+  switch (pKind) {
+    case TableFillKind::kPasswordExpander00:
+      return 0U;
+    case TableFillKind::kPasswordExpander01:
+      return 1U;
+    case TableFillKind::kPasswordExpander02:
+      return 2U;
+    case TableFillKind::kPasswordExpander03:
+      return 3U;
+    case TableFillKind::kPasswordExpander04:
+      return 4U;
+    case TableFillKind::kPasswordExpander05:
+      return 5U;
+    case TableFillKind::kPasswordExpander06:
+      return 6U;
+    case TableFillKind::kPasswordExpander07:
+      return 7U;
+    case TableFillKind::kPasswordExpander08:
+      return 8U;
+    case TableFillKind::kPasswordExpander09:
+      return 9U;
+    case TableFillKind::kPasswordExpander10:
+      return 10U;
+    case TableFillKind::kPasswordExpander11:
+      return 11U;
+    case TableFillKind::kPasswordExpander12:
+      return 12U;
+    case TableFillKind::kPasswordExpander13:
+      return 13U;
+    case TableFillKind::kPasswordExpander14:
+      return 14U;
+    case TableFillKind::kPasswordExpander15:
+      return 15U;
+    default:
+      return 0U;
   }
 }
 
-FillInstruction NextExpanderInstruction(const std::array<unsigned char, PasswordExpander::kTypeCount>& pStack,
-                                        std::size_t* pIndex) {
-  if (pIndex == nullptr) {
-    return {TableFillKind::kPasswordExpander, 0U};
+void ReverseBytes(unsigned char* pBuffer, std::size_t pLength) {
+  if (pBuffer == nullptr || pLength <= 1U) {
+    return;
   }
-  const std::size_t aStackIndex = (*pIndex) % pStack.size();
-  ++(*pIndex);
-  return {TableFillKind::kPasswordExpander, pStack[aStackIndex]};
+  std::size_t aLeft = 0U;
+  std::size_t aRight = pLength - 1U;
+  while (aLeft < aRight) {
+    const unsigned char aTemp = pBuffer[aLeft];
+    pBuffer[aLeft] = pBuffer[aRight];
+    pBuffer[aRight] = aTemp;
+    ++aLeft;
+    --aRight;
+  }
+}
+
+void InvertBytes(unsigned char* pBuffer, std::size_t pLength) {
+  if (pBuffer == nullptr) {
+    return;
+  }
+  for (std::size_t aIndex = 0; aIndex < pLength; ++aIndex) {
+    pBuffer[aIndex] = static_cast<unsigned char>(~pBuffer[aIndex]);
+  }
 }
 
 bool FillCounter(TableFillKind pKind,
@@ -69,31 +135,43 @@ bool FillCounter(TableFillKind pKind,
   }
 
   switch (pKind) {
-    case TableFillKind::kAesCounter: {
-      AESCounter aCounter;
-      aCounter.Seed(pPassword, pPasswordLength);
-      aCounter.Get(pDestination, static_cast<int>(pDestinationLength));
+    case TableFillKind::kAesCounter1:
+    case TableFillKind::kAesCounter2:
+    case TableFillKind::kAesCounter3: {
+      if (Tables::gAesCounter == nullptr) {
+        return false;
+      }
+      Tables::gAesCounter->Seed(pPassword, pPasswordLength);
+      Tables::gAesCounter->Get(pDestination, static_cast<int>(pDestinationLength));
+      if (pKind == TableFillKind::kAesCounter2) {
+        ReverseBytes(pDestination, pDestinationLength);
+      } else if (pKind == TableFillKind::kAesCounter3) {
+        InvertBytes(pDestination, pDestinationLength);
+      }
       return true;
     }
     case TableFillKind::kAriaCounter: {
-      ARIA256Counter aCounter;
-      aCounter.Seed(pPassword, pPasswordLength);
-      aCounter.Get(pDestination, static_cast<int>(pDestinationLength));
+      if (Tables::gAriaCounter == nullptr) {
+        return false;
+      }
+      Tables::gAriaCounter->Seed(pPassword, pPasswordLength);
+      Tables::gAriaCounter->Get(pDestination, static_cast<int>(pDestinationLength));
       return true;
     }
     case TableFillKind::kChaChaCounter: {
-      ChaCha20Counter aCounter;
-      aCounter.Seed(pPassword, pPasswordLength);
-      aCounter.Get(pDestination, static_cast<int>(pDestinationLength));
+      if (Tables::gChaChaCounter == nullptr) {
+        return false;
+      }
+      Tables::gChaChaCounter->Seed(pPassword, pPasswordLength);
+      Tables::gChaChaCounter->Get(pDestination, static_cast<int>(pDestinationLength));
       return true;
     }
-    case TableFillKind::kPasswordExpander:
-      break;
+    default:
+      return false;
   }
-  return false;
 }
 
-bool FillExpander(unsigned char pExpanderIndex,
+bool FillExpander(TableFillKind pKind,
                   unsigned char* pPassword,
                   int pPasswordLength,
                   unsigned char* pDestination,
@@ -102,13 +180,10 @@ bool FillExpander(unsigned char pExpanderIndex,
     return false;
   }
 
-  std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aWorker = {};
-  const unsigned char aNormalizedIndex =
-      static_cast<unsigned char>(pExpanderIndex % static_cast<unsigned char>(PasswordExpander::kTypeCount));
-  PasswordExpander::ExpandPasswordBlocksByIndex(aNormalizedIndex,
+  PasswordExpander::ExpandPasswordBlocksByIndex(ExpanderIndexForKind(pKind),
                                                 pPassword,
                                                 (pPasswordLength > 0) ? static_cast<unsigned int>(pPasswordLength) : 0U,
-                                                aWorker.data(),
+                                                Tables::gExpanderWorker,
                                                 pDestination,
                                                 static_cast<unsigned int>(pDestinationLength));
   return true;
@@ -142,13 +217,6 @@ double ClampFraction(double pFraction) {
   return pFraction;
 }
 
-std::string ResolveModeName(const char* pModeName) {
-  if (pModeName == nullptr || *pModeName == '\0') {
-    return "Bundle";
-  }
-  return std::string(pModeName);
-}
-
 std::size_t GameStride(GameStyle pStyle) {
   return (pStyle == GameStyle::kSparse) ? 4U : 1U;
 }
@@ -161,141 +229,96 @@ bool ShouldCancel(const LaunchRequest& pRequest) {
   return pRequest.mShouldCancel != nullptr && pRequest.mShouldCancel(pRequest.mCancelUserData);
 }
 
-void BuildScratch(const LaunchRequest& pRequest) {
-  if (pRequest.mPassword == nullptr || pRequest.mPasswordLength <= 0) {
-    std::memset(Tables::mScratch, 0, sizeof(Tables::mScratch));
-    return;
+void SeedFastRand(const LaunchRequest& pRequest) {
+  Tables::gFastRand.Seed(pRequest.mPassword, pRequest.mPasswordLength);
+}
+
+void ShuffleFillOrder() {
+  for (std::size_t aIndex = 0; aIndex < Tables::kBaseFillKindCount; ++aIndex) {
+    Tables::gFillOrder[aIndex] = kBaseFillKinds[aIndex];
   }
 
-  for (std::size_t aIndex = 0; aIndex < Tables::kScratchSize; ++aIndex) {
-    Tables::mScratch[aIndex] =
-        pRequest.mPassword[static_cast<std::size_t>(aIndex) % static_cast<std::size_t>(pRequest.mPasswordLength)];
+  for (std::size_t aIndex = 0; aIndex < Tables::kBaseFillKindCount; ++aIndex) {
+    const std::size_t aRemaining = Tables::kBaseFillKindCount - aIndex;
+    const std::size_t aSwapIndex = aIndex + static_cast<std::size_t>(Tables::gFastRand.Get(static_cast<int>(aRemaining)));
+    const TableFillKind aTemp = Tables::gFillOrder[aIndex];
+    Tables::gFillOrder[aIndex] = Tables::gFillOrder[aSwapIndex];
+    Tables::gFillOrder[aSwapIndex] = aTemp;
+  }
+
+  for (std::size_t aIndex = Tables::kBaseFillKindCount; aIndex < Tables::kTableCount; ++aIndex) {
+    Tables::gFillOrder[aIndex] =
+        Tables::gFillOrder[static_cast<std::size_t>(Tables::gFastRand.Get(static_cast<int>(Tables::kBaseFillKindCount)))];
   }
 }
 
-std::array<unsigned char, PasswordExpander::kTypeCount> BuildExpanderStack() {
-  std::array<unsigned char, PasswordExpander::kTypeCount> aStack = {};
-  for (int aIndex = 0; aIndex < PasswordExpander::kTypeCount; ++aIndex) {
-    aStack[static_cast<std::size_t>(aIndex)] = static_cast<unsigned char>(aIndex);
-  }
-
-  for (std::size_t aIndex = 0; aIndex < aStack.size(); ++aIndex) {
-    const std::size_t aRemaining = aStack.size() - aIndex;
-    const std::size_t aSwapIndex =
-        aIndex + (static_cast<std::size_t>(Tables::mScratch[(3U + aIndex) % Tables::kScratchSize]) % aRemaining);
-    std::swap(aStack[aIndex], aStack[aSwapIndex]);
-  }
-  return aStack;
-}
-
-std::array<FillInstruction, Tables::kL1TableCount> BuildL1Plan(
-    const std::array<unsigned char, PasswordExpander::kTypeCount>& pExpanderStack,
-    std::size_t* pExpanderIndex) {
-  const bool aUseAriaOnL1 = (Tables::mScratch[0] & 1U) == 0U;
-  std::array<FillInstruction, Tables::kL1TableCount> aPlan = {{
-      {TableFillKind::kAesCounter, 0U},
-      {aUseAriaOnL1 ? TableFillKind::kAriaCounter : TableFillKind::kChaChaCounter, 0U},
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-  }};
-  ShuffleInstructions(aPlan, 1U);
-  return aPlan;
-}
-
-std::array<FillInstruction, Tables::kL2TableCount> BuildL2Plan(
-    const std::array<unsigned char, PasswordExpander::kTypeCount>& pExpanderStack,
-    std::size_t* pExpanderIndex) {
-  const bool aUseAriaOnL1 = (Tables::mScratch[0] & 1U) == 0U;
-  std::array<FillInstruction, Tables::kL2TableCount> aPlan = {{
-      {TableFillKind::kAesCounter, 0U},
-      {aUseAriaOnL1 ? TableFillKind::kChaChaCounter : TableFillKind::kAriaCounter, 0U},
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-  }};
-  ShuffleInstructions(aPlan, 7U);
-  return aPlan;
-}
-
-std::array<FillInstruction, Tables::kL3TableCount> BuildL3Plan(
-    const std::array<unsigned char, PasswordExpander::kTypeCount>& pExpanderStack,
-    std::size_t* pExpanderIndex) {
-  std::array<FillInstruction, Tables::kL3TableCount> aPlan = {{
-      {TableFillKind::kAesCounter, 0U},
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-      NextExpanderInstruction(pExpanderStack, pExpanderIndex),
-  }};
-  ShuffleInstructions(aPlan, 13U);
-  return aPlan;
-}
-
-std::array<FillInstruction, Tables::kTableCount> BuildTablePlan() {
-  const auto aExpanderStack = BuildExpanderStack();
-  std::size_t aExpanderIndex = 0U;
-  const auto aL1Plan = BuildL1Plan(aExpanderStack, &aExpanderIndex);
-  const auto aL2Plan = BuildL2Plan(aExpanderStack, &aExpanderIndex);
-  const auto aL3Plan = BuildL3Plan(aExpanderStack, &aExpanderIndex);
-
-  std::array<FillInstruction, Tables::kTableCount> aPlan = {};
-  for (std::size_t aIndex = 0; aIndex < Tables::kL1TableCount; ++aIndex) {
-    aPlan[aIndex] = aL1Plan[aIndex];
-  }
-  for (std::size_t aIndex = 0; aIndex < Tables::kL2TableCount; ++aIndex) {
-    aPlan[Tables::kL1TableCount + aIndex] = aL2Plan[aIndex];
-  }
-  for (std::size_t aIndex = 0; aIndex < Tables::kL3TableCount; ++aIndex) {
-    aPlan[Tables::kL1TableCount + Tables::kL2TableCount + aIndex] = aL3Plan[aIndex];
-  }
-  return aPlan;
-}
-
-bool FillTable(const FillInstruction& pInstruction,
+bool FillTable(TableFillKind pKind,
                unsigned char* pPassword,
                int pPasswordLength,
                unsigned char* pDestination,
                std::size_t pDestinationLength) {
-  if (pInstruction.mKind == TableFillKind::kPasswordExpander) {
-    return FillExpander(pInstruction.mExpanderIndex, pPassword, pPasswordLength, pDestination, pDestinationLength);
+  if (FillCounter(pKind, pPassword, pPasswordLength, pDestination, pDestinationLength)) {
+    return true;
   }
-  return FillCounter(pInstruction.mKind, pPassword, pPasswordLength, pDestination, pDestinationLength);
+  return FillExpander(pKind, pPassword, pPasswordLength, pDestination, pDestinationLength);
 }
 
 bool FastFillTable(std::size_t pTableIndex,
-                   const FillInstruction& pInstruction,
+                   TableFillKind pKind,
                    unsigned char* pDestination,
                    std::size_t pDestinationLength) {
-  int aSeed = static_cast<int>((pTableIndex + 1U) * 97U);
-  aSeed += static_cast<int>(Tables::mScratch[pTableIndex % Tables::kScratchSize]) * 257;
-  aSeed += static_cast<int>(pDestinationLength & 0x7FFFU);
-  if (pInstruction.mKind == TableFillKind::kPasswordExpander) {
-    aSeed += static_cast<int>((pInstruction.mExpanderIndex + 1U) * 131U);
-  } else {
-    aSeed += static_cast<int>((static_cast<unsigned int>(pInstruction.mKind) + 1U) * 1009U);
-  }
+  int aSeed = static_cast<int>(Tables::gFastRand.GetInt());
+  aSeed ^= static_cast<int>((pTableIndex + 1U) * 257U);
+  aSeed ^= static_cast<int>((static_cast<unsigned int>(pKind) + 1U) * 65537U);
+  aSeed ^= static_cast<int>(pDestinationLength & 0x7FFFFFFFU);
   FastFill(pDestination, static_cast<int>(pDestinationLength), aSeed);
   return true;
 }
 
-std::string FillLabel(const FillInstruction& pInstruction) {
-  switch (pInstruction.mKind) {
-    case TableFillKind::kAesCounter:
-      return "aes";
+std::string FillLabel(TableFillKind pKind) {
+  switch (pKind) {
+    case TableFillKind::kAesCounter1:
+      return "aes_1";
+    case TableFillKind::kAesCounter2:
+      return "aes_2";
+    case TableFillKind::kAesCounter3:
+      return "aes_3";
     case TableFillKind::kAriaCounter:
       return "aria";
     case TableFillKind::kChaChaCounter:
       return "chacha";
-    case TableFillKind::kPasswordExpander:
-      return "p_" + std::to_string(pInstruction.mExpanderIndex);
+    case TableFillKind::kPasswordExpander00:
+      return "p_00";
+    case TableFillKind::kPasswordExpander01:
+      return "p_01";
+    case TableFillKind::kPasswordExpander02:
+      return "p_02";
+    case TableFillKind::kPasswordExpander03:
+      return "p_03";
+    case TableFillKind::kPasswordExpander04:
+      return "p_04";
+    case TableFillKind::kPasswordExpander05:
+      return "p_05";
+    case TableFillKind::kPasswordExpander06:
+      return "p_06";
+    case TableFillKind::kPasswordExpander07:
+      return "p_07";
+    case TableFillKind::kPasswordExpander08:
+      return "p_08";
+    case TableFillKind::kPasswordExpander09:
+      return "p_09";
+    case TableFillKind::kPasswordExpander10:
+      return "p_10";
+    case TableFillKind::kPasswordExpander11:
+      return "p_11";
+    case TableFillKind::kPasswordExpander12:
+      return "p_12";
+    case TableFillKind::kPasswordExpander13:
+      return "p_13";
+    case TableFillKind::kPasswordExpander14:
+      return "p_14";
+    case TableFillKind::kPasswordExpander15:
+      return "p_15";
   }
   return "unknown";
 }
@@ -308,37 +331,21 @@ std::size_t CountProcessedBlocks(std::size_t pBlockCount, std::size_t pStride) {
 }
 
 std::size_t CountGameBlocks(std::size_t pTableSize, GameStyle pStyle) {
-  if (pStyle == GameStyle::kNone || (pTableSize % static_cast<std::size_t>(games::GameBoard::kSeedBufferCapacity)) != 0U) {
+  if (pStyle == GameStyle::kNone || (pTableSize % static_cast<std::size_t>(peanutbutter::games::GameBoard::kSeedBufferCapacity)) != 0U) {
     return 0U;
   }
-  const std::size_t aBlockCount = pTableSize / static_cast<std::size_t>(games::GameBoard::kSeedBufferCapacity);
+  const std::size_t aBlockCount =
+      pTableSize / static_cast<std::size_t>(peanutbutter::games::GameBoard::kSeedBufferCapacity);
   return CountProcessedBlocks(aBlockCount, GameStride(pStyle));
 }
 
 std::size_t CountMazeBlocks(std::size_t pTableSize, MazeStyle pStyle) {
-  if (pStyle == MazeStyle::kNone || (pTableSize % static_cast<std::size_t>(maze::MazeDirector::kSeedBufferCapacity)) != 0U) {
+  if (pStyle == MazeStyle::kNone || (pTableSize % static_cast<std::size_t>(peanutbutter::maze::MazeDirector::kSeedBufferCapacity)) != 0U) {
     return 0U;
   }
-  const std::size_t aBlockCount = pTableSize / static_cast<std::size_t>(maze::MazeDirector::kSeedBufferCapacity);
+  const std::size_t aBlockCount =
+      pTableSize / static_cast<std::size_t>(peanutbutter::maze::MazeDirector::kSeedBufferCapacity);
   return CountProcessedBlocks(aBlockCount, MazeStride(pStyle));
-}
-
-void ShufflePlayOrderFromBuffer(const unsigned char* pBuffer, std::size_t pLength, int* pPlayOrder, int pCount) {
-  if (pBuffer == nullptr || pLength == 0U || pPlayOrder == nullptr || pCount <= 0) {
-    return;
-  }
-
-  for (int aIndex = 0; aIndex < pCount; ++aIndex) {
-    pPlayOrder[aIndex] = aIndex;
-  }
-
-  for (int aIndex = 0; aIndex < pCount; ++aIndex) {
-    const int aWhich = static_cast<int>(pBuffer[static_cast<std::size_t>(aIndex) % pLength] %
-                                        static_cast<unsigned char>(pCount));
-    const int aTemp = pPlayOrder[aIndex];
-    pPlayOrder[aIndex] = pPlayOrder[aWhich];
-    pPlayOrder[aWhich] = aTemp;
-  }
 }
 
 }  // namespace peanutbutter::tables::helpers
