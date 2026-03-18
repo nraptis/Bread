@@ -6,9 +6,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(peanutbutter_core
+set(PEANUTBUTTER_CORE_SOURCES
   src/PeanutButter.cpp
   src/ArchiverCompatibility.cpp
+  src/Tables/Tables.cpp
+  src/Tables/TablesHelpers.cpp
+  src/Tables/TablesTiming.cpp
   src/Tables/password_expanders/ByteTwister.cpp
   src/Tables/password_expanders/PasswordExpander.cpp
   src/Tables/counters/AESCounter.cpp
@@ -28,6 +31,14 @@ add_library(peanutbutter_core
   src/Tables/games/GamePowerUp.cpp
 )
 
+add_library(peanutbutter_core
+  ${PEANUTBUTTER_CORE_SOURCES}
+)
+
+add_library(peanutbutter_core_software
+  ${PEANUTBUTTER_CORE_SOURCES}
+)
+
 target_include_directories(peanutbutter_core
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -36,9 +47,18 @@ target_include_directories(peanutbutter_core
 
 if(MSVC)
   target_compile_options(peanutbutter_core PRIVATE /W4)
+  target_compile_options(peanutbutter_core_software PRIVATE /W4)
 else()
   target_compile_options(peanutbutter_core PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(peanutbutter_core_software PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+target_include_directories(peanutbutter_core_software
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_definitions(peanutbutter_core_software PRIVATE PB_FORCE_SOFTWARE_MODE=1)
 
 add_executable(bread_main
   src/core/main.cpp
@@ -360,6 +380,40 @@ if(MSVC)
   target_compile_options(table_fill_and_engine_benchmark PRIVATE /W4)
 else()
   target_compile_options(table_fill_and_engine_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_executable(tables_stage_benchmark_software
+  tests_regression/Tables_stage_benchmark.cpp
+)
+target_link_libraries(tables_stage_benchmark_software PRIVATE peanutbutter_core_software)
+target_include_directories(tables_stage_benchmark_software
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_definitions(tables_stage_benchmark_software PRIVATE PB_STAGE_BENCH_MODE=\"software\")
+if(MSVC)
+  target_compile_options(tables_stage_benchmark_software PRIVATE /W4)
+else()
+  target_compile_options(tables_stage_benchmark_software PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)$")
+add_executable(tables_stage_benchmark_arm_neon
+  tests_regression/Tables_stage_benchmark.cpp
+)
+target_link_libraries(tables_stage_benchmark_arm_neon PRIVATE peanutbutter_core)
+target_include_directories(tables_stage_benchmark_arm_neon
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_definitions(tables_stage_benchmark_arm_neon PRIVATE PB_STAGE_BENCH_MODE=\"arm-neon\")
+if(MSVC)
+  target_compile_options(tables_stage_benchmark_arm_neon PRIVATE /W4)
+else()
+  target_compile_options(tables_stage_benchmark_arm_neon PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 endif()
 
 add_executable(digest_repeatability_suite

@@ -119,10 +119,10 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   void SlideRow(int pRowIndex, int pAmount);
   void SlideColumn(int pColumnIndex, int pAmount);
 
-  void InvalidateNew();
   void InvalidateMatches();
-  void InvalidateToppleFlags();
   void Cascade();
+  void MarkTileMatched(int pGridX, int pGridY);
+  bool IsTileMatched(int pGridX, int pGridY) const;
 
   void MoveListClear();
   bool MoveListPush(int pX, int pY, bool pHorizontal, int pDir);
@@ -204,7 +204,6 @@ class GameBoard : public peanutbutter::rng::Shuffler {
 
   unsigned int mCataclysmWriteIndex;
   unsigned int mApocalypseWriteIndex;
-  bool mHasPendingMatches;
 
   int mSuccessfulMoveCount;
   int mBrokenCount;
@@ -223,6 +222,7 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   int mExploreListCount;
   int mMatchListX[kGridSize];
   int mMatchListY[kGridSize];
+  int mMatchListCount;
   int mStackX[kGridSize];
   int mStackY[kGridSize];
   int mComponentX[kGridSize];

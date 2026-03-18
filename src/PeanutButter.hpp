@@ -23,27 +23,6 @@
 #define TEST_BLOCK_COUNT 2u /*T-BLOCKS*/
 #endif
 
-extern unsigned char gTableL1_A[BLOCK_SIZE_L1];
-extern unsigned char gTableL1_B[BLOCK_SIZE_L1];
-extern unsigned char gTableL1_C[BLOCK_SIZE_L1];
-extern unsigned char gTableL1_D[BLOCK_SIZE_L1];
-extern unsigned char gTableL1_E[BLOCK_SIZE_L1];
-extern unsigned char gTableL1_F[BLOCK_SIZE_L1];
-extern unsigned char gTableL1_G[BLOCK_SIZE_L1];
-extern unsigned char gTableL1_H[BLOCK_SIZE_L1];
-
-extern unsigned char gTableL2_A[BLOCK_SIZE_L2];
-extern unsigned char gTableL2_B[BLOCK_SIZE_L2];
-extern unsigned char gTableL2_C[BLOCK_SIZE_L2];
-extern unsigned char gTableL2_D[BLOCK_SIZE_L2];
-extern unsigned char gTableL2_E[BLOCK_SIZE_L2];
-extern unsigned char gTableL2_F[BLOCK_SIZE_L2];
-
-extern unsigned char gTableL3_A[BLOCK_SIZE_L3];
-extern unsigned char gTableL3_B[BLOCK_SIZE_L3];
-extern unsigned char gTableL3_C[BLOCK_SIZE_L3];
-extern unsigned char gTableL3_D[BLOCK_SIZE_L3];
-
 namespace peanutbutter {
 
 inline constexpr std::uint32_t kMagicHeaderBytes = 0xDECAFBADu;
@@ -71,7 +50,7 @@ inline constexpr std::size_t kRecoveryHeaderLength = static_cast<std::size_t>(RE
 inline constexpr std::size_t kMaxPathLength = static_cast<std::size_t>(MAX_VALID_FILE_PATH_LENGTH);
 inline constexpr std::uint32_t kMaxArchiveCount = static_cast<std::uint32_t>(MAX_ARCHIVE_COUNT);
 inline constexpr std::uint32_t kMaxBlocksPerArchive = static_cast<std::uint32_t>(MAX_BLOCKS_PER_ARCHIVE);
-inline constexpr std::size_t kL1TableCount = 8u;
+inline constexpr std::size_t kL1TableCount = 12u;
 inline constexpr std::size_t kL2TableCount = 6u;
 inline constexpr std::size_t kL3TableCount = 4u;
 inline constexpr std::size_t kExpandedBuffersPerL1 = kBlockSizeL1 / kPasswordExpandedSize;

@@ -31,7 +31,7 @@ bool MazeSpecialEvents::RepaintOrFlushTile(Maze& pMaze, int pX, int pY) {
     return false;
   }
 
-  const bool aHadByte = (pMaze.mIsByte[pX][pY] != 0);
+  const bool aHadByte = (pMaze.mByte[pX][pY] >= 0);
   if (pMaze.RepaintFromSeed(pX, pY)) {
     ++pMaze.mRuntimeStats.mTilesPaintedValidScenario;
     return true;

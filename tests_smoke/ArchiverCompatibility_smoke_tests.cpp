@@ -7,6 +7,7 @@
 
 #include "src/ArchiverCompatibility.hpp"
 #include "src/PeanutButter.hpp"
+#include "src/Tables/Tables.hpp"
 
 namespace {
 
@@ -15,21 +16,6 @@ using peanutbutter::archiver::Logger;
 using peanutbutter::archiver::ProgressInfo;
 using peanutbutter::archiver::ProgressPhase;
 using peanutbutter::archiver::ProgressProfileKind;
-
-struct TableDescriptor {
-  const char* mName;
-  unsigned char* mData;
-  std::size_t mSize;
-};
-
-const TableDescriptor kTables[] = {
-    {"L1_A", gTableL1_A, BLOCK_SIZE_L1}, {"L1_B", gTableL1_B, BLOCK_SIZE_L1}, {"L1_C", gTableL1_C, BLOCK_SIZE_L1},
-    {"L1_D", gTableL1_D, BLOCK_SIZE_L1}, {"L1_E", gTableL1_E, BLOCK_SIZE_L1}, {"L1_F", gTableL1_F, BLOCK_SIZE_L1},
-    {"L1_G", gTableL1_G, BLOCK_SIZE_L1}, {"L1_H", gTableL1_H, BLOCK_SIZE_L1}, {"L2_A", gTableL2_A, BLOCK_SIZE_L2},
-    {"L2_B", gTableL2_B, BLOCK_SIZE_L2}, {"L2_C", gTableL2_C, BLOCK_SIZE_L2}, {"L2_D", gTableL2_D, BLOCK_SIZE_L2},
-    {"L2_E", gTableL2_E, BLOCK_SIZE_L2}, {"L2_F", gTableL2_F, BLOCK_SIZE_L2}, {"L3_A", gTableL3_A, BLOCK_SIZE_L3},
-    {"L3_B", gTableL3_B, BLOCK_SIZE_L3}, {"L3_C", gTableL3_C, BLOCK_SIZE_L3}, {"L3_D", gTableL3_D, BLOCK_SIZE_L3},
-};
 
 class CaptureLogger final : public Logger {
  public:
@@ -78,16 +64,17 @@ std::uint64_t HashValue(std::uint64_t pDigest, std::uint64_t pValue) {
 
 std::uint64_t HashAllTables() {
   std::uint64_t aDigest = 1469598103934665603ULL;
-  for (const TableDescriptor& aTable : kTables) {
+  for (const auto& aTable : peanutbutter::tables::Tables::All()) {
     aDigest = HashValue(aDigest, HashBytes(aTable.mData, aTable.mSize));
   }
   return aDigest;
 }
 
 void FillTablesPattern(unsigned char pSeed) {
-  for (std::size_t aTableIndex = 0; aTableIndex < (sizeof(kTables) / sizeof(kTables[0])); ++aTableIndex) {
-    for (std::size_t aByteIndex = 0; aByteIndex < kTables[aTableIndex].mSize; ++aByteIndex) {
-      kTables[aTableIndex].mData[aByteIndex] =
+  const auto& aTables = peanutbutter::tables::Tables::All();
+  for (std::size_t aTableIndex = 0; aTableIndex < aTables.size(); ++aTableIndex) {
+    for (std::size_t aByteIndex = 0; aByteIndex < aTables[aTableIndex].mSize; ++aByteIndex) {
+      aTables[aTableIndex].mData[aByteIndex] =
           static_cast<unsigned char>(pSeed + static_cast<unsigned char>(aTableIndex * 11U + aByteIndex));
     }
   }
@@ -111,7 +98,7 @@ bool ValidateProgressLog(const CaptureLogger& pLogger, const std::string& pModeN
     if (aInfo.mModeName != pModeName) {
       return false;
     }
-    if (aInfo.mPhase != ProgressPhase::kExpansion) {
+    if (aInfo.mPhase != ProgressPhase::kExpansion && aInfo.mPhase != ProgressPhase::kFinalize) {
       return false;
     }
     if (aInfo.mOverallFraction < 0.0 || aInfo.mOverallFraction > 1.0) {
@@ -131,15 +118,15 @@ int main() {
   const std::string aPassword = "hotdog";
 
   CaptureLogger aLogger;
-  if (!peanutbutter::archiver::Launch(reinterpret_cast<unsigned char*>(const_cast<char*>(aPassword.data())),
-                                      static_cast<int>(aPassword.size()),
-                                      peanutbutter::archiver::ExpanderLibraryVersion(),
-                                      ExpansionStrength::kNormal,
-                                      &aLogger,
-                                      "Bundle",
-                                      ProgressProfileKind::kBundle,
-                                      nullptr,
-                                      nullptr)) {
+  peanutbutter::archiver::LaunchRequest aRequest;
+  aRequest.mPassword = reinterpret_cast<unsigned char*>(const_cast<char*>(aPassword.data()));
+  aRequest.mPasswordLength = static_cast<int>(aPassword.size());
+  aRequest.mExpanderVersion = peanutbutter::archiver::ExpanderLibraryVersion();
+  aRequest.mExpansionStrength = ExpansionStrength::kNormal;
+  aRequest.mLogger = &aLogger;
+  aRequest.mModeName = "Bundle";
+  aRequest.mProgressProfile = ProgressProfileKind::kBundle;
+  if (!peanutbutter::archiver::Launch(aRequest)) {
     std::cerr << "[FAIL] normal launch did not succeed\n";
     return 1;
   }
@@ -159,15 +146,18 @@ int main() {
   CancelState aCancelState;
   aCancelState.mTripAt = 1;
   CaptureLogger aCancelLogger;
-  if (peanutbutter::archiver::Launch(reinterpret_cast<unsigned char*>(const_cast<char*>(aPassword.data())),
-                                     static_cast<int>(aPassword.size()),
-                                     static_cast<std::uint8_t>(peanutbutter::archiver::ExpanderLibraryVersion() + 1U),
-                                     ExpansionStrength::kNormal,
-                                     &aCancelLogger,
-                                     "Recover",
-                                     ProgressProfileKind::kRecover,
-                                     CancelAfterChecks,
-                                     &aCancelState)) {
+  peanutbutter::archiver::LaunchRequest aCancelRequest;
+  aCancelRequest.mPassword = reinterpret_cast<unsigned char*>(const_cast<char*>(aPassword.data()));
+  aCancelRequest.mPasswordLength = static_cast<int>(aPassword.size());
+  aCancelRequest.mExpanderVersion =
+      static_cast<std::uint8_t>(peanutbutter::archiver::ExpanderLibraryVersion() + 1U);
+  aCancelRequest.mExpansionStrength = ExpansionStrength::kNormal;
+  aCancelRequest.mLogger = &aCancelLogger;
+  aCancelRequest.mModeName = "Recover";
+  aCancelRequest.mProgressProfile = ProgressProfileKind::kRecover;
+  aCancelRequest.mShouldCancel = CancelAfterChecks;
+  aCancelRequest.mCancelUserData = &aCancelState;
+  if (peanutbutter::archiver::Launch(aCancelRequest)) {
     std::cerr << "[FAIL] canceled launch unexpectedly succeeded\n";
     return 1;
   }
@@ -175,17 +165,35 @@ int main() {
     std::cerr << "[FAIL] canceled launch modified global table state\n";
     return 1;
   }
-  if (!ContainsToken(aCancelLogger.mStatus, "[Expansion][170]")) {
+
+  peanutbutter::archiver::LaunchRequest aFastRequest;
+  aFastRequest.mPassword = reinterpret_cast<unsigned char*>(const_cast<char*>(aPassword.data()));
+  aFastRequest.mPasswordLength = static_cast<int>(aPassword.size());
+  aFastRequest.mExpanderVersion = peanutbutter::archiver::ExpanderLibraryVersion();
+  aFastRequest.mExpansionStrength = ExpansionStrength::kLow;
+  aFastRequest.mIsFastMode = true;
+  if (!peanutbutter::archiver::Launch(aFastRequest)) {
+    std::cerr << "[FAIL] fast launch did not succeed\n";
+    return 1;
+  }
+  const std::uint64_t aFastDigest = HashAllTables();
+  if (aFastDigest == 0U || aFastDigest == aNormalDigestA) {
+    std::cerr << "[FAIL] fast launch did not produce a distinct digest\n";
+    return 1;
+  }
+  if (!ContainsToken(aCancelLogger.mStatus, "[Expansion] Table generation canceled.")) {
     std::cerr << "[FAIL] canceled launch did not emit the expected status log\n";
     return 1;
   }
-  if (!ContainsToken(aCancelLogger.mStatus, "[Expansion][161]")) {
+  if (!ContainsToken(aCancelLogger.mStatus,
+                     "[Expansion] Warning: expander library version mismatch; continuing with local implementation.")) {
     std::cerr << "[FAIL] version mismatch did not emit the expected warning\n";
     return 1;
   }
 
   std::cout << "[PASS] archiver compatibility smoke tests passed"
             << " normal_digest=" << aNormalDigestA
-            << " cancel_digest=" << aPoisonDigest << "\n";
+            << " cancel_digest=" << aPoisonDigest
+            << " fast_digest=" << aFastDigest << "\n";
   return 0;
 }

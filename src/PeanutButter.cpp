@@ -2,27 +2,6 @@
 
 #include <cstring>
 
-unsigned char gTableL1_A[BLOCK_SIZE_L1] = {};
-unsigned char gTableL1_B[BLOCK_SIZE_L1] = {};
-unsigned char gTableL1_C[BLOCK_SIZE_L1] = {};
-unsigned char gTableL1_D[BLOCK_SIZE_L1] = {};
-unsigned char gTableL1_E[BLOCK_SIZE_L1] = {};
-unsigned char gTableL1_F[BLOCK_SIZE_L1] = {};
-unsigned char gTableL1_G[BLOCK_SIZE_L1] = {};
-unsigned char gTableL1_H[BLOCK_SIZE_L1] = {};
-
-unsigned char gTableL2_A[BLOCK_SIZE_L2] = {};
-unsigned char gTableL2_B[BLOCK_SIZE_L2] = {};
-unsigned char gTableL2_C[BLOCK_SIZE_L2] = {};
-unsigned char gTableL2_D[BLOCK_SIZE_L2] = {};
-unsigned char gTableL2_E[BLOCK_SIZE_L2] = {};
-unsigned char gTableL2_F[BLOCK_SIZE_L2] = {};
-
-unsigned char gTableL3_A[BLOCK_SIZE_L3] = {};
-unsigned char gTableL3_B[BLOCK_SIZE_L3] = {};
-unsigned char gTableL3_C[BLOCK_SIZE_L3] = {};
-unsigned char gTableL3_D[BLOCK_SIZE_L3] = {};
-
 namespace peanutbutter {
 
 namespace {

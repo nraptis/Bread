@@ -11,7 +11,6 @@ namespace peanutbutter::maze {
 Maze::Maze()
     : peanutbutter::rng::Shuffler(),
       MazeGrid(),
-      mIsByte{},
       mByte{},
       mRobotStorage{},
       mCheeseStorage{},
@@ -29,8 +28,7 @@ Maze::Maze()
       mFlushAccountingMode(FlushAccountingMode::kRegular),
       mFlushX{},
       mFlushY{} {
-  std::memset(mIsByte, 0, sizeof(mIsByte));
-  std::memset(mByte, 0, sizeof(mByte));
+  ClearByteCells();
   std::memset(mFlushX, 0, sizeof(mFlushX));
   std::memset(mFlushY, 0, sizeof(mFlushY));
 }
@@ -117,8 +115,11 @@ void Maze::SetFlushAccountingMode(FlushAccountingMode pMode) {
 }
 
 void Maze::ClearByteCells() {
-  std::memset(mIsByte, 0, sizeof(mIsByte));
-  std::memset(mByte, 0, sizeof(mByte));
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      mByte[aX][aY] = -1;
+    }
+  }
 }
 
 void Maze::Repaint(int pX, int pY, unsigned char pValue) {
@@ -126,19 +127,18 @@ void Maze::Repaint(int pX, int pY, unsigned char pValue) {
     return;
   }
   Flush(pX, pY);
-  mByte[pX][pY] = pValue;
-  mIsByte[pX][pY] = 1;
+  mByte[pX][pY] = static_cast<int>(pValue);
 }
 
 void Maze::Flush(int pX, int pY) {
   if (!InBounds(pX, pY)) {
     return;
   }
-  if (mIsByte[pX][pY] == 0) {
+  if (mByte[pX][pY] < 0) {
     return;
   }
-  mIsByte[pX][pY] = 0;
-  EnqueueByte(mByte[pX][pY]);
+  EnqueueByte(static_cast<unsigned char>(mByte[pX][pY]));
+  mByte[pX][pY] = -1;
   if (mFlushAccountingMode == FlushAccountingMode::kStalled) {
     ++mRuntimeStats.mTilesFlushedStalled;
   } else {
@@ -150,8 +150,7 @@ void Maze::SetByteCell(int pX, int pY, unsigned char pByte, bool pIsByte) {
   if (!InBounds(pX, pY)) {
     return;
   }
-  mByte[pX][pY] = pByte;
-  mIsByte[pX][pY] = pIsByte ? 1 : 0;
+  mByte[pX][pY] = pIsByte ? static_cast<int>(pByte) : -1;
 }
 
 void Maze::Flush() {
@@ -162,7 +161,7 @@ void Maze::Flush() {
     FillAxisOrder(mFlushY, kGridHeight);
     for (int aYI = 0; aYI < kGridHeight; ++aYI) {
       const int aY = mFlushY[aYI];
-      if (mIsByte[aX][aY] == 0) {
+      if (mByte[aX][aY] < 0) {
         continue;
       }
       Flush(aX, aY);

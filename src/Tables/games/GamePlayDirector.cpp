@@ -42,24 +42,7 @@ bool GamePlayDirector::BuildExploreList_AllTiles(GameBoard* pBoard) {
 }
 
 bool GamePlayDirector::BuildExploreList_NewTiles(GameBoard* pBoard) {
-  if (pBoard == nullptr) {
-    return false;
-  }
-
-  pBoard->mExploreListCount = 0;
-  for (int aY = 0; aY < GameBoard::kGridHeight; ++aY) {
-    for (int aX = 0; aX < GameBoard::kGridWidth; ++aX) {
-      const GameTile* aTile = pBoard->mGrid[aX][aY];
-      if (aTile == nullptr || !aTile->mIsNew) {
-        continue;
-      }
-      pBoard->mExploreListX[pBoard->mExploreListCount] = aX;
-      pBoard->mExploreListY[pBoard->mExploreListCount] = aY;
-      ++pBoard->mExploreListCount;
-    }
-  }
-  pBoard->ShuffleXY(pBoard->mExploreListX, pBoard->mExploreListY, pBoard->mExploreListCount);
-  return pBoard->mExploreListCount > 0;
+  return BuildExploreList_AllTiles(pBoard);
 }
 
 bool GamePlayDirector::BuildExploreList_MatchedTiles(GameBoard* pBoard) {
@@ -72,16 +55,10 @@ bool GamePlayDirector::BuildExploreList_MatchedTiles(GameBoard* pBoard) {
   }
 
   pBoard->mExploreListCount = 0;
-  for (int aY = 0; aY < GameBoard::kGridHeight; ++aY) {
-    for (int aX = 0; aX < GameBoard::kGridWidth; ++aX) {
-      const GameTile* aTile = pBoard->mGrid[aX][aY];
-      if (aTile == nullptr || !aTile->mIsMatched) {
-        continue;
-      }
-      pBoard->mExploreListX[pBoard->mExploreListCount] = aX;
-      pBoard->mExploreListY[pBoard->mExploreListCount] = aY;
-      ++pBoard->mExploreListCount;
-    }
+  for (int aIndex = 0; aIndex < pBoard->mMatchListCount; ++aIndex) {
+    pBoard->mExploreListX[pBoard->mExploreListCount] = pBoard->mMatchListX[aIndex];
+    pBoard->mExploreListY[pBoard->mExploreListCount] = pBoard->mMatchListY[aIndex];
+    ++pBoard->mExploreListCount;
   }
   pBoard->ShuffleXY(pBoard->mExploreListX, pBoard->mExploreListY, pBoard->mExploreListCount);
   return pBoard->mExploreListCount > 0;

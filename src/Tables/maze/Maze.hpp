@@ -127,8 +127,7 @@ class Maze : public peanutbutter::rng::Shuffler, protected MazeGrid {
   void Flush();
   void ResetCharacterLists(int pRobotCount, int pCheeseCount, int pSharkCount, int pDolphinCount);
 
-  int mIsByte[kGridWidth][kGridHeight];
-  unsigned char mByte[kGridWidth][kGridHeight];
+  int mByte[kGridWidth][kGridHeight];
   helpers::Robot mRobotStorage[helpers::kMaxRobots];
   helpers::Cheese mCheeseStorage[helpers::kMaxCheeses];
   helpers::Shark mSharkStorage[helpers::kMaxSharks];

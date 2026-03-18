@@ -8,6 +8,7 @@
 
 #include "src/ArchiverCompatibility.hpp"
 #include "src/PeanutButter.hpp"
+#include "src/Tables/Tables.hpp"
 
 namespace {
 
@@ -17,27 +18,15 @@ using peanutbutter::archiver::ProgressInfo;
 using peanutbutter::archiver::ProgressPhase;
 using peanutbutter::archiver::ProgressProfileKind;
 
-struct TableDescriptor {
-  const char* mName;
-  const unsigned char* mData;
-  std::size_t mSize;
-};
-
-const TableDescriptor kTables[] = {
-    {"L1_A", gTableL1_A, BLOCK_SIZE_L1}, {"L1_B", gTableL1_B, BLOCK_SIZE_L1}, {"L1_C", gTableL1_C, BLOCK_SIZE_L1},
-    {"L1_D", gTableL1_D, BLOCK_SIZE_L1}, {"L1_E", gTableL1_E, BLOCK_SIZE_L1}, {"L1_F", gTableL1_F, BLOCK_SIZE_L1},
-    {"L1_G", gTableL1_G, BLOCK_SIZE_L1}, {"L1_H", gTableL1_H, BLOCK_SIZE_L1}, {"L2_A", gTableL2_A, BLOCK_SIZE_L2},
-    {"L2_B", gTableL2_B, BLOCK_SIZE_L2}, {"L2_C", gTableL2_C, BLOCK_SIZE_L2}, {"L2_D", gTableL2_D, BLOCK_SIZE_L2},
-    {"L2_E", gTableL2_E, BLOCK_SIZE_L2}, {"L2_F", gTableL2_F, BLOCK_SIZE_L2}, {"L3_A", gTableL3_A, BLOCK_SIZE_L3},
-    {"L3_B", gTableL3_B, BLOCK_SIZE_L3}, {"L3_C", gTableL3_C, BLOCK_SIZE_L3}, {"L3_D", gTableL3_D, BLOCK_SIZE_L3},
-};
-
 struct Options {
   std::string mPassword = "hotdog";
   std::uint8_t mVersion = peanutbutter::archiver::ExpanderLibraryVersion();
   ExpansionStrength mStrength = ExpansionStrength::kNormal;
+  peanutbutter::archiver::GameStyle mGameStyle = peanutbutter::archiver::GameStyle::kNone;
+  peanutbutter::archiver::MazeStyle mMazeStyle = peanutbutter::archiver::MazeStyle::kNone;
   std::string mModeName = "Bundle";
   ProgressProfileKind mProfile = ProgressProfileKind::kBundle;
+  bool mIsFastMode = false;
   bool mQuiet = false;
 };
 
@@ -91,7 +80,8 @@ std::uint64_t HashValue(std::uint64_t pDigest, std::uint64_t pValue) {
 void PrintUsage(const char* pProgramName) {
   std::cout << "Usage: " << pProgramName
             << " [--password TEXT] [--strength low|normal|high|extreme] [--version N]"
-            << " [--mode Bundle|Unbundle|Recover] [--profile bundle|unbundle|recover] [--quiet]\n";
+            << " [--mode Bundle|Unbundle|Recover] [--profile bundle|unbundle|recover]"
+            << " [--game-style none|sparse|full] [--maze-style none|sparse|full] [--fast] [--quiet]\n";
 }
 
 bool ParseStrength(const std::string& pText, ExpansionStrength* pOutStrength) {
@@ -140,6 +130,38 @@ bool ParseVersion(const std::string& pText, std::uint8_t* pOutVersion) {
   return true;
 }
 
+bool ParseGameStyle(const std::string& pText, peanutbutter::archiver::GameStyle* pOutStyle) {
+  if (pText == "none") {
+    *pOutStyle = peanutbutter::archiver::GameStyle::kNone;
+    return true;
+  }
+  if (pText == "sparse") {
+    *pOutStyle = peanutbutter::archiver::GameStyle::kSparse;
+    return true;
+  }
+  if (pText == "full") {
+    *pOutStyle = peanutbutter::archiver::GameStyle::kFull;
+    return true;
+  }
+  return false;
+}
+
+bool ParseMazeStyle(const std::string& pText, peanutbutter::archiver::MazeStyle* pOutStyle) {
+  if (pText == "none") {
+    *pOutStyle = peanutbutter::archiver::MazeStyle::kNone;
+    return true;
+  }
+  if (pText == "sparse") {
+    *pOutStyle = peanutbutter::archiver::MazeStyle::kSparse;
+    return true;
+  }
+  if (pText == "full") {
+    *pOutStyle = peanutbutter::archiver::MazeStyle::kFull;
+    return true;
+  }
+  return false;
+}
+
 bool ParseArgs(int pArgc, char** pArgv, Options* pOptions) {
   for (int aIndex = 1; aIndex < pArgc; ++aIndex) {
     const std::string aArg = pArgv[aIndex];
@@ -151,8 +173,12 @@ bool ParseArgs(int pArgc, char** pArgv, Options* pOptions) {
       pOptions->mQuiet = true;
       continue;
     }
+    if (aArg == "--fast") {
+      pOptions->mIsFastMode = true;
+      continue;
+    }
     if ((aArg == "--password" || aArg == "--strength" || aArg == "--version" || aArg == "--mode" ||
-         aArg == "--profile") &&
+         aArg == "--profile" || aArg == "--game-style" || aArg == "--maze-style") &&
         (aIndex + 1) >= pArgc) {
       std::cerr << "[FAIL] missing value for " << aArg << "\n";
       return false;
@@ -186,6 +212,20 @@ bool ParseArgs(int pArgc, char** pArgv, Options* pOptions) {
       }
       continue;
     }
+    if (aArg == "--game-style") {
+      if (!ParseGameStyle(pArgv[++aIndex], &pOptions->mGameStyle)) {
+        std::cerr << "[FAIL] unsupported game-style value\n";
+        return false;
+      }
+      continue;
+    }
+    if (aArg == "--maze-style") {
+      if (!ParseMazeStyle(pArgv[++aIndex], &pOptions->mMazeStyle)) {
+        std::cerr << "[FAIL] unsupported maze-style value\n";
+        return false;
+      }
+      continue;
+    }
     std::cerr << "[FAIL] unknown argument: " << aArg << "\n";
     return false;
   }
@@ -203,15 +243,21 @@ int main(int pArgc, char** pArgv) {
   StdoutLogger aLogger;
   Logger* aLoggerPtr = aOptions.mQuiet ? nullptr : &aLogger;
   const auto aStartedAt = std::chrono::steady_clock::now();
-  if (!peanutbutter::archiver::Launch(reinterpret_cast<unsigned char*>(aOptions.mPassword.data()),
-                                      static_cast<int>(aOptions.mPassword.size()),
-                                      aOptions.mVersion,
-                                      aOptions.mStrength,
-                                      aLoggerPtr,
-                                      aOptions.mModeName.c_str(),
-                                      aOptions.mProfile,
-                                      nullptr,
-                                      nullptr)) {
+  peanutbutter::archiver::LaunchRequest aRequest;
+  aRequest.mPassword = reinterpret_cast<unsigned char*>(aOptions.mPassword.data());
+  aRequest.mPasswordLength = static_cast<int>(aOptions.mPassword.size());
+  aRequest.mExpanderVersion = aOptions.mVersion;
+  aRequest.mExpansionStrength = aOptions.mStrength;
+  aRequest.mGameStyle = aOptions.mGameStyle;
+  aRequest.mMazeStyle = aOptions.mMazeStyle;
+  aRequest.mIsFastMode = aOptions.mIsFastMode;
+  aRequest.mLogger = aLoggerPtr;
+  aRequest.mModeName = aOptions.mModeName.c_str();
+  aRequest.mProgressProfile = aOptions.mProfile;
+  aRequest.mShouldCancel = nullptr;
+  aRequest.mCancelUserData = nullptr;
+
+  if (!peanutbutter::archiver::Launch(aRequest)) {
     std::cerr << "[FAIL] archiver compatibility runner failed\n";
     return 1;
   }
@@ -221,7 +267,7 @@ int main(int pArgc, char** pArgv) {
   const double aElapsedSeconds = static_cast<double>(aElapsedMilliseconds) / 1000.0;
 
   std::uint64_t aDigest = 1469598103934665603ULL;
-  for (const TableDescriptor& aTable : kTables) {
+  for (const auto& aTable : peanutbutter::tables::Tables::All()) {
     const std::uint64_t aTableDigest = HashBytes(aTable.mData, aTable.mSize);
     aDigest = HashValue(aDigest, aTableDigest);
     std::cout << "[TABLE] name=" << aTable.mName
@@ -233,6 +279,9 @@ int main(int pArgc, char** pArgv) {
             << " version=" << static_cast<unsigned int>(peanutbutter::archiver::ExpanderLibraryVersion())
             << " requested_version=" << static_cast<unsigned int>(aOptions.mVersion)
             << " strength=" << peanutbutter::archiver::ExpansionStrengthName(aOptions.mStrength)
+            << " fast=" << (aOptions.mIsFastMode ? "on" : "off")
+            << " game_style=" << peanutbutter::tables::GameStyleName(aOptions.mGameStyle)
+            << " maze_style=" << peanutbutter::tables::MazeStyleName(aOptions.mMazeStyle)
             << " elapsed_ms=" << aElapsedMilliseconds
             << " elapsed_s=" << std::fixed << std::setprecision(3) << aElapsedSeconds
             << " digest=" << aDigest << "\n";

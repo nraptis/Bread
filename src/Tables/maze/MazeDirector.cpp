@@ -728,7 +728,7 @@ bool MazeDirector::RepaintOrFlushTile(int pX, int pY) {
     return false;
   }
 
-  const bool aHadByte = (mIsByte[pX][pY] != 0);
+  const bool aHadByte = (mByte[pX][pY] >= 0);
   if (RepaintFromSeed(pX, pY)) {
     ++mRuntimeStats.mTilesPaintedValidScenario;
     return true;

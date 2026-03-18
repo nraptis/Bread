@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/PeanutButter.hpp"
+#include "src/Tables/Tables.hpp"
 #include "src/Tables/games/GameBoard.hpp"
 #include "src/Tables/password_expanders/PasswordExpander.hpp"
 #include "tests/common/Tests.hpp"
@@ -19,12 +20,6 @@ namespace {
 using peanutbutter::expansion::key_expansion::ByteTwister;
 using peanutbutter::expansion::key_expansion::PasswordExpander;
 
-struct TableDescriptor {
-  const char* mName;
-  unsigned char* mData;
-  std::size_t mSize;
-};
-
 struct RunMetrics {
   std::uint64_t mTableDigest = 0U;
   std::uint64_t mEngineDigest = 0U;
@@ -32,15 +27,6 @@ struct RunMetrics {
   double mEngineMilliseconds = 0.0;
   std::size_t mFilledBytes = 0U;
   std::size_t mEngineBlocks = 0U;
-};
-
-constexpr TableDescriptor kTables[] = {
-    {"L1_A", gTableL1_A, BLOCK_SIZE_L1}, {"L1_B", gTableL1_B, BLOCK_SIZE_L1}, {"L1_C", gTableL1_C, BLOCK_SIZE_L1},
-    {"L1_D", gTableL1_D, BLOCK_SIZE_L1}, {"L1_E", gTableL1_E, BLOCK_SIZE_L1}, {"L1_F", gTableL1_F, BLOCK_SIZE_L1},
-    {"L1_G", gTableL1_G, BLOCK_SIZE_L1}, {"L1_H", gTableL1_H, BLOCK_SIZE_L1}, {"L2_A", gTableL2_A, BLOCK_SIZE_L2},
-    {"L2_B", gTableL2_B, BLOCK_SIZE_L2}, {"L2_C", gTableL2_C, BLOCK_SIZE_L2}, {"L2_D", gTableL2_D, BLOCK_SIZE_L2},
-    {"L2_E", gTableL2_E, BLOCK_SIZE_L2}, {"L2_F", gTableL2_F, BLOCK_SIZE_L2}, {"L3_A", gTableL3_A, BLOCK_SIZE_L3},
-    {"L3_B", gTableL3_B, BLOCK_SIZE_L3}, {"L3_C", gTableL3_C, BLOCK_SIZE_L3}, {"L3_D", gTableL3_D, BLOCK_SIZE_L3},
 };
 
 constexpr std::size_t kSeedMaterialLength = 64U;
@@ -102,9 +88,10 @@ std::array<unsigned char, kSeedMaterialLength> BuildSeedMaterial(const std::stri
 }
 
 void PoisonTables(std::uint32_t pSeedBase) {
-  for (std::size_t aTableIndex = 0; aTableIndex < (sizeof(kTables) / sizeof(kTables[0])); ++aTableIndex) {
-    FillPattern(kTables[aTableIndex].mData,
-                kTables[aTableIndex].mSize,
+  const auto& aTables = peanutbutter::tables::Tables::All();
+  for (std::size_t aTableIndex = 0; aTableIndex < aTables.size(); ++aTableIndex) {
+    FillPattern(aTables[aTableIndex].mData,
+                aTables[aTableIndex].mSize,
                 pSeedBase + static_cast<std::uint32_t>((aTableIndex + 1U) * 0x1021U));
   }
 }
@@ -123,7 +110,7 @@ bool RunScenario(const std::string& pSeedText,
 
   PoisonTables(pPoisonBase);
   auto aFillStart = std::chrono::steady_clock::now();
-  for (const TableDescriptor& aTable : kTables) {
+  for (const auto& aTable : peanutbutter::tables::Tables::All()) {
     const std::array<unsigned char, kSeedMaterialLength> aSeed = BuildSeedMaterial(pSeedText, pType, aTable.mName);
     FillPattern(aWorker.data(),
                 aWorker.size(),

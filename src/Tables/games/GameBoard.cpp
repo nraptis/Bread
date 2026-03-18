@@ -73,7 +73,6 @@ GameBoard::GameBoard()
       mIsCascading(false),
       mCataclysmWriteIndex(0U),
       mApocalypseWriteIndex(0U),
-      mHasPendingMatches(false),
       mSuccessfulMoveCount(0),
       mBrokenCount(0),
       mGameIndex(StreakSwapGreedy),
@@ -89,6 +88,7 @@ GameBoard::GameBoard()
       mExploreListCount(0),
       mMatchListX{},
       mMatchListY{},
+      mMatchListCount(0),
       mStackX{},
       mStackY{},
       mComponentX{},
@@ -115,11 +115,11 @@ void GameBoard::InitializeSeed(unsigned char* pPassword, int pPasswordLength) {
     std::abort();
   }
   ClearBoard();
-  mHasPendingMatches = false;
   mSuccessfulMoveCount = 0;
   mBrokenCount = 0;
   mMoveListCount = 0;
   mExploreListCount = 0;
+  mMatchListCount = 0;
   mRuntimeStats = RuntimeStats{};
 
   InitializeSeedBuffer(pPassword, pPasswordLength);
@@ -193,18 +193,16 @@ void GameBoard::DragonAttack() {
   for (int aY = 0; aY < kGridHeight; ++aY) {
     for (int aX = 0; aX < kGridWidth; ++aX) {
       GameTile* aTile = mGrid[aX][aY];
-      if (aTile == nullptr || aTile->mIsMatched) {
+      if (aTile == nullptr || IsTileMatched(aX, aY)) {
         continue;
       }
       if (GetRand(3) == 0) {
-        aTile->mIsMatched = true;
+        MarkTileMatched(aX, aY);
         aAny = true;
       }
     }
   }
-  if (aAny) {
-    mHasPendingMatches = true;
-  }
+  (void)aAny;
 }
 
 void GameBoard::RiddlerAttack() {
@@ -243,7 +241,6 @@ void GameBoard::RiddlerAttack() {
   }
 
   InvalidateMatches();
-  InvalidateNew();
 }
 
 unsigned char GameBoard::GetRand(int pMax) {
@@ -435,9 +432,6 @@ void GameBoard::ReleaseTile(GameTile* pTile) {
     return;
   }
 
-  pTile->mIsMatched = false;
-  pTile->mIsNew = false;
-  pTile->mDidTopple = false;
   pTile->mPowerUpType = GamePowerUpType::kNone;
   pTile->mNext = mTileStack;
   mTileStack = pTile;
@@ -503,35 +497,32 @@ bool GameBoard::Empty() const {
   return !HasAnyTiles();
 }
 
-void GameBoard::InvalidateNew() {
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      GameTile* aTile = mGrid[aX][aY];
-      if (aTile != nullptr) {
-        aTile->mIsNew = false;
-      }
-    }
-  }
-}
-
 void GameBoard::InvalidateMatches() {
   MatchesBegin();
 }
 
-void GameBoard::InvalidateToppleFlags() {
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      GameTile* aTile = mGrid[aX][aY];
-      if (aTile != nullptr) {
-        aTile->mDidTopple = false;
-      }
+bool GameBoard::IsTileMatched(int pGridX, int pGridY) const {
+  for (int aIndex = 0; aIndex < mMatchListCount; ++aIndex) {
+    if (mMatchListX[aIndex] == pGridX && mMatchListY[aIndex] == pGridY) {
+      return true;
     }
   }
+  return false;
+}
+
+void GameBoard::MarkTileMatched(int pGridX, int pGridY) {
+  if (pGridX < 0 || pGridX >= kGridWidth || pGridY < 0 || pGridY >= kGridHeight) {
+    return;
+  }
+  if (mGrid[pGridX][pGridY] == nullptr || IsTileMatched(pGridX, pGridY) || mMatchListCount >= kGridSize) {
+    return;
+  }
+  mMatchListX[mMatchListCount] = pGridX;
+  mMatchListY[mMatchListCount] = pGridY;
+  ++mMatchListCount;
 }
 
 void GameBoard::ToppleStep() {
-  InvalidateToppleFlags();
-
   for (int aX = 0; aX < kGridWidth; ++aX) {
     int aWriteY = kGridHeight - 1;
     for (int aY = kGridHeight - 1; aY >= 0; --aY) {
@@ -544,18 +535,12 @@ void GameBoard::ToppleStep() {
         mGrid[aX][aY] = nullptr;
         aTile->mGridX = aX;
         aTile->mGridY = aWriteY;
-        aTile->mIsNew = false;
-        aTile->mDidTopple = true;
       }
       --aWriteY;
     }
 
     for (int aY = aWriteY; aY >= 0; --aY) {
       mGrid[aX][aY] = GenerateTile(aX, aY);
-      if (mGrid[aX][aY] != nullptr) {
-        mGrid[aX][aY]->mIsNew = true;
-        mGrid[aX][aY]->mDidTopple = true;
-      }
     }
   }
 }
@@ -564,10 +549,6 @@ bool GameBoard::CascadeStep() {
   MatchesBegin();
   for (int aY = 0; aY < kGridHeight; ++aY) {
     for (int aX = 0; aX < kGridWidth; ++aX) {
-      GameTile* aTile = mGrid[aX][aY];
-      if (aTile == nullptr || !aTile->mDidTopple) {
-        continue;
-      }
       (void)MatchMark(aX, aY);
     }
   }
@@ -699,7 +680,7 @@ bool GameBoard::MatchMarkStreak(int pGridX, int pGridY) {
   if ((aRight - aLeft + 1) >= 3) {
     for (int aX = aLeft; aX <= aRight; ++aX) {
       if (mGrid[aX][pGridY] != nullptr) {
-        mGrid[aX][pGridY]->mIsMatched = true;
+        MarkTileMatched(aX, pGridY);
       }
     }
     aMatched = true;
@@ -717,14 +698,10 @@ bool GameBoard::MatchMarkStreak(int pGridX, int pGridY) {
   if ((aBottom - aTop + 1) >= 3) {
     for (int aY = aTop; aY <= aBottom; ++aY) {
       if (mGrid[pGridX][aY] != nullptr) {
-        mGrid[pGridX][aY]->mIsMatched = true;
+        MarkTileMatched(pGridX, aY);
       }
     }
     aMatched = true;
-  }
-
-  if (aMatched) {
-    mHasPendingMatches = true;
   }
   return aMatched;
 }
@@ -785,10 +762,9 @@ bool GameBoard::MatchMarkIsland(int pGridX, int pGridY) {
   for (int aIndex = 0; aIndex < aComponentSize; ++aIndex) {
     GameTile* aTile = mGrid[mComponentX[aIndex]][mComponentY[aIndex]];
     if (aTile != nullptr) {
-      aTile->mIsMatched = true;
+      MarkTileMatched(mComponentX[aIndex], mComponentY[aIndex]);
     }
   }
-  mHasPendingMatches = true;
   return true;
 }
 
@@ -804,29 +780,11 @@ int GameBoard::GetMatches() {
     }
   }
 
-  int aCount = 0;
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      const GameTile* aTile = mGrid[aX][aY];
-      if (aTile != nullptr && aTile->mIsMatched) {
-        ++aCount;
-      }
-    }
-  }
-  return aCount;
+  return mMatchListCount;
 }
 
 int GameBoard::CountMarkedTiles() const {
-  int aCount = 0;
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      const GameTile* aTile = mGrid[aX][aY];
-      if (aTile != nullptr && aTile->mIsMatched) {
-        ++aCount;
-      }
-    }
-  }
-  return aCount;
+  return mMatchListCount;
 }
 
 int GameBoard::EvaluateCurrentMatches() {
@@ -986,7 +944,7 @@ void GameBoard::CollectTapMoves() {
         for (int aMY = 0; aMY < kGridHeight; ++aMY) {
           for (int aMX = 0; aMX < kGridWidth; ++aMX) {
             GameTile* aTile = mGrid[aMX][aMY];
-            if (aTile != nullptr && aTile->mIsMatched) {
+            if (aTile != nullptr && IsTileMatched(aMX, aMY)) {
               mVisited[aMY * kGridWidth + aMX] = 1U;
             }
           }
@@ -1047,8 +1005,6 @@ void GameBoard::ShuffleAllTiles() {
         continue;
       }
       aTile->mType = static_cast<unsigned char>(GetRand(kTypeCount));
-      aTile->mIsNew = false;
-      aTile->mDidTopple = false;
     }
   }
 }
@@ -1097,38 +1053,15 @@ void GameBoard::ShuffleXY(int* pListX, int* pListY, int pCount) {
 }
 
 void GameBoard::MatchesBegin() {
-  mHasPendingMatches = false;
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      GameTile* aTile = mGrid[aX][aY];
-      if (aTile != nullptr) {
-        aTile->mIsMatched = false;
-      }
-    }
-  }
+  mMatchListCount = 0;
 }
 
 bool GameBoard::HasPendingMatches() const {
-  return mHasPendingMatches;
+  return mMatchListCount > 0;
 }
 
 int GameBoard::MatchesCommit() {
-  int aMatchCount = 0;
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      GameTile* aTile = mGrid[aX][aY];
-      if (aTile == nullptr || !aTile->mIsMatched) {
-        continue;
-      }
-      if (aMatchCount >= kGridSize) {
-        continue;
-      }
-      mMatchListX[aMatchCount] = aX;
-      mMatchListY[aMatchCount] = aY;
-      ++aMatchCount;
-    }
-  }
-
+  const int aMatchCount = mMatchListCount;
   ShuffleXY(mMatchListX, mMatchListY, aMatchCount);
 
   int aCommitted = 0;
@@ -1136,7 +1069,7 @@ int GameBoard::MatchesCommit() {
     const int aX = mMatchListX[aIndex];
     const int aY = mMatchListY[aIndex];
     GameTile* aTile = mGrid[aX][aY];
-    if (aTile == nullptr || !aTile->mIsMatched) {
+    if (aTile == nullptr) {
       continue;
     }
     EnqueueByte(aTile->mByte);
@@ -1144,16 +1077,17 @@ int GameBoard::MatchesCommit() {
     ReleaseTile(aTile);
     ++aCommitted;
   }
-  mHasPendingMatches = false;
+  mMatchListCount = 0;
   return aCommitted;
 }
 
 bool GameBoard::TriggerMatchedPowerUps() {
   bool aTriggered = false;
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    for (int aX = 0; aX < kGridWidth; ++aX) {
+  for (int aIndex = 0; aIndex < mMatchListCount; ++aIndex) {
+      const int aX = mMatchListX[aIndex];
+      const int aY = mMatchListY[aIndex];
       GameTile* aTile = mGrid[aX][aY];
-      if (aTile == nullptr || !aTile->mIsMatched) {
+      if (aTile == nullptr) {
         continue;
       }
       if (aTile->mPowerUpType == GamePowerUpType::kNone) {
@@ -1187,7 +1121,6 @@ bool GameBoard::TriggerMatchedPowerUps() {
       }
       ++mRuntimeStats.mPowerUpConsumed;
       aTriggered = true;
-    }
   }
   return aTriggered;
 }
@@ -1260,7 +1193,6 @@ void GameBoard::Topple() {
     ++mBrokenCount;
     RecordGameStateOverflowCatastrophic();
   }
-  InvalidateNew();
 }
 
 void GameBoard::Stuck() {
@@ -1270,11 +1202,10 @@ void GameBoard::Stuck() {
     for (int aX = 0; aX < kGridWidth; ++aX) {
       GameTile* aTile = mGrid[aX][aY];
       if (aTile != nullptr) {
-        aTile->mIsMatched = true;
+        MarkTileMatched(aX, aY);
       }
     }
   }
-  mHasPendingMatches = true;
   Match();
 }
 
@@ -1283,9 +1214,6 @@ void GameBoard::Spawn() {
     for (int aX = 0; aX < kGridWidth; ++aX) {
       if (mGrid[aX][aY] == nullptr) {
         mGrid[aX][aY] = GenerateTile(aX, aY);
-        if (mGrid[aX][aY] != nullptr) {
-          mGrid[aX][aY]->mIsNew = true;
-        }
       }
     }
   }
@@ -1295,7 +1223,6 @@ void GameBoard::Spawn() {
     RecordGameStateOverflowCatastrophic();
   }
   InvalidateMatches();
-  InvalidateNew();
 }
 
 bool GameBoard::MakeMoves() {
@@ -1415,7 +1342,6 @@ void GameBoard::Play() {
     RecordGameStateOverflowCataclysmic();
     ShuffleAllTiles();
     InvalidateMatches();
-    InvalidateNew();
     ++aSuspendedLoop;
   }
 

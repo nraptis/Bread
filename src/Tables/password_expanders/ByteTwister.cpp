@@ -1,8 +1,8 @@
 #include "ByteTwister.hpp"
 
-#if defined(__ARM_NEON)
+#if defined(__ARM_NEON) && !defined(PB_FORCE_SOFTWARE_MODE)
 #include <arm_neon.h>
-#elif defined(__SSE2__)
+#elif defined(__SSE2__) && !defined(PB_FORCE_SOFTWARE_MODE)
 #include <emmintrin.h>
 #endif
 
@@ -18,7 +18,7 @@ namespace {
 constexpr int kMatrixSize = 16;
 constexpr int kChunkBytes = 32;
 
-#if defined(__ARM_NEON)
+#if defined(__ARM_NEON) && !defined(PB_FORCE_SOFTWARE_MODE)
 inline void BlockXorInPlace(unsigned char* pDestination, const unsigned char* pSource) {
     vst1q_u8(pDestination, veorq_u8(vld1q_u8(pDestination), vld1q_u8(pSource)));
 }
@@ -26,7 +26,7 @@ inline void BlockXorInPlace(unsigned char* pDestination, const unsigned char* pS
 inline void BlockAddInPlace(unsigned char* pDestination, const unsigned char* pSource) {
     vst1q_u8(pDestination, vaddq_u8(vld1q_u8(pDestination), vld1q_u8(pSource)));
 }
-#elif defined(__SSE2__)
+#elif defined(__SSE2__) && !defined(PB_FORCE_SOFTWARE_MODE)
 inline void BlockXorInPlace(unsigned char* pDestination, const unsigned char* pSource) {
     const __m128i aLeft = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pDestination));
     const __m128i aRight = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pSource));

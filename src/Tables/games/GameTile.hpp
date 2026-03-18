@@ -31,9 +31,6 @@ struct GameTile {
         mByte(pByte),
         mType(pType),
         mPowerUpType(pPowerUpType),
-        mIsMatched(false),
-        mIsNew(false),
-        mDidTopple(false),
         mNext(nullptr) {}
 
   void Reset(int pGridX,
@@ -46,9 +43,6 @@ struct GameTile {
     mByte = pByte;
     mType = pType;
     mPowerUpType = pPowerUpType;
-    mIsMatched = false;
-    mIsNew = false;
-    mDidTopple = false;
     mNext = nullptr;
   }
 
@@ -57,9 +51,6 @@ struct GameTile {
   unsigned char mByte = 0U;
   unsigned char mType = 0U;
   GamePowerUpType mPowerUpType = GamePowerUpType::kNone;
-  bool mIsMatched = false;
-  bool mIsNew = false;
-  bool mDidTopple = false;
   GameTile* mNext = nullptr;
 };
 
