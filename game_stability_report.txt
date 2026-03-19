@@ -1,0 +1,180 @@
+# Game Stability Tests
+# runs_per_game=1250
+# bytes_per_game=7680
+[GAME] 0 Starlight Scramble [IS4G]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=6018 broken=0
+  stuck=1248 topple=397669 user_match=6018 cascade_match=391651
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150632 powerup_consumed=150632 wraps=3750 dragon=776 phoenix=655 wyvern=1 blue_moon_case=1068 harvest_moon=1066 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC0F
+  output_digest=13783205847278158102 runtime_digest=330103402414359311
+[GAME] 1 Tea Time Tumble [IT4G]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=2096388 broken=0
+  stuck=1248 topple=2096388 user_match=2096388 cascade_match=0
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150726 powerup_consumed=150726 wraps=5111 dragon=4001 phoenix=3531 wyvern=18 blue_moon_case=305764 harvest_moon=88679 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC07
+  output_digest=11705562888635907517 runtime_digest=13551191099760473965
+[GAME] 2 Knit Pickers [SS4G]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=366535 broken=0
+  stuck=1249 topple=1121936 user_match=366535 cascade_match=755401
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150454 powerup_consumed=150454 wraps=3750 dragon=2115 phoenix=1918 wyvern=9 blue_moon_case=1195 harvest_moon=1060 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC0F
+  output_digest=14157860892562910800 runtime_digest=6955546012546459414
+[GAME] 3 King's Castle Quest [ST4G]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=2142464 broken=0
+  stuck=1249 topple=2142464 user_match=2142464 cascade_match=0
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150152 powerup_consumed=150152 wraps=3750 dragon=3991 phoenix=3630 wyvern=18 blue_moon_case=90491 harvest_moon=54194 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC07
+  output_digest=2750956436723971699 runtime_digest=10035579804653972310
+[GAME] 4 Relic Runes [IS5G]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=94057 broken=0
+  stuck=1249 topple=774284 user_match=94057 cascade_match=680227
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150192 powerup_consumed=150192 wraps=3750 dragon=1463 phoenix=1237 wyvern=11 blue_moon_case=1221 harvest_moon=1192 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC0F
+  output_digest=188899980862099338 runtime_digest=5764378991889869515
+[GAME] 5 Spooky Hallow [IT5G]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=2121425 broken=0
+  stuck=1250 topple=2121425 user_match=2121425 cascade_match=0
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150695 powerup_consumed=150695 wraps=4677 dragon=4093 phoenix=3652 wyvern=26 blue_moon_case=205297 harvest_moon=75890 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC07
+  output_digest=18331217992711232977 runtime_digest=2383092338506223595
+[GAME] 6 Totem Topple [SS5G]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=855917 broken=0
+  stuck=1249 topple=1527612 user_match=855917 cascade_match=671695
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150896 powerup_consumed=150896 wraps=3750 dragon=2939 phoenix=2603 wyvern=22 blue_moon_case=1040 harvest_moon=738 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC0F
+  output_digest=1741358641377964086 runtime_digest=7631222396595957465
+[GAME] 7 Lady Bugs Blitz [ST5G]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=2174329 broken=0
+  stuck=1247 topple=2174329 user_match=2174329 cascade_match=0
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150356 powerup_consumed=150356 wraps=3750 dragon=4061 phoenix=3587 wyvern=20 blue_moon_case=65396 harvest_moon=32416 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC07
+  output_digest=1756452635116941692 runtime_digest=1327118826333831397
+[GAME] 8 Glow Worm [IS4R]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=7168 broken=0
+  stuck=1250 topple=402201 user_match=7168 cascade_match=395033
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=149933 powerup_consumed=149933 wraps=3750 dragon=737 phoenix=668 wyvern=4 blue_moon_case=1067 harvest_moon=1065 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC0F
+  output_digest=6100896508442090342 runtime_digest=6427190449012014720
+[GAME] 9 Prism Ploppers [IT4R]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=2104472 broken=0
+  stuck=1248 topple=2104472 user_match=2104472 cascade_match=0
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=149988 powerup_consumed=149988 wraps=5581 dragon=3987 phoenix=3481 wyvern=24 blue_moon_case=306822 harvest_moon=88531 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC07
+  output_digest=17940816900467846515 runtime_digest=8118210946967851251
+[GAME] 10 Flux Fusion [SS4R]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=496757 broken=0
+  stuck=1249 topple=1359852 user_match=496757 cascade_match=863095
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150185 powerup_consumed=150185 wraps=3750 dragon=2619 phoenix=2269 wyvern=13 blue_moon_case=1198 harvest_moon=1066 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC0F
+  output_digest=7951796363801469274 runtime_digest=7982861243305279022
+[GAME] 11 Coral Crushers [ST4R]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=2142990 broken=0
+  stuck=1250 topple=2142990 user_match=2142990 cascade_match=0
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=149577 powerup_consumed=149577 wraps=3933 dragon=4137 phoenix=3612 wyvern=23 blue_moon_case=90811 harvest_moon=54450 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC07
+  output_digest=8158165950679339882 runtime_digest=2441089896079340841
+[GAME] 12 Magma Meltdown [IS5R]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=122925 broken=0
+  stuck=1249 topple=851471 user_match=122925 cascade_match=728546
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150155 powerup_consumed=150155 wraps=3750 dragon=1621 phoenix=1485 wyvern=11 blue_moon_case=1220 harvest_moon=1191 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC0F
+  output_digest=9398460232719944118 runtime_digest=8390882248042960577
+[GAME] 13 Frost Fragment [IT5R]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=2127132 broken=0
+  stuck=1249 topple=2127132 user_match=2127132 cascade_match=0
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150001 powerup_consumed=150001 wraps=5000 dragon=3982 phoenix=3541 wyvern=27 blue_moon_case=206194 harvest_moon=75621 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC07
+  output_digest=1475470216422634867 runtime_digest=4505687220617309599
+[GAME] 14 Coffee Cubes [SS5R]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=933598 broken=0
+  stuck=1249 topple=1735652 user_match=933598 cascade_match=802054
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150170 powerup_consumed=150170 wraps=3750 dragon=3206 phoenix=3049 wyvern=25 blue_moon_case=1041 harvest_moon=737 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC0F
+  output_digest=2592557031084864888 runtime_digest=14629691239577243986
+[GAME] 15 Wizard Smash [ST5R]
+  runs=1250 repeatability_checks=1250 histogram_checks=1250
+  repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0
+  successful_moves=2173119 broken=0
+  stuck=1250 topple=2173119 user_match=2173119 cascade_match=0
+  overflow_catastrophic=0 catastrophe_case_a=0 catastrophe_case_b=0 catastrophe_case_c=0 overflow_cataclysmic=0 overflow_apocalypse=0
+  powerup_spawned=150370 powerup_consumed=150370 wraps=3750 dragon=4140 phoenix=3763 wyvern=24 blue_moon_case=65921 harvest_moon=32604 impossible=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 inconsistent_k=0 inconsistent_l=0 inconsistent_m=0 inconsistent_n=0 inconsistent_o=0
+  inconsistent_flags=0x0
+  game_flags=0x3FC07
+  output_digest=2786875597509461466 runtime_digest=9650934674305148272
+[PASS] game stability tests passed

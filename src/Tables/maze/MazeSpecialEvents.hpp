@@ -2,7 +2,6 @@
 #define BREAD_SRC_MAZE_MAZESPECIALEVENTS_HPP_
 
 #include "Maze.hpp"
-#include "MazeHelpers.hpp"
 
 namespace peanutbutter::maze {
 

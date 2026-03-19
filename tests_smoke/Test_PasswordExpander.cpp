@@ -11,6 +11,7 @@
 namespace {
 
 using peanutbutter::expansion::key_expansion::PasswordExpander;
+using peanutbutter::expansion::key_expansion::ByteTwister;
 
 constexpr int kWindowSize = 64;
 constexpr int kWindowCount = 32;
@@ -88,6 +89,35 @@ bool HasRepeated64ByteWindow(const std::vector<unsigned char>& pBytes) {
   return false;
 }
 
+void RunManualTwisterChain(unsigned char pType,
+                           unsigned char* pInitialSource,
+                           unsigned char* pWorker,
+                           unsigned char* pDestination,
+                           int pBlockCount) {
+  unsigned char aKeyBuffer[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes] = {};
+  unsigned char aNextRoundKeyBuffer[twist::kRoundKeyBytes] = {};
+  unsigned char aSaltBuffer[twist::kSaltBytes] = {};
+
+  ByteTwister::SeedKeyByIndex(pType, pInitialSource, aKeyBuffer, PASSWORD_EXPANDED_SIZE);
+  ByteTwister::SeedSaltByIndex(pType, pInitialSource, aSaltBuffer, PASSWORD_EXPANDED_SIZE);
+  for (int aBlockIndex = 0; aBlockIndex < pBlockCount; ++aBlockIndex) {
+    unsigned char* aRoundSource =
+        (aBlockIndex == 0) ? pInitialSource : (pDestination + ((aBlockIndex - 1) * PASSWORD_EXPANDED_SIZE));
+    unsigned char* aRoundDestination = pDestination + (aBlockIndex * PASSWORD_EXPANDED_SIZE);
+    ByteTwister::TwistBlockByIndex(
+        pType,
+        aRoundSource,
+        pWorker,
+        aRoundDestination,
+        static_cast<unsigned int>(aBlockIndex),
+        aSaltBuffer,
+        aKeyBuffer,
+        PASSWORD_EXPANDED_SIZE);
+    ByteTwister::PushKeyRoundByIndex(
+        pType, aRoundDestination, aSaltBuffer, aKeyBuffer, aNextRoundKeyBuffer, PASSWORD_EXPANDED_SIZE);
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -125,33 +155,25 @@ int main() {
                                        static_cast<unsigned int>(aPasswordLength));
 
       std::vector<unsigned char> aExpandedLong(static_cast<std::size_t>(kMultiBlockLength), 0U);
-      std::vector<unsigned char> aExpandedChained(static_cast<std::size_t>(kMultiBlockLength), 0U);
+      std::vector<unsigned char> aExpandedExpected(static_cast<std::size_t>(kMultiBlockLength), 0U);
       PasswordExpander::ExpandPasswordBlocks(aType,
                                              aPassword.data(),
                                              static_cast<unsigned int>(aPasswordLength),
                                              aWorker.data(),
                                              aExpandedLong.data(),
                                              static_cast<unsigned int>(kMultiBlockLength));
-      std::memcpy(aExpandedChained.data(), aExpandedA.data(), PASSWORD_EXPANDED_SIZE);
-      std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aPreviousBlock = aExpandedA;
-      for (int aBlockIndex = 1; aBlockIndex < kMultiBlockCount; ++aBlockIndex) {
-        std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aNextBlock = {};
-        PasswordExpander::ExpandPassword(aType,
-                                         aPreviousBlock.data(),
-                                         aWorker.data(),
-                                         aNextBlock.data(),
-                                         PASSWORD_EXPANDED_SIZE);
-        std::memcpy(aExpandedChained.data() + (aBlockIndex * PASSWORD_EXPANDED_SIZE),
-                    aNextBlock.data(),
-                    PASSWORD_EXPANDED_SIZE);
-        aPreviousBlock = aNextBlock;
-      }
+      std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aExpandedSeed = {};
+      PasswordExpander::FillDoubledSource(
+          aPassword.data(), static_cast<unsigned int>(aPasswordLength), aExpandedSeed.data());
+      RunManualTwisterChain(
+          static_cast<unsigned char>(aTypeIndex), aExpandedSeed.data(), aWorker.data(), aExpandedExpected.data(),
+          kMultiBlockCount);
 
       if (aExpandedA != aExpandedB) {
         std::cerr << "[FAIL] " << TypeName(aType) << " output mismatch at loop " << aLoop << "\n";
         return 1;
       }
-      if (aExpandedLong != aExpandedChained) {
+      if (aExpandedLong != aExpandedExpected) {
         std::cerr << "[FAIL] " << TypeName(aType)
                   << " multi-block expansion mismatch at loop " << aLoop << "\n";
         return 1;
@@ -168,22 +190,17 @@ int main() {
       }
 
       std::vector<unsigned char> aTwistedLong(static_cast<std::size_t>(kMultiBlockLength), 0U);
-      std::vector<unsigned char> aTwistedBlockwise(static_cast<std::size_t>(kMultiBlockLength), 0U);
-      peanutbutter::expansion::key_expansion::ByteTwister::TwistBytesByIndex(
+      std::vector<unsigned char> aTwistedExpected(static_cast<std::size_t>(kMultiBlockLength), 0U);
+      ByteTwister::TwistBytesByIndex(
           static_cast<unsigned char>(aTypeIndex),
           aTwisterSource.data(),
           aWorker.data(),
           aTwistedLong.data(),
           static_cast<unsigned int>(kMultiBlockLength));
-      for (int aBlockIndex = 0; aBlockIndex < kMultiBlockCount; ++aBlockIndex) {
-        peanutbutter::expansion::key_expansion::ByteTwister::TwistBytesByIndex(
-            static_cast<unsigned char>(aTypeIndex),
-            aTwisterSource.data() + (aBlockIndex * PASSWORD_EXPANDED_SIZE),
-            aWorker.data(),
-            aTwistedBlockwise.data() + (aBlockIndex * PASSWORD_EXPANDED_SIZE),
-            PASSWORD_EXPANDED_SIZE);
-      }
-      if (aTwistedLong != aTwistedBlockwise) {
+      RunManualTwisterChain(
+          static_cast<unsigned char>(aTypeIndex), aTwisterSource.data(), aWorker.data(), aTwistedExpected.data(),
+          kMultiBlockCount);
+      if (aTwistedLong != aTwistedExpected) {
         std::cerr << "[FAIL] " << TypeName(aType)
                   << " multi-block twister mismatch at loop " << aLoop << "\n";
         return 1;

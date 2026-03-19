@@ -18,9 +18,23 @@ class ExpanderDigestAdapter final : public peanutbutter::rng::Digest {
   }
 
   void Seed(unsigned char* pPassword, int pPasswordLength) override {
-    peanutbutter::expansion::key_expansion::PasswordExpander::ExpandPassword(
-        mType, pPassword, mWorker.data(), mBlock.data(), static_cast<unsigned int>(pPasswordLength));
+    peanutbutter::expansion::key_expansion::PasswordExpander::FillDoubledSource(
+        pPassword, static_cast<unsigned int>((pPasswordLength > 0) ? pPasswordLength : 0), mBlock.data());
+    std::memset(mKeyBuffer, 0, sizeof(mKeyBuffer));
+    std::memset(mSaltBuffer, 0, sizeof(mSaltBuffer));
+    std::memset(mNextRoundKeyBuffer, 0, sizeof(mNextRoundKeyBuffer));
+    peanutbutter::expansion::key_expansion::ByteTwister::SeedKey(
+        mType, mBlock.data(), mKeyBuffer, PASSWORD_EXPANDED_SIZE);
+    peanutbutter::expansion::key_expansion::ByteTwister::SeedSalt(
+        mType, mBlock.data(), mSaltBuffer, PASSWORD_EXPANDED_SIZE);
+    std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aNext = {};
+    peanutbutter::expansion::key_expansion::ByteTwister::TwistBlock(
+        mType, mBlock.data(), mWorker.data(), aNext.data(), 0U, mSaltBuffer, mKeyBuffer, PASSWORD_EXPANDED_SIZE);
+    peanutbutter::expansion::key_expansion::ByteTwister::PushKeyRound(
+        mType, aNext.data(), mSaltBuffer, mKeyBuffer, mNextRoundKeyBuffer, PASSWORD_EXPANDED_SIZE);
+    mBlock = aNext;
     mCursor = 0;
+    mRound = 1U;
   }
 
   void Get(unsigned char* pDestination, int pDestinationLength) override {
@@ -47,16 +61,23 @@ class ExpanderDigestAdapter final : public peanutbutter::rng::Digest {
  private:
   void Refill() {
     std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aNext = {};
-    peanutbutter::expansion::key_expansion::PasswordExpander::ExpandPassword(
-        mType, mBlock.data(), mWorker.data(), aNext.data(), PASSWORD_EXPANDED_SIZE);
+    peanutbutter::expansion::key_expansion::ByteTwister::TwistBlock(
+        mType, mBlock.data(), mWorker.data(), aNext.data(), mRound, mSaltBuffer, mKeyBuffer, PASSWORD_EXPANDED_SIZE);
+    peanutbutter::expansion::key_expansion::ByteTwister::PushKeyRound(
+        mType, aNext.data(), mSaltBuffer, mKeyBuffer, mNextRoundKeyBuffer, PASSWORD_EXPANDED_SIZE);
     mBlock = aNext;
     mCursor = 0;
+    ++mRound;
   }
 
   peanutbutter::expansion::key_expansion::PasswordExpander::Type mType;
   std::array<unsigned char, PASSWORD_EXPANDED_SIZE> mBlock = {};
   std::array<unsigned char, PASSWORD_EXPANDED_SIZE> mWorker = {};
+  unsigned char mSaltBuffer[twist::kSaltBytes] = {};
+  unsigned char mNextRoundKeyBuffer[twist::kRoundKeyBytes] = {};
+  unsigned char mKeyBuffer[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes] = {};
   int mCursor = PASSWORD_EXPANDED_SIZE;
+  unsigned int mRound = 0U;
 };
 
 #endif  // BREAD_TESTS_COMMON_EXPANDER_DIGEST_ADAPTER_HPP_

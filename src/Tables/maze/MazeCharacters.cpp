@@ -19,28 +19,32 @@ MazeRobot::MazeRobot()
       mPathY{},
       mPathLength(0),
       mPathIndex(0),
-      mPowerUpTick(0),
-      mPowerUp(PowerUpType::kNone),
+      mInvincibleTick(0),
+      mMagnetTick(0),
+      mTeleportTick(0),
+      mInvincibleEnabled(false),
+      mMagnetEnabled(false),
+      mTeleportEnabled(false),
       mDeadFlag(false),
       mDidRecentlyRepath(false),
       mIsVictorious(false),
-      mNeedsRepath(false),
-      mPendingStepX{},
-      mPendingStepY{},
-      mPendingStepCount(0) {}
+      mNeedsRepath(false) {}
 
 void MazeRobot::Reset() {
   mCheese = nullptr;
   mX = -1;
   mY = -1;
   ClearPath();
-  mPowerUpTick = 0;
-  mPowerUp = PowerUpType::kNone;
+  mInvincibleTick = 0;
+  mMagnetTick = 0;
+  mTeleportTick = 0;
+  mInvincibleEnabled = false;
+  mMagnetEnabled = false;
+  mTeleportEnabled = false;
   mDeadFlag = false;
   mDidRecentlyRepath = false;
   mIsVictorious = false;
   mNeedsRepath = false;
-  ResetTickPlan();
 }
 
 bool MazeRobot::AssignPathAndStartWalk(const int* pPathX, const int* pPathY, int pLength) {
@@ -63,66 +67,28 @@ bool MazeRobot::AssignPathAndStartWalk(const int* pPathX, const int* pPathY, int
   return true;
 }
 
-bool MazeRobot::Update(const peanutbutter::maze::MazeGrid& pMaze) {
-  ResetTickPlan();
-  if (mDeadFlag) {
-    return true;
-  }
-
-  if (mPathLength <= 0 || mPathIndex < 0 || mPathIndex > mPathLength) {
-    return false;
-  }
-
-  int aPathIndex = mPathIndex;
-  if (aPathIndex <= 0 && mPathLength > 1) {
-    aPathIndex = 1;
-  }
-  if (aPathIndex >= 0 && aPathIndex < mPathLength) {
-    const int aNextX = mPathX[aPathIndex];
-    const int aNextY = mPathY[aPathIndex];
-    if (aNextX < 0 || aNextX >= MazeGrid::kGridWidth || aNextY < 0 || aNextY >= MazeGrid::kGridHeight ||
-        pMaze.IsWall(aNextX, aNextY)) {
-      ResetTickPlan();
-      return false;
-    }
-
-    mPendingStepX[mPendingStepCount] = aNextX;
-    mPendingStepY[mPendingStepCount] = aNextY;
-    ++mPendingStepCount;
-  }
-
-  return true;
-}
-
-bool MazeRobot::ReadPendingStep(int pIndex, int* pOutX, int* pOutY) const {
-  if (pOutX == nullptr || pOutY == nullptr || pIndex < 0 || pIndex >= mPendingStepCount) {
-    return false;
-  }
-
-  *pOutX = mPendingStepX[pIndex];
-  *pOutY = mPendingStepY[pIndex];
-  return true;
-}
-
-void MazeRobot::ApplyPendingStep(int pIndex) {
-  if (pIndex < 0 || pIndex >= mPendingStepCount) {
-    return;
-  }
-
-  mX = mPendingStepX[pIndex];
-  mY = mPendingStepY[pIndex];
-  ++mPathIndex;
-}
-
-void MazeRobot::FinishUpdate() {
-  if (mPowerUpTick > 0) {
-    --mPowerUpTick;
-    if (mPowerUpTick <= 0) {
-      mPowerUpTick = 0;
-      mPowerUp = PowerUpType::kNone;
+void MazeRobot::Update() {
+  if (mInvincibleTick > 0) {
+    --mInvincibleTick;
+    if (mInvincibleTick <= 0) {
+      mInvincibleTick = 0;
+      mInvincibleEnabled = false;
     }
   }
-  mPendingStepCount = 0;
+  if (mMagnetTick > 0) {
+    --mMagnetTick;
+    if (mMagnetTick <= 0) {
+      mMagnetTick = 0;
+      mMagnetEnabled = false;
+    }
+  }
+  if (mTeleportTick > 0) {
+    --mTeleportTick;
+    if (mTeleportTick <= 0) {
+      mTeleportTick = 0;
+      mTeleportEnabled = false;
+    }
+  }
 }
 
 void MazeRobot::Die() {
@@ -132,9 +98,12 @@ void MazeRobot::Die() {
   mNeedsRepath = false;
   mCheese = nullptr;
   ClearPath();
-  mPowerUp = PowerUpType::kNone;
-  mPowerUpTick = 0;
-  ResetTickPlan();
+  mInvincibleTick = 0;
+  mMagnetTick = 0;
+  mTeleportTick = 0;
+  mInvincibleEnabled = false;
+  mMagnetEnabled = false;
+  mTeleportEnabled = false;
 }
 
 void MazeRobot::ClearPath() {
@@ -142,12 +111,6 @@ void MazeRobot::ClearPath() {
   std::memset(mPathY, 0, sizeof(mPathY));
   mPathLength = 0;
   mPathIndex = 0;
-}
-
-void MazeRobot::ResetTickPlan() {
-  std::memset(mPendingStepX, 0, sizeof(mPendingStepX));
-  std::memset(mPendingStepY, 0, sizeof(mPendingStepY));
-  mPendingStepCount = 0;
 }
 
 MazeShark::MazeShark() : mX(-1), mY(-1), mDeadFlag(false), mDidRecentlyRevive(false) {}

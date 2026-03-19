@@ -1,0 +1,7 @@
+/Users/magneto/Desktop/Codex Playground/Bread/build_codex_audit/CMakeFiles/peanutbutter_core.dir
+/Users/magneto/Desktop/Codex Playground/Bread/build_codex_audit/CMakeFiles/peanutbutter_core_software.dir
+/Users/magneto/Desktop/Codex Playground/Bread/build_codex_audit/CMakeFiles/bread_main.dir
+/Users/magneto/Desktop/Codex Playground/Bread/build_codex_audit/CMakeFiles/maze_sim_matrix.dir
+/Users/magneto/Desktop/Codex Playground/Bread/build_codex_audit/CMakeFiles/archiver_compat_runner.dir
+/Users/magneto/Desktop/Codex Playground/Bread/build_codex_audit/CMakeFiles/edit_cache.dir
+/Users/magneto/Desktop/Codex Playground/Bread/build_codex_audit/CMakeFiles/rebuild_cache.dir

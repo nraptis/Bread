@@ -45,7 +45,6 @@ set(PEANUTBUTTER_CORE_SOURCES
   src/Tables/maze/MazeGrid.cpp
   src/Tables/maze/Maze.cpp
   src/Tables/maze/MazeCharacters.cpp
-  src/Tables/maze/MazeHelpers.cpp
   src/Tables/maze/MazePolicy.cpp
   src/Tables/maze/MazeSpecialEvents.cpp
   src/Tables/maze/MazeDirector.cpp
@@ -376,6 +375,42 @@ endif()
 add_test(NAME PasswordExpanderInsaneTests COMMAND password_expander_insane_tests)
 set_tests_properties(PasswordExpanderInsaneTests PROPERTIES LABELS "regression;verification;password_expander")
 
+add_executable(avalanche_tests
+  tests_regression/AvalancheTests.cpp
+)
+target_link_libraries(avalanche_tests PRIVATE peanutbutter_core)
+target_include_directories(avalanche_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(avalanche_tests PRIVATE /W4)
+else()
+  target_compile_options(avalanche_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME AvalancheTests COMMAND avalanche_tests 2 4)
+set_tests_properties(AvalancheTests PROPERTIES LABELS "regression;verification;avalanche")
+
+add_executable(bit_inclusion_tests
+  tests_regression/BitInclusionTests.cpp
+)
+target_link_libraries(bit_inclusion_tests PRIVATE peanutbutter_core)
+target_include_directories(bit_inclusion_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(bit_inclusion_tests PRIVATE /W4)
+else()
+  target_compile_options(bit_inclusion_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME BitInclusionTests COMMAND bit_inclusion_tests 2 4)
+set_tests_properties(BitInclusionTests PROPERTIES LABELS "regression;verification;bit_inclusion")
+
 add_executable(fast_rand_repeatability_tests
   tests_regression/FastRand_repeatability_tests.cpp
 )
@@ -521,6 +556,24 @@ endif()
 
 add_test(NAME GamePerseveranceTests COMMAND game_perseverance_tests)
 set_tests_properties(GamePerseveranceTests PROPERTIES LABELS "regression;verification;perseverance")
+
+add_executable(game_stability_tests
+  tests_regression/GameStabilityTests.cpp
+)
+target_link_libraries(game_stability_tests PRIVATE peanutbutter_core)
+target_include_directories(game_stability_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+if(MSVC)
+  target_compile_options(game_stability_tests PRIVATE /W4)
+else()
+  target_compile_options(game_stability_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME GameStabilityTests COMMAND game_stability_tests 2)
+set_tests_properties(GameStabilityTests PROPERTIES LABELS "regression;verification;stability")
 
 add_executable(maze_perseverance_tests
   tests_regression/Mazes_perseverance_tests.cpp

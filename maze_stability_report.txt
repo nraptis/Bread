@@ -1,179 +1,195 @@
 # Maze Stability Tests
-# runs_per_maze=100
+# runs_per_maze=1250
 [MAZE] 0 Custom_R1_C1_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=14531 deaths=3225 flush=0 empty_flush=100
-  tiles_painted=1457463 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=0
-  star_burst=114 chaos_storm=120 comet_horizontal=84 comet_vertical=66
-  dolphin_cheese_triages=14618 dolphin_shark_collisions=9098 dolphin_shark_kills=4624 dolphin_deaths=4474
-  simulation_count=100 robot_lives=17737 avg_robot_walk=25.0607 shortest_robot_walk=0 longest_robot_walk=195
-  shark_kills=7849 avg_shark_moves_before_kill=429.3692
-  output_digest=11848721381038518361 runtime_digest=837528447716204609 topology_digest=18259084929122260009
+  victories=159824 deaths=38595 flush=0 empty_flush=1250
+  tiles_painted=18217773 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=1377 chaos_storm=1360 comet_horizontal=751 comet_vertical=729
+  dolphin_cheese_triages=167288 dolphin_shark_collisions=150851 dolphin_shark_kills=75438 dolphin_deaths=75413
+  simulation_count=1250 robot_lives=198518 avg_robot_walk=26.8357 shortest_robot_walk=0 longest_robot_walk=215
+  shark_kills=115043 avg_shark_moves_before_kill=358.4282
+  output_digest=6409750400204803950 runtime_digest=9239805647915544825 topology_digest=4859026429675859134
 [MAZE] 1 Prim_R1_C2_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=15730 deaths=6727 flush=0 empty_flush=100
-  tiles_painted=1491100 tiles_flushed_regular=1535790 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=5 inconsistent_c=0 inconsistent_d=0 inconsistent_e=21 inconsistent_f=5 inconsistent_g=21 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=5
-  star_burst=123 chaos_storm=135 comet_horizontal=86 comet_vertical=82
-  dolphin_cheese_triages=4968 dolphin_shark_collisions=3179 dolphin_shark_kills=1594 dolphin_deaths=1585
-  simulation_count=95 robot_lives=22377 avg_robot_walk=26.6293 shortest_robot_walk=0 longest_robot_walk=112
-  shark_kills=8321 avg_shark_moves_before_kill=531.0879
-  output_digest=5463664578493442523 runtime_digest=5148031833220943977 topology_digest=5299334195154686107
+  victories=168260 deaths=76209 flush=0 empty_flush=1250
+  tiles_painted=18638750 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=1750 chaos_storm=1724 comet_horizontal=849 comet_vertical=801
+  dolphin_cheese_triages=53972 dolphin_shark_collisions=64896 dolphin_shark_kills=32290 dolphin_deaths=32606
+  simulation_count=1250 robot_lives=244082 avg_robot_walk=27.6793 shortest_robot_walk=0 longest_robot_walk=170
+  shark_kills=109390 avg_shark_moves_before_kill=459.8956
+  output_digest=10935641644586103817 runtime_digest=9969763534076147337 topology_digest=8066725905983749887
 [MAZE] 2 Kruskal_R2_C1_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=15837 deaths=8483 flush=0 empty_flush=100
-  tiles_painted=1478655 tiles_flushed_regular=1522610 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=11 inconsistent_c=0 inconsistent_d=0 inconsistent_e=44 inconsistent_f=11 inconsistent_g=44 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=11
-  star_burst=108 chaos_storm=132 comet_horizontal=61 comet_vertical=60
-  dolphin_cheese_triages=3381 dolphin_shark_collisions=2663 dolphin_shark_kills=1262 dolphin_deaths=1401
-  simulation_count=89 robot_lives=24346 avg_robot_walk=38.3148 shortest_robot_walk=0 longest_robot_walk=293
-  shark_kills=9745 avg_shark_moves_before_kill=361.5530
-  output_digest=14316124230759616927 runtime_digest=13426654765215038220 topology_digest=5218553415427422787
+  victories=181401 deaths=105073 flush=0 empty_flush=1250
+  tiles_painted=18638750 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=1489 chaos_storm=1475 comet_horizontal=715 comet_vertical=702
+  dolphin_cheese_triages=40620 dolphin_shark_collisions=54020 dolphin_shark_kills=27072 dolphin_deaths=26948
+  simulation_count=1250 robot_lives=287271 avg_robot_walk=40.1783 shortest_robot_walk=0 longest_robot_walk=401
+  shark_kills=133077 avg_shark_moves_before_kill=329.0783
+  output_digest=4400949406616674424 runtime_digest=2329754763385096079 topology_digest=6527817071350873571
 [MAZE] 3 Custom_R2_C2_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=21905 deaths=5158 flush=0 empty_flush=100
-  tiles_painted=1457419 tiles_flushed_regular=1536000 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=0
-  star_burst=78 chaos_storm=99 comet_horizontal=44 comet_vertical=40
-  dolphin_cheese_triages=20635 dolphin_shark_collisions=7233 dolphin_shark_kills=3611 dolphin_deaths=3622
-  simulation_count=100 robot_lives=27093 avg_robot_walk=25.8052 shortest_robot_walk=0 longest_robot_walk=160
-  shark_kills=8769 avg_shark_moves_before_kill=311.8388
-  output_digest=15978445458588258057 runtime_digest=198264344805304428 topology_digest=4221988638472429214
+  victories=219405 deaths=57868 flush=0 empty_flush=1250
+  tiles_painted=18218128 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=1013 chaos_storm=1036 comet_horizontal=508 comet_vertical=541
+  dolphin_cheese_triages=220443 dolphin_shark_collisions=115145 dolphin_shark_kills=57636 dolphin_deaths=57509
+  simulation_count=1250 robot_lives=278106 avg_robot_walk=28.3838 shortest_robot_walk=0 longest_robot_walk=248
+  shark_kills=116571 avg_shark_moves_before_kill=264.4561
+  output_digest=3807909625556777546 runtime_digest=5965307541118909123 topology_digest=6612787439790768762
 [MAZE] 4 Custom_R3_C2_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=24112 deaths=6128 flush=0 empty_flush=100
-  tiles_painted=1457356 tiles_flushed_regular=1535996 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=1 inconsistent_c=0 inconsistent_d=0 inconsistent_e=4 inconsistent_f=1 inconsistent_g=4 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=1
-  star_burst=86 chaos_storm=82 comet_horizontal=42 comet_vertical=38
-  dolphin_cheese_triages=16804 dolphin_shark_collisions=6085 dolphin_shark_kills=3010 dolphin_deaths=3075
-  simulation_count=99 robot_lives=30340 avg_robot_walk=28.2013 shortest_robot_walk=0 longest_robot_walk=243
-  shark_kills=9138 avg_shark_moves_before_kill=245.9937
-  output_digest=3712215758748488295 runtime_digest=1113863636855246423 topology_digest=1334264482123622262
+  victories=242950 deaths=69690 flush=0 empty_flush=1250
+  tiles_painted=18218069 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=881 chaos_storm=856 comet_horizontal=465 comet_vertical=427
+  dolphin_cheese_triages=188687 dolphin_shark_collisions=96765 dolphin_shark_kills=48498 dolphin_deaths=48267
+  simulation_count=1250 robot_lives=314632 avg_robot_walk=31.7669 shortest_robot_walk=0 longest_robot_walk=350
+  shark_kills=119287 avg_shark_moves_before_kill=220.1150
+  output_digest=353018585231311984 runtime_digest=11086137728884831257 topology_digest=14146373429287176474
 [MAZE] 5 Prim_R3_C3_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=25956 deaths=10238 flush=0 empty_flush=100
-  tiles_painted=1453526 tiles_flushed_regular=1495033 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=34 inconsistent_c=0 inconsistent_d=0 inconsistent_e=136 inconsistent_f=34 inconsistent_g=136 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=34
-  star_burst=70 chaos_storm=83 comet_horizontal=57 comet_vertical=54
-  dolphin_cheese_triages=6641 dolphin_shark_collisions=2673 dolphin_shark_kills=1361 dolphin_deaths=1312
-  simulation_count=66 robot_lives=36106 avg_robot_walk=29.6604 shortest_robot_walk=0 longest_robot_walk=235
-  shark_kills=11599 avg_shark_moves_before_kill=240.4769
-  output_digest=7137367503179681349 runtime_digest=5520182953998991563 topology_digest=735566831966975467
+  victories=305691 deaths=132376 flush=0 empty_flush=1250
+  tiles_painted=18638750 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=1251 chaos_storm=1094 comet_horizontal=607 comet_vertical=619
+  dolphin_cheese_triages=82064 dolphin_shark_collisions=57827 dolphin_shark_kills=28902 dolphin_deaths=28925
+  simulation_count=1250 robot_lives=438767 avg_robot_walk=31.5546 shortest_robot_walk=0 longest_robot_walk=331
+  shark_kills=162101 avg_shark_moves_before_kill=221.1111
+  output_digest=1161851723037884805 runtime_digest=18126512259382742181 topology_digest=6714402494493205867
 [MAZE] 6 Kruskal_R4_C3_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=19360 deaths=8458 flush=0 empty_flush=100
-  tiles_painted=1388652 tiles_flushed_regular=1424709 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=56 inconsistent_c=0 inconsistent_d=0 inconsistent_e=227 inconsistent_f=56 inconsistent_g=227 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=56
-  star_burst=54 chaos_storm=70 comet_horizontal=31 comet_vertical=28
-  dolphin_cheese_triages=4166 dolphin_shark_collisions=1799 dolphin_shark_kills=883 dolphin_deaths=916
-  simulation_count=44 robot_lives=27790 avg_robot_walk=35.8585 shortest_robot_walk=0 longest_robot_walk=284
-  shark_kills=9341 avg_shark_moves_before_kill=205.1319
-  output_digest=1647568098152234157 runtime_digest=15357733974657503531 topology_digest=10735400517814865599
+  victories=302161 deaths=147495 flush=0 empty_flush=1250
+  tiles_painted=18638750 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=1142 chaos_storm=1149 comet_horizontal=572 comet_vertical=603
+  dolphin_cheese_triages=68172 dolphin_shark_collisions=49697 dolphin_shark_kills=24745 dolphin_deaths=24952
+  simulation_count=1250 robot_lives=451643 avg_robot_walk=39.5574 shortest_robot_walk=0 longest_robot_walk=415
+  shark_kills=173114 avg_shark_moves_before_kill=199.5422
+  output_digest=5581173531336856331 runtime_digest=2166359100303026965 topology_digest=11552746172088655659
 [MAZE] 7 Custom_R4_C4_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=29256 deaths=6196 flush=0 empty_flush=100
-  tiles_painted=1449059 tiles_flushed_regular=1525880 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=7 inconsistent_c=0 inconsistent_d=0 inconsistent_e=29 inconsistent_f=7 inconsistent_g=29 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=7
-  star_burst=48 chaos_storm=48 comet_horizontal=25 comet_vertical=36
-  dolphin_cheese_triages=20895 dolphin_shark_collisions=4579 dolphin_shark_kills=2288 dolphin_deaths=2291
-  simulation_count=93 robot_lives=35588 avg_robot_walk=23.9251 shortest_robot_walk=0 longest_robot_walk=190
-  shark_kills=8484 avg_shark_moves_before_kill=197.1363
-  output_digest=15216594834204254803 runtime_digest=624923278620283978 topology_digest=9174234744439345294
+  victories=289218 deaths=73551 flush=0 empty_flush=1250
+  tiles_painted=18217578 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=667 chaos_storm=688 comet_horizontal=329 comet_vertical=355
+  dolphin_cheese_triages=243033 dolphin_shark_collisions=77403 dolphin_shark_kills=38337 dolphin_deaths=39066
+  simulation_count=1250 robot_lives=365708 avg_robot_walk=27.8470 shortest_robot_walk=0 longest_robot_walk=322
+  shark_kills=113018 avg_shark_moves_before_kill=175.5695
+  output_digest=18375565834064521837 runtime_digest=10813083932630137432 topology_digest=4275858026799796643
 [MAZE] 8 Custom_R5_C3_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=26478 deaths=6180 flush=0 empty_flush=100
-  tiles_painted=1412567 tiles_flushed_regular=1485239 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=22 inconsistent_c=0 inconsistent_d=0 inconsistent_e=88 inconsistent_f=22 inconsistent_g=88 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=22
-  star_burst=47 chaos_storm=53 comet_horizontal=22 comet_vertical=23
-  dolphin_cheese_triages=15633 dolphin_shark_collisions=4031 dolphin_shark_kills=2006 dolphin_deaths=2025
-  simulation_count=78 robot_lives=32835 avg_robot_walk=28.0011 shortest_robot_walk=0 longest_robot_walk=294
-  shark_kills=8186 avg_shark_moves_before_kill=177.9720
-  output_digest=18053788329785916953 runtime_digest=14293186010672476994 topology_digest=7314208365660280214
+  victories=295914 deaths=85837 flush=0 empty_flush=1250
+  tiles_painted=18218062 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=667 chaos_storm=663 comet_horizontal=350 comet_vertical=348
+  dolphin_cheese_triages=200672 dolphin_shark_collisions=74496 dolphin_shark_kills=37225 dolphin_deaths=37271
+  simulation_count=1250 robot_lives=385902 avg_robot_walk=32.6195 shortest_robot_walk=0 longest_robot_walk=367
+  shark_kills=124213 avg_shark_moves_before_kill=160.6945
+  output_digest=10065006511446493342 runtime_digest=9175979229029990753 topology_digest=14802379095907915504
 [MAZE] 9 Prim_R5_C5_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=19945 deaths=6864 flush=0 empty_flush=100
-  tiles_painted=1352031 tiles_flushed_regular=1384625 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=62 inconsistent_c=0 inconsistent_d=0 inconsistent_e=248 inconsistent_f=62 inconsistent_g=248 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=62
-  star_burst=43 chaos_storm=41 comet_horizontal=16 comet_vertical=14
-  dolphin_cheese_triages=4262 dolphin_shark_collisions=1290 dolphin_shark_kills=629 dolphin_deaths=661
-  simulation_count=38 robot_lives=26795 avg_robot_walk=28.9433 shortest_robot_walk=0 longest_robot_walk=213
-  shark_kills=7493 avg_shark_moves_before_kill=156.1650
-  output_digest=5394414926886229985 runtime_digest=10258219823320679325 topology_digest=1227920182490190955
+  victories=418205 deaths=160985 flush=0 empty_flush=1250
+  tiles_painted=18638750 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=953 chaos_storm=881 comet_horizontal=498 comet_vertical=471
+  dolphin_cheese_triages=100735 dolphin_shark_collisions=50630 dolphin_shark_kills=25070 dolphin_deaths=25560
+  simulation_count=1250 robot_lives=581257 avg_robot_walk=31.6455 shortest_robot_walk=0 longest_robot_walk=312
+  shark_kills=186872 avg_shark_moves_before_kill=154.3760
+  output_digest=15690732633977144536 runtime_digest=723191073756650186 topology_digest=6657226080643716155
 [MAZE] 10 Kruskal_R6_C3_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=8652 deaths=3971 flush=0 empty_flush=100
-  tiles_painted=1109105 tiles_flushed_regular=1129397 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=93 inconsistent_c=0 inconsistent_d=0 inconsistent_e=378 inconsistent_f=93 inconsistent_g=378 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=93
-  star_burst=17 chaos_storm=25 comet_horizontal=17 comet_vertical=13
-  dolphin_cheese_triages=1748 dolphin_shark_collisions=709 dolphin_shark_kills=378 dolphin_deaths=331
-  simulation_count=7 robot_lives=12553 avg_robot_walk=39.7663 shortest_robot_walk=0 longest_robot_walk=359
-  shark_kills=4349 avg_shark_moves_before_kill=139.8158
-  output_digest=8636500234326732387 runtime_digest=5641314085541026156 topology_digest=15676172289596307147
+  victories=332475 deaths=162004 flush=0 empty_flush=1250
+  tiles_painted=18638750 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=1027 chaos_storm=946 comet_horizontal=464 comet_vertical=505
+  dolphin_cheese_triages=69578 dolphin_shark_collisions=46849 dolphin_shark_kills=23393 dolphin_deaths=23456
+  simulation_count=1250 robot_lives=498817 avg_robot_walk=44.9189 shortest_robot_walk=0 longest_robot_walk=531
+  shark_kills=186268 avg_shark_moves_before_kill=156.4828
+  output_digest=10536907871147797518 runtime_digest=4307168509602054807 topology_digest=14841984153578723311
 [MAZE] 11 Custom_R6_C6_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=29458 deaths=5577 flush=0 empty_flush=100
-  tiles_painted=1414889 tiles_flushed_regular=1487395 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=38 inconsistent_c=0 inconsistent_d=0 inconsistent_e=157 inconsistent_f=38 inconsistent_g=157 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=38
-  star_burst=29 chaos_storm=39 comet_horizontal=18 comet_vertical=19
-  dolphin_cheese_triages=17436 dolphin_shark_collisions=2853 dolphin_shark_kills=1412 dolphin_deaths=1441
-  simulation_count=62 robot_lives=35150 avg_robot_walk=21.9888 shortest_robot_walk=0 longest_robot_walk=197
-  shark_kills=6989 avg_shark_moves_before_kill=143.2992
-  output_digest=8074543755648816313 runtime_digest=10065160391540090867 topology_digest=7611909055171206798
+  victories=352205 deaths=84217 flush=0 empty_flush=1250
+  tiles_painted=18217623 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=505 chaos_storm=547 comet_horizontal=237 comet_vertical=274
+  dolphin_cheese_triages=251971 dolphin_shark_collisions=60611 dolphin_shark_kills=30335 dolphin_deaths=30276
+  simulation_count=1250 robot_lives=441354 avg_robot_walk=26.9594 shortest_robot_walk=0 longest_robot_walk=277
+  shark_kills=115646 avg_shark_moves_before_kill=134.1859
+  output_digest=16114886564301844902 runtime_digest=15295170164526255903 topology_digest=18371159754314354551
 [MAZE] 12 Custom_R7_C5_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=19211 deaths=3925 flush=0 empty_flush=100
-  tiles_painted=1325091 tiles_flushed_regular=1386638 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=72 inconsistent_c=0 inconsistent_d=0 inconsistent_e=292 inconsistent_f=72 inconsistent_g=292 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=72
-  star_burst=21 chaos_storm=18 comet_horizontal=7 comet_vertical=13
-  dolphin_cheese_triages=10105 dolphin_shark_collisions=1905 dolphin_shark_kills=939 dolphin_deaths=966
-  simulation_count=28 robot_lives=23146 avg_robot_walk=24.3854 shortest_robot_walk=0 longest_robot_walk=234
-  shark_kills=4864 avg_shark_moves_before_kill=125.3801
-  output_digest=7501527146400495217 runtime_digest=16143016056930713393 topology_digest=11471840094455165211
+  victories=353050 deaths=92436 flush=0 empty_flush=1250
+  tiles_painted=18218437 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=478 chaos_storm=534 comet_horizontal=239 comet_vertical=251
+  dolphin_cheese_triages=225462 dolphin_shark_collisions=58514 dolphin_shark_kills=29317 dolphin_deaths=29197
+  simulation_count=1250 robot_lives=451637 avg_robot_walk=29.8867 shortest_robot_walk=0 longest_robot_walk=309
+  shark_kills=122866 avg_shark_moves_before_kill=124.1701
+  output_digest=4723137864447082953 runtime_digest=2935999669905037881 topology_digest=4190872634346401222
 [MAZE] 13 Prim_R7_C7_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=16918 deaths=5223 flush=0 empty_flush=100
-  tiles_painted=1312856 tiles_flushed_regular=1340900 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=82 inconsistent_c=0 inconsistent_d=0 inconsistent_e=336 inconsistent_f=82 inconsistent_g=336 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=82
-  star_burst=26 chaos_storm=19 comet_horizontal=7 comet_vertical=4
-  dolphin_cheese_triages=3390 dolphin_shark_collisions=815 dolphin_shark_kills=389 dolphin_deaths=426
-  simulation_count=18 robot_lives=22052 avg_robot_walk=27.8806 shortest_robot_walk=0 longest_robot_walk=221
-  shark_kills=5612 avg_shark_moves_before_kill=114.3297
-  output_digest=6246675408927632771 runtime_digest=13163673170776486165 topology_digest=8720882101755316127
+  victories=497742 deaths=177469 flush=0 empty_flush=1250
+  tiles_painted=18638750 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=783 chaos_storm=758 comet_horizontal=401 comet_vertical=414
+  dolphin_cheese_triages=108906 dolphin_shark_collisions=44641 dolphin_shark_kills=22198 dolphin_deaths=22443
+  simulation_count=1250 robot_lives=679035 avg_robot_walk=31.4455 shortest_robot_walk=0 longest_robot_walk=335
+  shark_kills=200460 avg_shark_moves_before_kill=119.9845
+  output_digest=6682375554782149262 runtime_digest=9110004999794446776 topology_digest=14169509491614884547
 [MAZE] 14 Kruskal_R8_C6_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=7585 deaths=2716 flush=0 empty_flush=100
-  tiles_painted=1026985 tiles_flushed_regular=1041885 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=99 inconsistent_c=0 inconsistent_d=0 inconsistent_e=399 inconsistent_f=99 inconsistent_g=399 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=99
-  star_burst=9 chaos_storm=14 comet_horizontal=6 comet_vertical=5
-  dolphin_cheese_triages=1480 dolphin_shark_collisions=431 dolphin_shark_kills=213 dolphin_deaths=218
-  simulation_count=1 robot_lives=10206 avg_robot_walk=32.6357 shortest_robot_walk=0 longest_robot_walk=264
-  shark_kills=2929 avg_shark_moves_before_kill=95.7426
-  output_digest=13884676415233159621 runtime_digest=7012665773570853617 topology_digest=12130406639293621235
+  victories=437679 deaths=179350 flush=0 empty_flush=1250
+  tiles_painted=18638750 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=806 chaos_storm=816 comet_horizontal=375 comet_vertical=402
+  dolphin_cheese_triages=87506 dolphin_shark_collisions=40909 dolphin_shark_kills=20363 dolphin_deaths=20546
+  simulation_count=1250 robot_lives=622768 avg_robot_walk=39.5484 shortest_robot_walk=0 longest_robot_walk=544
+  shark_kills=200511 avg_shark_moves_before_kill=119.9196
+  output_digest=3499292144529806359 runtime_digest=4908330875078208565 topology_digest=2677773506668969019
 [MAZE] 15 Custom_R8_C8_S8
-  runs=100 repeatability_checks=100 histogram_checks=100 connectivity_checks=100
+  runs=1250 repeatability_checks=1250 histogram_checks=1250 connectivity_checks=1250
   repeatability_failures=0 runtime_repeatability_failures=0 histogram_drift=0 connectivity_failures=0 topology_failures=0
-  victories=18851 deaths=3227 flush=0 empty_flush=100
-  tiles_painted=1312940 tiles_flushed_regular=1371365 tiles_flushed_stalled=0
-  inconsistent_a=0 inconsistent_b=79 inconsistent_c=0 inconsistent_d=0 inconsistent_e=321 inconsistent_f=79 inconsistent_g=321 inconsistent_h=0 stall_cataclysmic=0 stall_apocalypse=79
-  star_burst=17 chaos_storm=17 comet_horizontal=13 comet_vertical=12
-  dolphin_cheese_triages=9442 dolphin_shark_collisions=1277 dolphin_shark_kills=635 dolphin_deaths=642
-  simulation_count=21 robot_lives=22017 avg_robot_walk=20.1895 shortest_robot_walk=0 longest_robot_walk=155
-  shark_kills=3862 avg_shark_moves_before_kill=104.4814
-  output_digest=17214096775560143171 runtime_digest=15614860506700679961 topology_digest=11862637364402755494
+  victories=385817 deaths=87208 flush=0 empty_flush=1250
+  tiles_painted=18217796 tiles_flushed_regular=19200000 tiles_flushed_stalled=0
+  inconsistent_a=0 inconsistent_b=0 inconsistent_c=0 inconsistent_d=0 inconsistent_e=0 inconsistent_f=0 inconsistent_g=0 inconsistent_h=0 inconsistent_i=0 inconsistent_j=0 stall_cataclysmic=0 stall_apocalypse=0
+  inconsistent_flags=0x0
+  star_burst=427 chaos_storm=380 comet_horizontal=211 comet_vertical=217
+  dolphin_cheese_triages=241025 dolphin_shark_collisions=48094 dolphin_shark_kills=23978 dolphin_deaths=24116
+  simulation_count=1250 robot_lives=480331 avg_robot_walk=26.0678 shortest_robot_walk=0 longest_robot_walk=225
+  shark_kills=112258 avg_shark_moves_before_kill=108.6120
+  output_digest=15303415990108033690 runtime_digest=4450829285757817130 topology_digest=13820470830660574442
 [PASS] maze stability tests passed

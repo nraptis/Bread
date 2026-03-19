@@ -32,8 +32,7 @@ void Shuffler::Get(unsigned char* pDestination, int pDestinationLength) {
     AbortInvalidShufflerUsage();
   }
 
-  if (static_cast<unsigned int>(pDestinationLength) != mResultBufferLength ||
-      mResultBufferWriteProgress < mResultBufferLength) {
+  if (static_cast<unsigned int>(pDestinationLength) != mResultBufferLength || !IsResultBufferComplete()) {
     AbortInvalidShufflerUsage();
   }
 
@@ -96,6 +95,18 @@ void Shuffler::EnqueueByte(unsigned char pByte) {
   mResultBuffer[mResultBufferWriteIndex] = pByte;
   mResultBufferWriteIndex = (mResultBufferWriteIndex + 1U) % mResultBufferLength;
   mResultBufferWriteProgress = std::min<std::uint64_t>(mResultBufferWriteProgress + 1U, mResultBufferLength);
+}
+
+std::uint64_t Shuffler::ResultWriteCheckpoint() const {
+  return mResultBufferWriteProgress;
+}
+
+bool Shuffler::DidResultBufferMove(std::uint64_t pCheckpoint) const {
+  return mResultBufferWriteProgress != pCheckpoint;
+}
+
+bool Shuffler::IsResultBufferComplete() const {
+  return mResultBufferWriteProgress >= mResultBufferLength;
 }
 
 }  // namespace peanutbutter::rng

@@ -45,23 +45,57 @@ class PasswordExpander final : public peanutbutter::rng::Scrambler {
                              unsigned char* pWorker,
                              unsigned char* pDestination,
                              unsigned int pLength);
+  static void ExpandPassword(
+      Type pType,
+      unsigned char* pSource,
+      unsigned char* pWorker,
+      unsigned char* pDestination,
+      unsigned char (&pKeyBuffer)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+      unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+      unsigned int pLength);
   static void ExpandPasswordBlocks(Type pType,
                                    unsigned char* pSource,
                                    unsigned int pSourceLength,
                                    unsigned char* pWorker,
                                    unsigned char* pDestination,
                                    unsigned int pOutputLength);
+  static void ExpandPasswordBlocks(
+      Type pType,
+      unsigned char* pSource,
+      unsigned int pSourceLength,
+      unsigned char* pWorker,
+      unsigned char* pDestination,
+      unsigned char (&pKeyBuffer)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+      unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+      unsigned int pOutputLength);
   static void ExpandPasswordByIndex(unsigned char pType,
                                     unsigned char* pSource,
                                     unsigned char* pWorker,
                                     unsigned char* pDestination,
                                     unsigned int pLength);
+  static void ExpandPasswordByIndex(
+      unsigned char pType,
+      unsigned char* pSource,
+      unsigned char* pWorker,
+      unsigned char* pDestination,
+      unsigned char (&pKeyBuffer)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+      unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+      unsigned int pLength);
   static void ExpandPasswordBlocksByIndex(unsigned char pType,
                                           unsigned char* pSource,
                                           unsigned int pSourceLength,
                                           unsigned char* pWorker,
                                           unsigned char* pDestination,
                                           unsigned int pOutputLength);
+  static void ExpandPasswordBlocksByIndex(
+      unsigned char pType,
+      unsigned char* pSource,
+      unsigned int pSourceLength,
+      unsigned char* pWorker,
+      unsigned char* pDestination,
+      unsigned char (&pKeyBuffer)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+      unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+      unsigned int pOutputLength);
 
  private:
   Type mType;

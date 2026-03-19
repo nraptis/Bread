@@ -30,13 +30,81 @@ inline void AccumulateRuntimeStats(const peanutbutter::games::GameBoard::Runtime
   pDestination->mUserMatch += pSource.mUserMatch;
   pDestination->mCascadeMatch += pSource.mCascadeMatch;
   pDestination->mGameStateOverflowCatastrophic += pSource.mGameStateOverflowCatastrophic;
+  pDestination->mCatastropheCaseA += pSource.mCatastropheCaseA;
+  pDestination->mCatastropheCaseB += pSource.mCatastropheCaseB;
+  pDestination->mCatastropheCaseC += pSource.mCatastropheCaseC;
   pDestination->mGameStateOverflowCataclysmic += pSource.mGameStateOverflowCataclysmic;
   pDestination->mGameStateOverflowApocalypse += pSource.mGameStateOverflowApocalypse;
   pDestination->mPowerUpSpawned += pSource.mPowerUpSpawned;
   pDestination->mPowerUpConsumed += pSource.mPowerUpConsumed;
   pDestination->mPasswordExpanderWraps += pSource.mPasswordExpanderWraps;
   pDestination->mDragonAttack += pSource.mDragonAttack;
-  pDestination->mRiddlerAttack += pSource.mRiddlerAttack;
+  pDestination->mPhoenixAttack += pSource.mPhoenixAttack;
+  pDestination->mWyvernAttack += pSource.mWyvernAttack;
+  pDestination->mBlueMoonCase += pSource.mBlueMoonCase;
+  pDestination->mHarvestMoon += pSource.mHarvestMoon;
+  pDestination->mImpossible += pSource.mImpossible;
+  pDestination->mPlantedMatchSolve += pSource.mPlantedMatchSolve;
+  pDestination->mInconsistentStateA += pSource.mInconsistentStateA;
+  pDestination->mInconsistentStateB += pSource.mInconsistentStateB;
+  pDestination->mInconsistentStateC += pSource.mInconsistentStateC;
+  pDestination->mInconsistentStateD += pSource.mInconsistentStateD;
+  pDestination->mInconsistentStateE += pSource.mInconsistentStateE;
+  pDestination->mInconsistentStateF += pSource.mInconsistentStateF;
+  pDestination->mInconsistentStateG += pSource.mInconsistentStateG;
+  pDestination->mInconsistentStateH += pSource.mInconsistentStateH;
+  pDestination->mInconsistentStateI += pSource.mInconsistentStateI;
+  pDestination->mInconsistentStateJ += pSource.mInconsistentStateJ;
+  pDestination->mInconsistentStateK += pSource.mInconsistentStateK;
+  pDestination->mInconsistentStateL += pSource.mInconsistentStateL;
+  pDestination->mInconsistentStateM += pSource.mInconsistentStateM;
+  pDestination->mInconsistentStateN += pSource.mInconsistentStateN;
+  pDestination->mInconsistentStateO += pSource.mInconsistentStateO;
+}
+
+inline std::uint32_t RuntimeFlags(const peanutbutter::games::GameBoard::RuntimeStats& pStats) {
+  std::uint32_t aFlags = 0U;
+  if (pStats.mStuck > 0U) aFlags |= (1U << 0U);
+  if (pStats.mTopple > 0U) aFlags |= (1U << 1U);
+  if (pStats.mUserMatch > 0U) aFlags |= (1U << 2U);
+  if (pStats.mCascadeMatch > 0U) aFlags |= (1U << 3U);
+  if (pStats.mGameStateOverflowCatastrophic > 0U) aFlags |= (1U << 4U);
+  if (pStats.mCatastropheCaseA > 0U) aFlags |= (1U << 5U);
+  if (pStats.mCatastropheCaseB > 0U) aFlags |= (1U << 6U);
+  if (pStats.mCatastropheCaseC > 0U) aFlags |= (1U << 7U);
+  if (pStats.mGameStateOverflowCataclysmic > 0U) aFlags |= (1U << 8U);
+  if (pStats.mGameStateOverflowApocalypse > 0U) aFlags |= (1U << 9U);
+  if (pStats.mPowerUpSpawned > 0U) aFlags |= (1U << 10U);
+  if (pStats.mPowerUpConsumed > 0U) aFlags |= (1U << 11U);
+  if (pStats.mPasswordExpanderWraps > 0U) aFlags |= (1U << 12U);
+  if (pStats.mDragonAttack > 0U) aFlags |= (1U << 13U);
+  if (pStats.mPhoenixAttack > 0U) aFlags |= (1U << 14U);
+  if (pStats.mWyvernAttack > 0U) aFlags |= (1U << 15U);
+  if (pStats.mBlueMoonCase > 0U) aFlags |= (1U << 16U);
+  if (pStats.mHarvestMoon > 0U) aFlags |= (1U << 17U);
+  if (pStats.mImpossible > 0U) aFlags |= (1U << 18U);
+  if (pStats.mPlantedMatchSolve > 0U) aFlags |= (1U << 19U);
+  return aFlags;
+}
+
+inline std::uint32_t InconsistentFlags(const peanutbutter::games::GameBoard::RuntimeStats& pStats) {
+  std::uint32_t aFlags = 0U;
+  if (pStats.mInconsistentStateA > 0U) aFlags |= (1U << 0U);
+  if (pStats.mInconsistentStateB > 0U) aFlags |= (1U << 1U);
+  if (pStats.mInconsistentStateC > 0U) aFlags |= (1U << 2U);
+  if (pStats.mInconsistentStateD > 0U) aFlags |= (1U << 3U);
+  if (pStats.mInconsistentStateE > 0U) aFlags |= (1U << 4U);
+  if (pStats.mInconsistentStateF > 0U) aFlags |= (1U << 5U);
+  if (pStats.mInconsistentStateG > 0U) aFlags |= (1U << 6U);
+  if (pStats.mInconsistentStateH > 0U) aFlags |= (1U << 7U);
+  if (pStats.mInconsistentStateI > 0U) aFlags |= (1U << 8U);
+  if (pStats.mInconsistentStateJ > 0U) aFlags |= (1U << 9U);
+  if (pStats.mInconsistentStateK > 0U) aFlags |= (1U << 10U);
+  if (pStats.mInconsistentStateL > 0U) aFlags |= (1U << 11U);
+  if (pStats.mInconsistentStateM > 0U) aFlags |= (1U << 12U);
+  if (pStats.mInconsistentStateN > 0U) aFlags |= (1U << 13U);
+  if (pStats.mInconsistentStateO > 0U) aFlags |= (1U << 14U);
+  return aFlags;
 }
 
 inline const char* GetGameName(peanutbutter::games::GameBoard::GameIndex pGameIndex) {

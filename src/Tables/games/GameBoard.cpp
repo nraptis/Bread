@@ -75,8 +75,9 @@ GameBoard::GameBoard()
       mApocalypseWriteIndex(0U),
       mSuccessfulMoveCount(0),
       mBrokenCount(0),
-      mGameIndex(StreakSwapGreedy),
-      mGameName("StreakSwapGreedy"),
+      mGameIndex(IslandSwapFourGreedy),
+      mTileTypeCount(4),
+      mGameName("Starlight Scramble [IS4G]"),
       mMoveListX{},
       mMoveListY{},
       mMoveListHorizontal{},
@@ -86,6 +87,19 @@ GameBoard::GameBoard()
       mExploreListX{},
       mExploreListY{},
       mExploreListCount(0),
+      mCandidateListX{},
+      mCandidateListY{},
+      mCandidateListCount(0),
+      mViolatingListX{},
+      mViolatingListY{},
+      mViolatingListCount(0),
+      mToppleSearchCount(0),
+      mToppleChanged{},
+      mToppleSearchMask{},
+      mCheckStackX{},
+      mCheckStackY{},
+      mCheckStackCount(0),
+      mCheckVisited{},
       mMatchListX{},
       mMatchListY{},
       mMatchListCount(0),
@@ -100,7 +114,7 @@ GameBoard::GameBoard()
     mOwnedTiles[aIndex].mNext = mTileStack;
     mTileStack = &mOwnedTiles[aIndex];
   }
-  ConfigureGameByIndex(StreakSwapGreedy);
+  ConfigureGameByIndex(IslandSwapFourGreedy);
 }
 
 GameBoard::~GameBoard() {
@@ -119,6 +133,8 @@ void GameBoard::InitializeSeed(unsigned char* pPassword, int pPasswordLength) {
   mBrokenCount = 0;
   mMoveListCount = 0;
   mExploreListCount = 0;
+  mCandidateListCount = 0;
+  mViolatingListCount = 0;
   mMatchListCount = 0;
   mRuntimeStats = RuntimeStats{};
 
@@ -130,7 +146,6 @@ void GameBoard::InitializeSeed(unsigned char* pPassword, int pPasswordLength) {
 
 void GameBoard::SetMoveBehavior(MoveBehavior pMoveBehavior) {
   mMoveBehavior = pMoveBehavior;
-  mIsCascading = (pMoveBehavior != kTap);
 }
 
 void GameBoard::SetMovePolicy(MovePolicy pMovePolicy) {
@@ -163,8 +178,20 @@ bool GameBoard::ResolveBoardState_PostTopple() {
   return mGamePlayDirector->ResolveBoardState_PostTopple(this);
 }
 
-void GameBoard::RecordGameStateOverflowCatastrophic() {
+void GameBoard::RecordGameStateOverflowCatastrophic(CatastropheCase pCase) {
   ++mRuntimeStats.mGameStateOverflowCatastrophic;
+  switch (pCase) {
+    case kCatastropheCaseA:
+      ++mRuntimeStats.mCatastropheCaseA;
+      break;
+    case kCatastropheCaseB:
+      ++mRuntimeStats.mCatastropheCaseB;
+      break;
+    case kCatastropheCaseC:
+    default:
+      ++mRuntimeStats.mCatastropheCaseC;
+      break;
+  }
 }
 
 void GameBoard::RecordGameStateOverflowCataclysmic() {
@@ -205,42 +232,46 @@ void GameBoard::DragonAttack() {
   (void)aAny;
 }
 
-void GameBoard::RiddlerAttack() {
-  for (int aRow = 0; aRow + 1 < kGridHeight; aRow += 2) {
-    for (int aX = 0; aX < kGridWidth; ++aX) {
-      GameTile* aA = mGrid[aX][aRow];
-      GameTile* aB = mGrid[aX][aRow + 1];
-      mGrid[aX][aRow] = aB;
-      mGrid[aX][aRow + 1] = aA;
-      if (aB != nullptr) {
-        aB->mGridX = aX;
-        aB->mGridY = aRow;
-      }
-      if (aA != nullptr) {
-        aA->mGridX = aX;
-        aA->mGridY = aRow + 1;
-      }
-    }
+void GameBoard::PhoenixAttack() {
+  int aColumnOrder[kGridWidth] = {};
+  for (int aIndex = 0; aIndex < kGridWidth; ++aIndex) {
+    aColumnOrder[aIndex] = aIndex;
+  }
+  for (int aIndex = kGridWidth - 1; aIndex > 0; --aIndex) {
+    const int aSwapIndex = static_cast<int>(GetRand(aIndex + 1));
+    const int aTemp = aColumnOrder[aIndex];
+    aColumnOrder[aIndex] = aColumnOrder[aSwapIndex];
+    aColumnOrder[aSwapIndex] = aTemp;
   }
 
-  for (int aCol = 0; aCol + 1 < kGridWidth; aCol += 2) {
+  const int aColumnCount = std::min(4, kGridWidth);
+  for (int aPickIndex = 0; aPickIndex < aColumnCount; ++aPickIndex) {
+    const int aColumn = aColumnOrder[aPickIndex];
     for (int aY = 0; aY < kGridHeight; ++aY) {
-      GameTile* aA = mGrid[aCol][aY];
-      GameTile* aB = mGrid[aCol + 1][aY];
-      mGrid[aCol][aY] = aB;
-      mGrid[aCol + 1][aY] = aA;
-      if (aB != nullptr) {
-        aB->mGridX = aCol;
-        aB->mGridY = aY;
-      }
-      if (aA != nullptr) {
-        aA->mGridX = aCol + 1;
-        aA->mGridY = aY;
-      }
+      MarkTileMatched(aColumn, aY);
     }
   }
+}
 
-  InvalidateMatches();
+void GameBoard::WyvernAttack() {
+  int aRowOrder[kGridHeight] = {};
+  for (int aIndex = 0; aIndex < kGridHeight; ++aIndex) {
+    aRowOrder[aIndex] = aIndex;
+  }
+  for (int aIndex = kGridHeight - 1; aIndex > 0; --aIndex) {
+    const int aSwapIndex = static_cast<int>(GetRand(aIndex + 1));
+    const int aTemp = aRowOrder[aIndex];
+    aRowOrder[aIndex] = aRowOrder[aSwapIndex];
+    aRowOrder[aSwapIndex] = aTemp;
+  }
+
+  const int aRowCount = std::min(4, kGridHeight);
+  for (int aPickIndex = 0; aPickIndex < aRowCount; ++aPickIndex) {
+    const int aRow = aRowOrder[aPickIndex];
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      MarkTileMatched(aX, aRow);
+    }
+  }
 }
 
 unsigned char GameBoard::GetRand(int pMax) {
@@ -270,6 +301,52 @@ int GameBoard::BrokenCount() const {
   return mBrokenCount;
 }
 
+int GameBoard::TileTypeCount() const {
+  return mTileTypeCount;
+}
+
+MatchBehavior GameBoard::GetMatchBehavior() const {
+  return mMatchBehavior;
+}
+
+const GameTile* GameBoard::TileAt(int pGridX, int pGridY) const {
+  if (pGridX < 0 || pGridX >= kGridWidth || pGridY < 0 || pGridY >= kGridHeight) {
+    return nullptr;
+  }
+  return mGrid[pGridX][pGridY];
+}
+
+GameTile* GameBoard::MutableTileAt(int pGridX, int pGridY) {
+  if (pGridX < 0 || pGridX >= kGridWidth || pGridY < 0 || pGridY >= kGridHeight) {
+    return nullptr;
+  }
+  return mGrid[pGridX][pGridY];
+}
+
+void GameBoard::RecordImpossible() {
+  ++mRuntimeStats.mImpossible;
+}
+
+void GameBoard::RecordPlantedMatchSolve() {
+  ++mRuntimeStats.mPlantedMatchSolve;
+}
+
+void GameBoard::RecordInconsistentStateD() {
+  ++mRuntimeStats.mInconsistentStateD;
+}
+
+void GameBoard::RecordInconsistentStateE() {
+  ++mRuntimeStats.mInconsistentStateE;
+}
+
+void GameBoard::RecordBlueMoonCase() {
+  ++mRuntimeStats.mBlueMoonCase;
+}
+
+void GameBoard::RecordHarvestMoon() {
+  ++mRuntimeStats.mHarvestMoon;
+}
+
 GameBoard::RuntimeStats GameBoard::GetRuntimeStats() const {
   return mRuntimeStats;
 }
@@ -287,137 +364,166 @@ void GameBoard::ConfigureGameByIndex(int pGameIndex) {
   MoveBehavior aMoveBehavior = kSwap;
   MovePolicy aMovePolicy = kGreedy;
   MatchBehavior aMatchBehavior = kStreak;
+  bool aIsCascading = true;
+  int aTileTypeCount = 4;
   const char* aName = nullptr;
 
   switch (pGameIndex) {
-    case StreakSwapGreedy:
-      aDirector = GamePlayDirector::MatchThreeStyle();
-      aMoveBehavior = kSwap;
-      aMovePolicy = kGreedy;
-      aMatchBehavior = kStreak;
-      aName = "StreakSwapGreedy";
-      break;
-    case StreakSlideGreedy:
-      aDirector = GamePlayDirector::MatchThreeStyle();
-      aMoveBehavior = kSlide;
-      aMovePolicy = kGreedy;
-      aMatchBehavior = kStreak;
-      aName = "StreakSlideGreedy";
-      break;
-    case IslandSwapGreedy:
+    case IslandSwapFourGreedy:
       aDirector = GamePlayDirector::MatchThreeStyle();
       aMoveBehavior = kSwap;
       aMovePolicy = kGreedy;
       aMatchBehavior = kIsland;
-      aName = "IslandSwapGreedy";
+      aTileTypeCount = 4;
+      aName = "Starlight Scramble [IS4G]";
       break;
-    case IslandSlideGreedy:
-      aDirector = GamePlayDirector::MatchThreeStyle();
-      aMoveBehavior = kSlide;
-      aMovePolicy = kGreedy;
-      aMatchBehavior = kIsland;
-      aName = "IslandSlideGreedy";
-      break;
-    case StreakTapGreedy:
-      aDirector = GamePlayDirector::CollapseStyle();
-      aMoveBehavior = kTap;
-      aMovePolicy = kGreedy;
-      aMatchBehavior = kStreak;
-      aName = "StreakTapGreedy";
-      break;
-    case IslandTapGreedy:
-      aDirector = GamePlayDirector::CollapseStyle();
+    case IslandTapFourGreedy:
+      aDirector = GamePlayDirector::TapStyle();
       aMoveBehavior = kTap;
       aMovePolicy = kGreedy;
       aMatchBehavior = kIsland;
-      aName = "IslandTapGreedy";
+      aIsCascading = true;
+      aTileTypeCount = 4;
+      aName = "Tea Time Tumble [IT4G]";
       break;
-    case StreakSwapRandom:
+    case StreakSwapFourGreedy:
       aDirector = GamePlayDirector::MatchThreeStyle();
       aMoveBehavior = kSwap;
-      aMovePolicy = kRandom;
+      aMovePolicy = kGreedy;
       aMatchBehavior = kStreak;
-      aName = "StreakSwapRandom";
+      aTileTypeCount = 4;
+      aName = "Knit Pickers [SS4G]";
       break;
-    case StreakSlideRandom:
+    case StreakTapFourGreedy:
+      aDirector = GamePlayDirector::TapStyle();
+      aMoveBehavior = kTap;
+      aMovePolicy = kGreedy;
+      aMatchBehavior = kStreak;
+      aIsCascading = true;
+      aTileTypeCount = 4;
+      aName = "King's Castle Quest [ST4G]";
+      break;
+    case IslandSwapFiveGreedy:
       aDirector = GamePlayDirector::MatchThreeStyle();
-      aMoveBehavior = kSlide;
-      aMovePolicy = kRandom;
-      aMatchBehavior = kStreak;
-      aName = "StreakSlideRandom";
+      aMoveBehavior = kSwap;
+      aMovePolicy = kGreedy;
+      aMatchBehavior = kIsland;
+      aTileTypeCount = 5;
+      aName = "Relic Runes [IS5G]";
       break;
-    case IslandSwapRandom:
+    case IslandTapFiveGreedy:
+      aDirector = GamePlayDirector::TapStyle();
+      aMoveBehavior = kTap;
+      aMovePolicy = kGreedy;
+      aMatchBehavior = kIsland;
+      aIsCascading = true;
+      aTileTypeCount = 5;
+      aName = "Spooky Hallow [IT5G]";
+      break;
+    case StreakSwapFiveGreedy:
+      aDirector = GamePlayDirector::MatchThreeStyle();
+      aMoveBehavior = kSwap;
+      aMovePolicy = kGreedy;
+      aMatchBehavior = kStreak;
+      aTileTypeCount = 5;
+      aName = "Totem Topple [SS5G]";
+      break;
+    case StreakTapFiveGreedy:
+      aDirector = GamePlayDirector::TapStyle();
+      aMoveBehavior = kTap;
+      aMovePolicy = kGreedy;
+      aMatchBehavior = kStreak;
+      aIsCascading = true;
+      aTileTypeCount = 5;
+      aName = "Lady Bugs Blitz [ST5G]";
+      break;
+    case IslandSwapFourRandom:
       aDirector = GamePlayDirector::MatchThreeStyle();
       aMoveBehavior = kSwap;
       aMovePolicy = kRandom;
       aMatchBehavior = kIsland;
-      aName = "IslandSwapRandom";
+      aTileTypeCount = 4;
+      aName = "Glow Worm [IS4R]";
       break;
-    case IslandSlideRandom:
-      aDirector = GamePlayDirector::MatchThreeStyle();
-      aMoveBehavior = kSlide;
+    case IslandTapFourRandom:
+      aDirector = GamePlayDirector::TapStyle();
+      aMoveBehavior = kTap;
       aMovePolicy = kRandom;
       aMatchBehavior = kIsland;
-      aName = "IslandSlideRandom";
+      aIsCascading = true;
+      aTileTypeCount = 4;
+      aName = "Prism Ploppers [IT4R]";
       break;
-    case StreakTapRandom:
-      aDirector = GamePlayDirector::CollapseStyle();
+    case StreakSwapFourRandom:
+      aDirector = GamePlayDirector::MatchThreeStyle();
+      aMoveBehavior = kSwap;
+      aMovePolicy = kRandom;
+      aMatchBehavior = kStreak;
+      aTileTypeCount = 4;
+      aName = "Flux Fusion [SS4R]";
+      break;
+    case StreakTapFourRandom:
+      aDirector = GamePlayDirector::TapStyle();
       aMoveBehavior = kTap;
       aMovePolicy = kRandom;
       aMatchBehavior = kStreak;
-      aName = "StreakTapRandom";
+      aIsCascading = true;
+      aTileTypeCount = 4;
+      aName = "Coral Crushers [ST4R]";
       break;
-    case IslandTapRandom:
-      aDirector = GamePlayDirector::CollapseStyle();
+    case IslandSwapFiveRandom:
+      aDirector = GamePlayDirector::MatchThreeStyle();
+      aMoveBehavior = kSwap;
+      aMovePolicy = kRandom;
+      aMatchBehavior = kIsland;
+      aTileTypeCount = 5;
+      aName = "Magma Meltdown [IS5R]";
+      break;
+    case IslandTapFiveRandom:
+      aDirector = GamePlayDirector::TapStyle();
       aMoveBehavior = kTap;
       aMovePolicy = kRandom;
       aMatchBehavior = kIsland;
-      aName = "IslandTapRandom";
+      aIsCascading = true;
+      aTileTypeCount = 5;
+      aName = "Frost Fragment [IT5R]";
       break;
-    case StreakSwapFirst:
+    case StreakSwapFiveRandom:
       aDirector = GamePlayDirector::MatchThreeStyle();
       aMoveBehavior = kSwap;
-      aMovePolicy = kFirst;
+      aMovePolicy = kRandom;
       aMatchBehavior = kStreak;
-      aName = "StreakSwapFirst";
+      aTileTypeCount = 5;
+      aName = "Coffee Cubes [SS5R]";
       break;
-    case StreakSlideFirst:
-      aDirector = GamePlayDirector::MatchThreeStyle();
-      aMoveBehavior = kSlide;
-      aMovePolicy = kFirst;
+    case StreakTapFiveRandom:
+      aDirector = GamePlayDirector::TapStyle();
+      aMoveBehavior = kTap;
+      aMovePolicy = kRandom;
       aMatchBehavior = kStreak;
-      aName = "StreakSlideFirst";
-      break;
-    case IslandSwapFirst:
-      aDirector = GamePlayDirector::MatchThreeStyle();
-      aMoveBehavior = kSwap;
-      aMovePolicy = kFirst;
-      aMatchBehavior = kIsland;
-      aName = "IslandSwapFirst";
-      break;
-    case IslandSlideFirst:
-      aDirector = GamePlayDirector::MatchThreeStyle();
-      aMoveBehavior = kSlide;
-      aMovePolicy = kFirst;
-      aMatchBehavior = kIsland;
-      aName = "IslandSlideFirst";
+      aIsCascading = true;
+      aTileTypeCount = 5;
+      aName = "Wizard Smash [ST5R]";
       break;
     default:
       std::abort();
   }
 
   mGameIndex = pGameIndex;
+  mTileTypeCount = aTileTypeCount;
   mGameName = aName;
   SetGamePlayDirector(aDirector);
   SetMoveBehavior(aMoveBehavior);
   SetMovePolicy(aMovePolicy);
   SetMatchBehavior(aMatchBehavior);
+  SetIsCascading(aIsCascading);
 }
 
 GameTile* GameBoard::AcquireTile() {
   if (mTileStack == nullptr) {
     ++mBrokenCount;
-    RecordGameStateOverflowCatastrophic();
+    ++mRuntimeStats.mInconsistentStateA;
+    RecordGameStateOverflowCatastrophic(kCatastropheCaseA);
     return nullptr;
   }
 
@@ -425,6 +531,27 @@ GameTile* GameBoard::AcquireTile() {
   mTileStack = mTileStack->mNext;
   aTile->mNext = nullptr;
   return aTile;
+}
+
+void GameBoard::CheckSpecialEvents() {
+  if (!HasPendingMatches()) {
+    return;
+  }
+
+  if (GetRand(256) == 64U && GetRand(40) < 18U) {
+    ++mRuntimeStats.mDragonAttack;
+    DragonAttack();
+  }
+
+  if (GetRand(256) == 92U && GetRand(58) < 22U) {
+    ++mRuntimeStats.mPhoenixAttack;
+    PhoenixAttack();
+  }
+
+  if (GetRand(100) == 50U && GetRand(60) == 40U && GetRand(20) == 7U) {
+    ++mRuntimeStats.mWyvernAttack;
+    WyvernAttack();
+  }
 }
 
 void GameBoard::ReleaseTile(GameTile* pTile) {
@@ -448,7 +575,7 @@ GameTile* GameBoard::GenerateTile(int pGridX, int pGridY) {
   }
 
   const unsigned char aTypeByte = NextTypeByte();
-  const unsigned char aType = static_cast<unsigned char>(aTypeByte % static_cast<unsigned char>(kTypeCount));
+  const unsigned char aType = static_cast<unsigned char>(aTypeByte % static_cast<unsigned char>(mTileTypeCount));
   const unsigned char aByte = SeedDequeue();
   GamePowerUpType aPowerUpType = GamePowerUpType::kNone;
   if (aTypeByte < kPowerUpSpawnChance) {
@@ -465,6 +592,17 @@ void GameBoard::ClearBoard() {
       if (mGrid[aX][aY] != nullptr) {
         ReleaseTile(mGrid[aX][aY]);
         mGrid[aX][aY] = nullptr;
+      }
+    }
+  }
+}
+
+void GameBoard::ClearFrozenTiles() {
+  for (int aY = 0; aY < kGridHeight; ++aY) {
+    for (int aX = 0; aX < kGridWidth; ++aX) {
+      GameTile* aTile = MutableTileAt(aX, aY);
+      if (aTile != nullptr) {
+        aTile->mFrozen = false;
       }
     }
   }
@@ -523,6 +661,19 @@ void GameBoard::MarkTileMatched(int pGridX, int pGridY) {
 }
 
 void GameBoard::ToppleStep() {
+  mToppleSearchCount = 0;
+  for (int aIndex = 0; aIndex < kGridSize; ++aIndex) {
+    mToppleChanged[aIndex] = 0U;
+    mToppleSearchMask[aIndex] = 0U;
+  }
+
+  auto MarkToppleChanged = [&](int pX, int pY) {
+    if (pX < 0 || pX >= kGridWidth || pY < 0 || pY >= kGridHeight) {
+      return;
+    }
+    mToppleChanged[pY * kGridWidth + pX] = 1U;
+  };
+
   for (int aX = 0; aX < kGridWidth; ++aX) {
     int aWriteY = kGridHeight - 1;
     for (int aY = kGridHeight - 1; aY >= 0; --aY) {
@@ -531,6 +682,8 @@ void GameBoard::ToppleStep() {
         continue;
       }
       if (aY != aWriteY) {
+        MarkToppleChanged(aX, aY);
+        MarkToppleChanged(aX, aWriteY);
         mGrid[aX][aWriteY] = aTile;
         mGrid[aX][aY] = nullptr;
         aTile->mGridX = aX;
@@ -541,6 +694,32 @@ void GameBoard::ToppleStep() {
 
     for (int aY = aWriteY; aY >= 0; --aY) {
       mGrid[aX][aY] = GenerateTile(aX, aY);
+      MarkToppleChanged(aX, aY);
+    }
+  }
+
+  for (int aFlat = 0; aFlat < kGridSize; ++aFlat) {
+    if (mToppleChanged[aFlat] == 0U) {
+      continue;
+    }
+
+    const int aX = aFlat % kGridWidth;
+    const int aY = aFlat / kGridWidth;
+    for (int aDY = -1; aDY <= 1; ++aDY) {
+      for (int aDX = -1; aDX <= 1; ++aDX) {
+        const int aNX = aX + aDX;
+        const int aNY = aY + aDY;
+        if (aNX < 0 || aNX >= kGridWidth || aNY < 0 || aNY >= kGridHeight) {
+          continue;
+        }
+
+        const int aNeighborFlat = aNY * kGridWidth + aNX;
+        if (mToppleSearchMask[aNeighborFlat] != 0U) {
+          continue;
+        }
+        mToppleSearchMask[aNeighborFlat] = 1U;
+        ++mToppleSearchCount;
+      }
     }
   }
 }
@@ -837,9 +1016,6 @@ int GameBoard::SelectMoveIndex() {
   if (mMoveListCount <= 0) {
     return -1;
   }
-  if (mMovePolicy == kFirst) {
-    return 0;
-  }
   if (mMovePolicy == kGreedy) {
     int aBestIndex = 0;
     int aBestScore = mMoveListScore[0];
@@ -867,32 +1043,6 @@ void GameBoard::SwapTiles(int pX1, int pY1, int pX2, int pY2) {
   if (aTileB != nullptr) {
     aTileB->mGridX = pX1;
     aTileB->mGridY = pY1;
-  }
-}
-
-void GameBoard::CollectSlideMoves() {
-  for (int aRow = 0; aRow < kGridHeight; ++aRow) {
-    for (int aAmount = 1; aAmount <= 7; ++aAmount) {
-      const int aDir = -aAmount;
-      SlideRow(aRow, aDir);
-      const int aScore = EvaluateCurrentMatches();
-      if (aScore > 0) {
-        (void)PushMoveCandidate(aRow, 0, true, aDir, aScore);
-      }
-      SlideRow(aRow, -aDir);
-    }
-  }
-
-  for (int aCol = 0; aCol < kGridWidth; ++aCol) {
-    for (int aAmount = 1; aAmount <= 7; ++aAmount) {
-      const int aDir = -aAmount;
-      SlideColumn(aCol, aDir);
-      const int aScore = EvaluateCurrentMatches();
-      if (aScore > 0) {
-        (void)PushMoveCandidate(aCol, 0, false, aDir, aScore);
-      }
-      SlideColumn(aCol, -aDir);
-    }
   }
 }
 
@@ -959,9 +1109,7 @@ void GameBoard::CollectTapMoves() {
 
 bool GameBoard::EnumerateMoves() {
   ResetMoveList();
-  if (mMoveBehavior == kSlide) {
-    CollectSlideMoves();
-  } else if (mMoveBehavior == kSwap) {
+  if (mMoveBehavior == kSwap) {
     CollectSwapMoves();
   } else {
     CollectTapMoves();
@@ -971,15 +1119,6 @@ bool GameBoard::EnumerateMoves() {
 
 void GameBoard::ApplyMoveAt(int pMoveIndex) {
   if (pMoveIndex < 0 || pMoveIndex >= mMoveListCount) {
-    return;
-  }
-
-  if (mMoveBehavior == kSlide) {
-    if (mMoveListHorizontal[pMoveIndex]) {
-      SlideRow(mMoveListX[pMoveIndex], mMoveListDir[pMoveIndex]);
-    } else {
-      SlideColumn(mMoveListX[pMoveIndex], mMoveListDir[pMoveIndex]);
-    }
     return;
   }
 
@@ -1004,7 +1143,7 @@ void GameBoard::ShuffleAllTiles() {
       if (aTile == nullptr) {
         continue;
       }
-      aTile->mType = static_cast<unsigned char>(GetRand(kTypeCount));
+      aTile->mType = static_cast<unsigned char>(GetRand(mTileTypeCount));
     }
   }
 }
@@ -1062,14 +1201,42 @@ bool GameBoard::HasPendingMatches() const {
 
 int GameBoard::MatchesCommit() {
   const int aMatchCount = mMatchListCount;
-  ShuffleXY(mMatchListX, mMatchListY, aMatchCount);
-
-  int aCommitted = 0;
+  GameTile* aMatchedTiles[kGridSize] = {};
+  int aMatchedTileCount = 0;
   for (int aIndex = 0; aIndex < aMatchCount; ++aIndex) {
     const int aX = mMatchListX[aIndex];
     const int aY = mMatchListY[aIndex];
-    GameTile* aTile = mGrid[aX][aY];
+    if (aX < 0 || aX >= kGridWidth || aY < 0 || aY >= kGridHeight) {
+      continue;
+    }
+    GameTile* const aTile = mGrid[aX][aY];
     if (aTile == nullptr) {
+      continue;
+    }
+    aMatchedTiles[aMatchedTileCount] = aTile;
+    ++aMatchedTileCount;
+  }
+  mMatchListCount = 0;
+
+  for (int aIndex = aMatchedTileCount - 1; aIndex > 0; --aIndex) {
+    const int aSwapIndex = static_cast<int>(GetRand(aIndex + 1));
+    GameTile* const aTemp = aMatchedTiles[aIndex];
+    aMatchedTiles[aIndex] = aMatchedTiles[aSwapIndex];
+    aMatchedTiles[aSwapIndex] = aTemp;
+  }
+
+  int aCommitted = 0;
+  for (int aIndex = 0; aIndex < aMatchedTileCount; ++aIndex) {
+    GameTile* const aTile = aMatchedTiles[aIndex];
+    if (aTile == nullptr) {
+      continue;
+    }
+    const int aX = aTile->mGridX;
+    const int aY = aTile->mGridY;
+    if (aX < 0 || aX >= kGridWidth || aY < 0 || aY >= kGridHeight) {
+      continue;
+    }
+    if (mGrid[aX][aY] != aTile) {
       continue;
     }
     EnqueueByte(aTile->mByte);
@@ -1077,7 +1244,6 @@ int GameBoard::MatchesCommit() {
     ReleaseTile(aTile);
     ++aCommitted;
   }
-  mMatchListCount = 0;
   return aCommitted;
 }
 
@@ -1125,65 +1291,26 @@ bool GameBoard::TriggerMatchedPowerUps() {
   return aTriggered;
 }
 
-void GameBoard::Match() {
+int GameBoard::Match() {
+  int aCommittedTotal = 0;
   if (!HasPendingMatches()) {
     (void)GetMatches();
   }
-  if (HasPendingMatches()) {
+  int aResolutionLoop = 0;
+  while (HasPendingMatches()) {
+    CheckSpecialEvents();
     while (TriggerMatchedPowerUps()) {
     }
-    (void)MatchesCommit();
-  }
-}
-
-void GameBoard::SlideRow(int pRowIndex, int pAmount) {
-  if (pRowIndex < 0 || pRowIndex >= kGridHeight || pAmount == 0) {
-    return;
-  }
-  int aShift = pAmount % kGridWidth;
-  if (aShift < 0) {
-    aShift += kGridWidth;
-  }
-  if (aShift == 0) {
-    return;
-  }
-
-  GameTile* aTemp[kGridWidth] = {};
-  for (int aX = 0; aX < kGridWidth; ++aX) {
-    aTemp[(aX + aShift) % kGridWidth] = mGrid[aX][pRowIndex];
-  }
-  for (int aX = 0; aX < kGridWidth; ++aX) {
-    mGrid[aX][pRowIndex] = aTemp[aX];
-    if (mGrid[aX][pRowIndex] != nullptr) {
-      mGrid[aX][pRowIndex]->mGridX = aX;
-      mGrid[aX][pRowIndex]->mGridY = pRowIndex;
+    aCommittedTotal += MatchesCommit();
+    ++aResolutionLoop;
+    if (aResolutionLoop > kVeryLargeEnsureIterations) {
+      ++mBrokenCount;
+      ++mRuntimeStats.mInconsistentStateL;
+      RecordGameStateOverflowCatastrophic(kCatastropheCaseA);
+      break;
     }
   }
-}
-
-void GameBoard::SlideColumn(int pColumnIndex, int pAmount) {
-  if (pColumnIndex < 0 || pColumnIndex >= kGridWidth || pAmount == 0) {
-    return;
-  }
-  int aShift = pAmount % kGridHeight;
-  if (aShift < 0) {
-    aShift += kGridHeight;
-  }
-  if (aShift == 0) {
-    return;
-  }
-
-  GameTile* aTemp[kGridHeight] = {};
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    aTemp[(aY + aShift) % kGridHeight] = mGrid[pColumnIndex][aY];
-  }
-  for (int aY = 0; aY < kGridHeight; ++aY) {
-    mGrid[pColumnIndex][aY] = aTemp[aY];
-    if (mGrid[pColumnIndex][aY] != nullptr) {
-      mGrid[pColumnIndex][aY]->mGridX = pColumnIndex;
-      mGrid[pColumnIndex][aY]->mGridY = aY;
-    }
-  }
+  return aCommittedTotal;
 }
 
 void GameBoard::Topple() {
@@ -1191,7 +1318,8 @@ void GameBoard::Topple() {
   ToppleStep();
   if (!ResolveBoardState_PostTopple()) {
     ++mBrokenCount;
-    RecordGameStateOverflowCatastrophic();
+    ++mRuntimeStats.mInconsistentStateC;
+    RecordGameStateOverflowCatastrophic(kCatastropheCaseC);
   }
 }
 
@@ -1206,7 +1334,7 @@ void GameBoard::Stuck() {
       }
     }
   }
-  Match();
+  (void)Match();
 }
 
 void GameBoard::Spawn() {
@@ -1220,14 +1348,21 @@ void GameBoard::Spawn() {
 
   if (!ResolveBoardState_PostSpawn()) {
     ++mBrokenCount;
-    RecordGameStateOverflowCatastrophic();
+    ++mRuntimeStats.mInconsistentStateB;
+    RecordGameStateOverflowCatastrophic(kCatastropheCaseB);
   }
   InvalidateMatches();
 }
 
 bool GameBoard::MakeMoves() {
   if (!EnumerateMoves()) {
-    return false;
+    if (mMoveBehavior == kTap) {
+      if (!ResolveBoardState_PostSpawn() || !EnumerateMoves()) {
+        return false;
+      }
+    } else {
+      return false;
+    }
   }
 
   const int aPick = SelectMoveIndex();
@@ -1253,20 +1388,10 @@ bool GameBoard::PlayMainLoop() {
     return true;
   }
 
-  if (GetRand(256) == 86U && GetRand(128) < 16U) {
-    ++mRuntimeStats.mRiddlerAttack;
-    RiddlerAttack();
-  }
-
-  if ((GetRand(256) == 60U) && GetRand(128) < 16U) {
-    ++mRuntimeStats.mDragonAttack;
-    DragonAttack();
-  }
-
   int aResolveLoopCount = 0;
   bool aFirstMatchInTurn = true;
-  while (HasAnyMatches()) {
-    const unsigned int aWriteProgressBefore = mResultBufferWriteProgress;
+  while (HasPendingMatches() || HasAnyMatches()) {
+    const std::uint64_t aWriteCheckpoint = ResultWriteCheckpoint();
     ++aResolveLoopCount;
     if (aFirstMatchInTurn) {
       if (aMoveApplied) {
@@ -1276,14 +1401,14 @@ bool GameBoard::PlayMainLoop() {
     } else {
       ++mRuntimeStats.mCascadeMatch;
     }
-    Match();
+    (void)Match();
     Topple();
-    Cascade();
-
-    if (mResultBufferWriteProgress == aWriteProgressBefore) {
+    if (!mIsCascading) {
       break;
     }
-    if (!mIsCascading) {
+    Cascade();
+
+    if (!DidResultBufferMove(aWriteCheckpoint)) {
       break;
     }
     if (ActiveTileCount() < kGridSize) {
@@ -1294,7 +1419,8 @@ bool GameBoard::PlayMainLoop() {
     }
     if (aResolveLoopCount > kVeryLargeEnsureIterations) {
       ++mBrokenCount;
-      RecordGameStateOverflowCatastrophic();
+      ++mRuntimeStats.mInconsistentStateM;
+      RecordGameStateOverflowCatastrophic(kCatastropheCaseA);
       Stuck();
       break;
     }
@@ -1320,25 +1446,26 @@ void GameBoard::Play() {
   Spawn();
 
   int aSuspendedLoop = 0;
-  while (mResultBufferWriteProgress < mResultBufferLength && aSuspendedLoop < kSuspendedThreshold) {
-    mCataclysmWriteIndex = mResultBufferWriteIndex;
+  while (!IsResultBufferComplete() && aSuspendedLoop < kSuspendedThreshold) {
+    const std::uint64_t aWriteCheckpoint = ResultWriteCheckpoint();
 
     int aLockedLoop = 0;
     while (aLockedLoop < kMaxLockedThreshold) {
       if (!PlayMainLoop()) {
         return;
       }
-      if (mResultBufferWriteIndex != mCataclysmWriteIndex) {
+      if (DidResultBufferMove(aWriteCheckpoint)) {
         break;
       }
       ++aLockedLoop;
     }
 
-    if (mResultBufferWriteIndex != mCataclysmWriteIndex) {
+    if (DidResultBufferMove(aWriteCheckpoint)) {
       aSuspendedLoop = 0;
       continue;
     }
 
+    ++mRuntimeStats.mInconsistentStateN;
     RecordGameStateOverflowCataclysmic();
     ShuffleAllTiles();
     InvalidateMatches();
@@ -1346,6 +1473,7 @@ void GameBoard::Play() {
   }
 
   if (aSuspendedLoop >= kSuspendedThreshold) {
+    ++mRuntimeStats.mInconsistentStateO;
     RecordGameStateOverflowApocalypse();
     ApocalypseScenario();
   }

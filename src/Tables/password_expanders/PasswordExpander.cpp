@@ -1,5 +1,6 @@
 #include "PasswordExpander.hpp"
 
+#include <array>
 #include <cstdlib>
 #include <cstring>
 
@@ -53,6 +54,18 @@ void PasswordExpander::ExpandPassword(Type pType,
   ExpandPasswordByIndex(static_cast<unsigned char>(pType), pSource, pWorker, pDestination, pLength);
 }
 
+void PasswordExpander::ExpandPassword(
+    Type pType,
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDestination,
+    unsigned char (&pKeyBuffer)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+    unsigned int pLength) {
+  ExpandPasswordByIndex(
+      static_cast<unsigned char>(pType), pSource, pWorker, pDestination, pKeyBuffer, pNextRoundKeyBuffer, pLength);
+}
+
 void PasswordExpander::ExpandPasswordBlocks(Type pType,
                                             unsigned char* pSource,
                                             unsigned int pSourceLength,
@@ -67,11 +80,43 @@ void PasswordExpander::ExpandPasswordBlocks(Type pType,
                               pOutputLength);
 }
 
+void PasswordExpander::ExpandPasswordBlocks(
+    Type pType,
+    unsigned char* pSource,
+    unsigned int pSourceLength,
+    unsigned char* pWorker,
+    unsigned char* pDestination,
+    unsigned char (&pKeyBuffer)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+    unsigned int pOutputLength) {
+  ExpandPasswordBlocksByIndex(static_cast<unsigned char>(pType),
+                              pSource,
+                              pSourceLength,
+                              pWorker,
+                              pDestination,
+                              pKeyBuffer,
+                              pNextRoundKeyBuffer,
+                              pOutputLength);
+}
+
 void PasswordExpander::ExpandPasswordByIndex(unsigned char pType,
                                              unsigned char* pSource,
                                              unsigned char* pWorker,
                                              unsigned char* pDestination,
                                              unsigned int pLength) {
+  unsigned char aKeyBuffer[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes]{};
+  unsigned char aNextRoundKeyBuffer[twist::kRoundKeyBytes]{};
+  ExpandPasswordByIndex(pType, pSource, pWorker, pDestination, aKeyBuffer, aNextRoundKeyBuffer, pLength);
+}
+
+void PasswordExpander::ExpandPasswordByIndex(
+    unsigned char pType,
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDestination,
+    unsigned char (&pKeyBuffer)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+    unsigned int pLength) {
   if (pDestination == nullptr) {
     return;
   }
@@ -79,9 +124,11 @@ void PasswordExpander::ExpandPasswordByIndex(unsigned char pType,
     std::abort();
   }
 
-  FillRepeatedSource(pSource, pLength, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE), pDestination);
-  ByteTwister::TwistBytesByIndex(pType, pDestination, pWorker, pDestination,
-                                 static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aSourceBuffer{};
+  FillRepeatedSource(pSource, pLength, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE), aSourceBuffer.data());
+  ByteTwister::TwistBytesByIndex(
+      pType, aSourceBuffer.data(), pWorker, pDestination, pKeyBuffer, pNextRoundKeyBuffer,
+      static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
 }
 
 void PasswordExpander::ExpandPasswordBlocksByIndex(unsigned char pType,
@@ -90,6 +137,21 @@ void PasswordExpander::ExpandPasswordBlocksByIndex(unsigned char pType,
                                                    unsigned char* pWorker,
                                                    unsigned char* pDestination,
                                                    unsigned int pOutputLength) {
+  unsigned char aKeyBuffer[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes]{};
+  unsigned char aNextRoundKeyBuffer[twist::kRoundKeyBytes]{};
+  ExpandPasswordBlocksByIndex(
+      pType, pSource, pSourceLength, pWorker, pDestination, aKeyBuffer, aNextRoundKeyBuffer, pOutputLength);
+}
+
+void PasswordExpander::ExpandPasswordBlocksByIndex(
+    unsigned char pType,
+    unsigned char* pSource,
+    unsigned int pSourceLength,
+    unsigned char* pWorker,
+    unsigned char* pDestination,
+    unsigned char (&pKeyBuffer)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+    unsigned int pOutputLength) {
   if (pDestination == nullptr) {
     return;
   }
@@ -98,13 +160,10 @@ void PasswordExpander::ExpandPasswordBlocksByIndex(unsigned char pType,
     std::abort();
   }
 
-  FillRepeatedSource(pSource, pSourceLength, kBlockLength, pDestination);
-  ByteTwister::TwistBytesByIndex(pType, pDestination, pWorker, pDestination, kBlockLength);
-
-  for (unsigned int aOffset = kBlockLength; aOffset < pOutputLength; aOffset += kBlockLength) {
-    std::memcpy(pDestination + aOffset, pDestination + (aOffset - kBlockLength), static_cast<std::size_t>(kBlockLength));
-    ByteTwister::TwistBytesByIndex(pType, pDestination + aOffset, pWorker, pDestination + aOffset, kBlockLength);
-  }
+  std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aSourceBuffer{};
+  FillRepeatedSource(pSource, pSourceLength, kBlockLength, aSourceBuffer.data());
+  ByteTwister::TwistBytesByIndex(
+      pType, aSourceBuffer.data(), pWorker, pDestination, pKeyBuffer, pNextRoundKeyBuffer, pOutputLength);
 }
 
 }  // namespace peanutbutter::expansion::key_expansion

@@ -21,29 +21,37 @@ FastRand::FastRand()
       mFastRandomBuffer{},
       mFastRandomIndex(0U),
       mWrapCount(0U),
-      mCurrentTwistType(0U) {}
+      mCurrentTwistType(0U),
+      mSaltBuffer{},
+      mKeyStack{},
+      mNextRoundKeyBuffer{} {}
 
 void FastRand::Seed(unsigned char* pPassword, int pPasswordLength) {
   BuildSampleBuffer(pPassword, pPasswordLength);
   mCurrentTwistType = SelectTwistTypeFromBuffer(mSampleBuffer);
-  if (pPassword != nullptr && pPasswordLength > 0) {
-    const unsigned int aSeedLength =
-        (pPasswordLength < static_cast<int>(PASSWORD_EXPANDED_SIZE)) ? static_cast<unsigned int>(pPasswordLength)
-                                                                     : static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE);
-    peanutbutter::expansion::key_expansion::PasswordExpander::ExpandPasswordByIndex(
-        mCurrentTwistType,
-        pPassword,
-        mBufferTemp,
-        mFastRandomBuffer,
-        aSeedLength);
-  } else {
-    peanutbutter::expansion::key_expansion::PasswordExpander::ExpandPasswordByIndex(
-        mCurrentTwistType,
-        mSampleBuffer,
-        mBufferTemp,
-        mFastRandomBuffer,
-        PASSWORD_EXPANDED_SIZE);
-  }
+  std::memset(mKeyStack, 0, sizeof(mKeyStack));
+  std::memset(mNextRoundKeyBuffer, 0, sizeof(mNextRoundKeyBuffer));
+  std::memset(mSaltBuffer, 0, sizeof(mSaltBuffer));
+  peanutbutter::expansion::key_expansion::ByteTwister::SeedKeyByIndex(
+      mCurrentTwistType, mSampleBuffer, mKeyStack, PASSWORD_EXPANDED_SIZE);
+  peanutbutter::expansion::key_expansion::ByteTwister::SeedSaltByIndex(
+      mCurrentTwistType, mSampleBuffer, mSaltBuffer, PASSWORD_EXPANDED_SIZE);
+  peanutbutter::expansion::key_expansion::ByteTwister::TwistBlockByIndex(
+      mCurrentTwistType,
+      mSampleBuffer,
+      mBufferTemp,
+      mFastRandomBuffer,
+      0U,
+      mSaltBuffer,
+      mKeyStack,
+      PASSWORD_EXPANDED_SIZE);
+  peanutbutter::expansion::key_expansion::ByteTwister::PushKeyRoundByIndex(
+      mCurrentTwistType,
+      mFastRandomBuffer,
+      mSaltBuffer,
+      mKeyStack,
+      mNextRoundKeyBuffer,
+      PASSWORD_EXPANDED_SIZE);
   mFastRandomIndex = 0U;
   mWrapCount = 0U;
 }
@@ -98,6 +106,13 @@ unsigned int FastRand::GetInt() {
   return aValue;
 }
 
+unsigned int FastRand::NextRand(int pMax) {
+  if (pMax <= 0) {
+    return 0U;
+  }
+  return GetInt() % static_cast<unsigned int>(pMax);
+}
+
 std::uint64_t FastRand::WrapCount() const {
   return mWrapCount;
 }
@@ -111,8 +126,24 @@ void FastRand::Wrap() {
 
   mCurrentTwistType = SelectTwistTypeFromBuffer(mFastRandomBuffer);
   std::memcpy(mSampleBuffer, mFastRandomBuffer, sizeof(mSampleBuffer));
-  peanutbutter::expansion::key_expansion::ByteTwister::TwistBytesByIndex(
-      mCurrentTwistType, mSampleBuffer, mBufferTemp, mFastRandomBuffer, PASSWORD_EXPANDED_SIZE);
+  peanutbutter::expansion::key_expansion::ByteTwister::SeedSaltByIndex(
+      mCurrentTwistType, mSampleBuffer, mSaltBuffer, PASSWORD_EXPANDED_SIZE);
+  peanutbutter::expansion::key_expansion::ByteTwister::TwistBlockByIndex(
+      mCurrentTwistType,
+      mSampleBuffer,
+      mBufferTemp,
+      mFastRandomBuffer,
+      static_cast<unsigned int>(mWrapCount),
+      mSaltBuffer,
+      mKeyStack,
+      PASSWORD_EXPANDED_SIZE);
+  peanutbutter::expansion::key_expansion::ByteTwister::PushKeyRoundByIndex(
+      mCurrentTwistType,
+      mFastRandomBuffer,
+      mSaltBuffer,
+      mKeyStack,
+      mNextRoundKeyBuffer,
+      PASSWORD_EXPANDED_SIZE);
   mFastRandomIndex = 0U;
 }
 

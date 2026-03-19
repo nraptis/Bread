@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "../../PeanutButter.hpp"
+#include "../password_expanders/ByteTwister.hpp"
 
 namespace peanutbutter::fast_rand {
 
@@ -19,6 +20,7 @@ class FastRand {
   unsigned char Get();
   unsigned char Get(int pMax);
   unsigned int GetInt();
+  unsigned int NextRand(int pMax);
   std::uint64_t WrapCount() const;
   unsigned char CurrentTwistType() const;
 
@@ -33,6 +35,9 @@ class FastRand {
   unsigned int mFastRandomIndex;
   std::uint64_t mWrapCount;
   unsigned char mCurrentTwistType;
+  unsigned char mSaltBuffer[twist::kSaltBytes];
+  unsigned char mKeyStack[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes];
+  unsigned char mNextRoundKeyBuffer[twist::kRoundKeyBytes];
 };
 
 }  // namespace peanutbutter::fast_rand

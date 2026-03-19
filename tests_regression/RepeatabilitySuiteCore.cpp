@@ -35,7 +35,8 @@ bool RunGameRepeatabilityCase(const peanutbutter::tests::games::GameCatalogEntry
                              int pDataLength,
                              int* pMoveTotal,
                              int* pBrokenTotal,
-                             std::uint64_t* pDigest) {
+                             std::uint64_t* pDigest,
+                             peanutbutter::games::GameBoard::RuntimeStats* pRuntimeTotals) {
   for (int aLoop = 0; aLoop < pLoops; ++aLoop) {
     std::vector<unsigned char> aInput(static_cast<std::size_t>(pDataLength), 0U);
     std::vector<unsigned char> aOutputA(static_cast<std::size_t>(pDataLength), 0U);
@@ -76,6 +77,9 @@ bool RunGameRepeatabilityCase(const peanutbutter::tests::games::GameCatalogEntry
     }
     if (pBrokenTotal != nullptr) {
       *pBrokenTotal += aSummaryA.mBrokenCount;
+    }
+    if (pRuntimeTotals != nullptr) {
+      peanutbutter::tests::games::AccumulateRuntimeStats(aSummaryA.mRuntimeStats, pRuntimeTotals);
     }
     if (pDigest != nullptr) {
       for (unsigned char aByte : aOutputA) {
@@ -118,10 +122,12 @@ bool RunGameRepeatabilityMode(int pLoops, int pDataLength, bool pRunFull) {
   int aMoveTotal = 0;
   int aBrokenTotal = 0;
   std::uint64_t aDigest = 1469598103934665603ULL;
+  peanutbutter::games::GameBoard::RuntimeStats aRuntimeTotals{};
 
   bool aOk = true;
   for (const peanutbutter::tests::games::GameCatalogEntry& aEntry : peanutbutter::tests::games::kAllGames) {
-    if (!RunGameRepeatabilityCase(aEntry, pLoops, pDataLength, &aMoveTotal, &aBrokenTotal, &aDigest)) {
+    if (!RunGameRepeatabilityCase(aEntry, pLoops, pDataLength, &aMoveTotal, &aBrokenTotal, &aDigest,
+                                  &aRuntimeTotals)) {
       aOk = false;
       break;
     }
@@ -135,6 +141,46 @@ bool RunGameRepeatabilityMode(int pLoops, int pDataLength, bool pRunFull) {
             << " loops=" << pLoops << " bytes=" << pDataLength << " games="
             << peanutbutter::tests::games::kAllGames.size()
             << " moves=" << aMoveTotal << " broken=" << aBrokenTotal << " digest=" << aDigest << "\n";
+  std::cout << "  stuck=" << aRuntimeTotals.mStuck
+            << " topple=" << aRuntimeTotals.mTopple
+            << " user_match=" << aRuntimeTotals.mUserMatch
+            << " cascade_match=" << aRuntimeTotals.mCascadeMatch
+            << " overflow_catastrophic=" << aRuntimeTotals.mGameStateOverflowCatastrophic
+            << " catastrophe_case_a=" << aRuntimeTotals.mCatastropheCaseA
+            << " catastrophe_case_b=" << aRuntimeTotals.mCatastropheCaseB
+            << " catastrophe_case_c=" << aRuntimeTotals.mCatastropheCaseC
+            << " overflow_cataclysmic=" << aRuntimeTotals.mGameStateOverflowCataclysmic
+            << " overflow_apocalypse=" << aRuntimeTotals.mGameStateOverflowApocalypse
+            << " powerup_spawned=" << aRuntimeTotals.mPowerUpSpawned
+            << " powerup_consumed=" << aRuntimeTotals.mPowerUpConsumed
+            << " wraps=" << aRuntimeTotals.mPasswordExpanderWraps
+            << " dragon=" << aRuntimeTotals.mDragonAttack
+            << " phoenix=" << aRuntimeTotals.mPhoenixAttack
+            << " wyvern=" << aRuntimeTotals.mWyvernAttack
+            << " blue_moon_case=" << aRuntimeTotals.mBlueMoonCase
+            << " harvest_moon=" << aRuntimeTotals.mHarvestMoon
+            << " impossible=" << aRuntimeTotals.mImpossible
+            << " planted_match_solve=" << aRuntimeTotals.mPlantedMatchSolve << "\n";
+  std::cout << "  inconsistent_a=" << aRuntimeTotals.mInconsistentStateA
+            << " inconsistent_b=" << aRuntimeTotals.mInconsistentStateB
+            << " inconsistent_c=" << aRuntimeTotals.mInconsistentStateC
+            << " inconsistent_d=" << aRuntimeTotals.mInconsistentStateD
+            << " inconsistent_e=" << aRuntimeTotals.mInconsistentStateE
+            << " inconsistent_f=" << aRuntimeTotals.mInconsistentStateF
+            << " inconsistent_g=" << aRuntimeTotals.mInconsistentStateG
+            << " inconsistent_h=" << aRuntimeTotals.mInconsistentStateH
+            << " inconsistent_i=" << aRuntimeTotals.mInconsistentStateI
+            << " inconsistent_j=" << aRuntimeTotals.mInconsistentStateJ
+            << " inconsistent_k=" << aRuntimeTotals.mInconsistentStateK
+            << " inconsistent_l=" << aRuntimeTotals.mInconsistentStateL
+            << " inconsistent_m=" << aRuntimeTotals.mInconsistentStateM
+            << " inconsistent_n=" << aRuntimeTotals.mInconsistentStateN
+            << " inconsistent_o=" << aRuntimeTotals.mInconsistentStateO << "\n";
+  std::cout << "  inconsistent_flags=0x" << std::hex << std::uppercase
+            << peanutbutter::tests::games::InconsistentFlags(aRuntimeTotals)
+            << std::dec << std::nouppercase << "\n";
+  std::cout << "  game_flags=0x" << std::hex << std::uppercase
+            << peanutbutter::tests::games::RuntimeFlags(aRuntimeTotals) << std::dec << std::nouppercase << "\n";
   return true;
 }
 

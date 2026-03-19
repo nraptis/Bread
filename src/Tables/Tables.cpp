@@ -26,7 +26,8 @@ struct PuzzleGameSummary {
   std::uint64_t mPowerUpsCollected = 0U;
   std::uint64_t mCascadesTriggered = 0U;
   std::uint64_t mDragonAttacks = 0U;
-  std::uint64_t mRiddlerAttacks = 0U;
+  std::uint64_t mPhoenixAttacks = 0U;
+  std::uint64_t mWyvernAttacks = 0U;
 };
 
 struct MazeSummary {
@@ -49,10 +50,12 @@ std::string MazeSimulationName(int pGameIndex) {
 void LogPuzzleGameSummaries(Logger* pLogger,
                             const std::array<PuzzleGameSummary, peanutbutter::games::GameBoard::kGameCount>& pSummaries) {
   std::uint64_t aDragonAttacks = 0U;
-  std::uint64_t aRiddlerAttacks = 0U;
+  std::uint64_t aPhoenixAttacks = 0U;
+  std::uint64_t aWyvernAttacks = 0U;
   for (const PuzzleGameSummary& aSummary : pSummaries) {
     aDragonAttacks += aSummary.mDragonAttacks;
-    aRiddlerAttacks += aSummary.mRiddlerAttacks;
+    aPhoenixAttacks += aSummary.mPhoenixAttacks;
+    aWyvernAttacks += aSummary.mWyvernAttacks;
     if (aSummary.mCompletedGames == 0U || aSummary.mName == nullptr) {
       continue;
     }
@@ -65,7 +68,8 @@ void LogPuzzleGameSummaries(Logger* pLogger,
   }
   helpers::LogStatus(pLogger,
                      "Puzzle game rare events: " + std::to_string(aDragonAttacks) + " dragon attacks, " +
-                         std::to_string(aRiddlerAttacks) + " riddler attacks.");
+                         std::to_string(aPhoenixAttacks) + " phoenix attacks, " +
+                         std::to_string(aWyvernAttacks) + " wyvern attacks.");
 }
 
 void LogMazeSummaries(Logger* pLogger, const std::array<MazeSummary, peanutbutter::maze::MazeDirector::kGameCount>& pSummaries) {
@@ -368,7 +372,8 @@ bool Tables::Launch(const LaunchRequest& pRequest) {
         aSummary.mPowerUpsCollected += aStats.mPowerUpConsumed;
         aSummary.mCascadesTriggered += aStats.mCascadeMatch;
         aSummary.mDragonAttacks += aStats.mDragonAttack;
-        aSummary.mRiddlerAttacks += aStats.mRiddlerAttack;
+        aSummary.mPhoenixAttacks += aStats.mPhoenixAttack;
+        aSummary.mWyvernAttacks += aStats.mWyvernAttack;
         aCompletedMilliseconds += timing::ActiveTimingProfile().mGameBlockMilliseconds;
       }
     }

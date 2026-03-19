@@ -24,6 +24,9 @@ class Shuffler : public Digest {
   bool SeedCanDequeue() const;
   unsigned char SeedDequeue();
   void EnqueueByte(unsigned char pByte);
+  std::uint64_t ResultWriteCheckpoint() const;
+  bool DidResultBufferMove(std::uint64_t pCheckpoint) const;
+  bool IsResultBufferComplete() const;
 
   unsigned char mSeedBuffer[kSeedBufferCapacity];
   unsigned char mResultBufferStorage[kSeedBufferCapacity];

@@ -13,22 +13,22 @@ struct GameCatalogEntry {
 };
 
 inline constexpr std::array<GameCatalogEntry, peanutbutter::games::GameBoard::kGameCount> kAllGames = {{
-    {peanutbutter::games::GameBoard::StreakSwapGreedy, 11},
-    {peanutbutter::games::GameBoard::StreakSlideGreedy, 13},
-    {peanutbutter::games::GameBoard::IslandSwapGreedy, 17},
-    {peanutbutter::games::GameBoard::IslandSlideGreedy, 19},
-    {peanutbutter::games::GameBoard::StreakTapGreedy, 23},
-    {peanutbutter::games::GameBoard::IslandTapGreedy, 29},
-    {peanutbutter::games::GameBoard::StreakSwapRandom, 31},
-    {peanutbutter::games::GameBoard::StreakSlideRandom, 37},
-    {peanutbutter::games::GameBoard::IslandSwapRandom, 41},
-    {peanutbutter::games::GameBoard::IslandSlideRandom, 43},
-    {peanutbutter::games::GameBoard::StreakTapRandom, 47},
-    {peanutbutter::games::GameBoard::IslandTapRandom, 53},
-    {peanutbutter::games::GameBoard::StreakSwapFirst, 59},
-    {peanutbutter::games::GameBoard::StreakSlideFirst, 61},
-    {peanutbutter::games::GameBoard::IslandSwapFirst, 67},
-    {peanutbutter::games::GameBoard::IslandSlideFirst, 71},
+    {peanutbutter::games::GameBoard::IslandSwapFourGreedy, 23},
+    {peanutbutter::games::GameBoard::IslandTapFourGreedy, 29},
+    {peanutbutter::games::GameBoard::StreakSwapFourGreedy, 31},
+    {peanutbutter::games::GameBoard::StreakTapFourGreedy, 37},
+    {peanutbutter::games::GameBoard::IslandSwapFiveGreedy, 11},
+    {peanutbutter::games::GameBoard::IslandTapFiveGreedy, 13},
+    {peanutbutter::games::GameBoard::StreakSwapFiveGreedy, 17},
+    {peanutbutter::games::GameBoard::StreakTapFiveGreedy, 19},
+    {peanutbutter::games::GameBoard::IslandSwapFourRandom, 59},
+    {peanutbutter::games::GameBoard::IslandTapFourRandom, 61},
+    {peanutbutter::games::GameBoard::StreakSwapFourRandom, 67},
+    {peanutbutter::games::GameBoard::StreakTapFourRandom, 71},
+    {peanutbutter::games::GameBoard::IslandSwapFiveRandom, 41},
+    {peanutbutter::games::GameBoard::IslandTapFiveRandom, 43},
+    {peanutbutter::games::GameBoard::StreakSwapFiveRandom, 47},
+    {peanutbutter::games::GameBoard::StreakTapFiveRandom, 53},
 }};
 
 }  // namespace peanutbutter::tests::games

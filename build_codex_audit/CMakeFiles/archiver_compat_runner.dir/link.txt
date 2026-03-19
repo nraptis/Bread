@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/archiver_compat_runner.dir/tools/Archiver_compat_runner.cpp.o -o archiver_compat_runner  libpeanutbutter_core.a

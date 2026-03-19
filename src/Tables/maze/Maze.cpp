@@ -51,7 +51,7 @@ void Maze::ShuffleSeedBuffer(peanutbutter::fast_rand::FastRand* pFastRand) {
   }
 
   for (unsigned int aIndex = mResultBufferLength - 1U; aIndex > 0U; --aIndex) {
-    const unsigned int aSwapIndex = pFastRand->GetInt() % (aIndex + 1U);
+    const unsigned int aSwapIndex = pFastRand->NextRand(static_cast<int>(aIndex + 1U));
     const unsigned char aTemp = mSeedBuffer[aIndex];
     mSeedBuffer[aIndex] = mSeedBuffer[aSwapIndex];
     mSeedBuffer[aSwapIndex] = aTemp;

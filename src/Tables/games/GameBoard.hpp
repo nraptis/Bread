@@ -25,15 +25,13 @@ class GamePowerUp_VerticalBombs;
 class GamePowerUp_HorizontalBombs;
 
 enum MoveBehavior {
-  kSlide,
   kSwap,
   kTap
 };
 
 enum MovePolicy {
   kGreedy,
-  kRandom,
-  kFirst
+  kRandom
 };
 
 enum MatchBehavior {
@@ -44,22 +42,22 @@ enum MatchBehavior {
 class GameBoard : public peanutbutter::rng::Shuffler {
  public:
   enum GameIndex {
-    StreakSwapGreedy = 0,
-    StreakSlideGreedy,
-    IslandSwapGreedy,
-    IslandSlideGreedy,
-    StreakTapGreedy,
-    IslandTapGreedy,
-    StreakSwapRandom,
-    StreakSlideRandom,
-    IslandSwapRandom,
-    IslandSlideRandom,
-    StreakTapRandom,
-    IslandTapRandom,
-    StreakSwapFirst,
-    StreakSlideFirst,
-    IslandSwapFirst,
-    IslandSlideFirst
+    IslandSwapFourGreedy = 0,
+    IslandTapFourGreedy,
+    StreakSwapFourGreedy,
+    StreakTapFourGreedy,
+    IslandSwapFiveGreedy,
+    IslandTapFiveGreedy,
+    StreakSwapFiveGreedy,
+    StreakTapFiveGreedy,
+    IslandSwapFourRandom,
+    IslandTapFourRandom,
+    StreakSwapFourRandom,
+    StreakTapFourRandom,
+    IslandSwapFiveRandom,
+    IslandTapFiveRandom,
+    StreakSwapFiveRandom,
+    StreakTapFiveRandom,
   };
 
   struct RuntimeStats {
@@ -68,19 +66,42 @@ class GameBoard : public peanutbutter::rng::Shuffler {
     std::uint64_t mUserMatch = 0U;
     std::uint64_t mCascadeMatch = 0U;
     std::uint64_t mGameStateOverflowCatastrophic = 0U;
+    std::uint64_t mCatastropheCaseA = 0U;
+    std::uint64_t mCatastropheCaseB = 0U;
+    std::uint64_t mCatastropheCaseC = 0U;
     std::uint64_t mGameStateOverflowCataclysmic = 0U;
     std::uint64_t mGameStateOverflowApocalypse = 0U;
     std::uint64_t mPowerUpSpawned = 0U;
     std::uint64_t mPowerUpConsumed = 0U;
     std::uint64_t mPasswordExpanderWraps = 0U;
     std::uint64_t mDragonAttack = 0U;
-    std::uint64_t mRiddlerAttack = 0U;
+    std::uint64_t mPhoenixAttack = 0U;
+    std::uint64_t mWyvernAttack = 0U;
+    std::uint64_t mBlueMoonCase = 0U;
+    std::uint64_t mHarvestMoon = 0U;
+    std::uint64_t mImpossible = 0U;
+    std::uint64_t mPlantedMatchSolve = 0U;
+    std::uint64_t mInconsistentStateA = 0U;
+    std::uint64_t mInconsistentStateB = 0U;
+    std::uint64_t mInconsistentStateC = 0U;
+    std::uint64_t mInconsistentStateD = 0U;
+    std::uint64_t mInconsistentStateE = 0U;
+    std::uint64_t mInconsistentStateF = 0U;
+    std::uint64_t mInconsistentStateG = 0U;
+    std::uint64_t mInconsistentStateH = 0U;
+    std::uint64_t mInconsistentStateI = 0U;
+    std::uint64_t mInconsistentStateJ = 0U;
+    std::uint64_t mInconsistentStateK = 0U;
+    std::uint64_t mInconsistentStateL = 0U;
+    std::uint64_t mInconsistentStateM = 0U;
+    std::uint64_t mInconsistentStateN = 0U;
+    std::uint64_t mInconsistentStateO = 0U;
   };
 
   static constexpr int kGridWidth = 8;
   static constexpr int kGridHeight = 8;
   static constexpr int kGridSize = kGridWidth * kGridHeight;
-  static constexpr int kTypeCount = 4;
+  static constexpr int kTypeCount = 5;
   static constexpr int kGameCount = 16;
   static constexpr int kSeedBufferCapacity = PASSWORD_EXPANDED_SIZE;
   static constexpr int kMaxLockedThreshold = 32;
@@ -97,13 +118,24 @@ class GameBoard : public peanutbutter::rng::Shuffler {
 
   bool Empty() const;
   bool HasAnyMatches();
+  bool HasAnyLegalMove();
   virtual bool IsMatch(int pGridX, int pGridY);
   virtual int GetMatches();
   RuntimeStats GetRuntimeStats() const;
   const char* GetName() const;
+  int TileTypeCount() const;
+  MatchBehavior GetMatchBehavior() const;
+  const GameTile* TileAt(int pGridX, int pGridY) const;
+  GameTile* MutableTileAt(int pGridX, int pGridY);
+  void RecordBlueMoonCase();
+  void RecordHarvestMoon();
+  void RecordImpossible();
+  void RecordPlantedMatchSolve();
+  void RecordInconsistentStateD();
+  void RecordInconsistentStateE();
 
   void Stuck();
-  virtual void Match();
+  virtual int Match();
   void Topple();
   void Spawn();
   void Play();
@@ -116,9 +148,6 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   void SetMovePolicy(MovePolicy pMovePolicy);
   void SetMatchBehavior(MatchBehavior pMatchBehavior);
 
-  void SlideRow(int pRowIndex, int pAmount);
-  void SlideColumn(int pColumnIndex, int pAmount);
-
   void InvalidateMatches();
   void Cascade();
   void MarkTileMatched(int pGridX, int pGridY);
@@ -128,6 +157,12 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   bool MoveListPush(int pX, int pY, bool pHorizontal, int pDir);
 
  protected:
+  enum CatastropheCase {
+    kCatastropheCaseA,
+    kCatastropheCaseB,
+    kCatastropheCaseC,
+  };
+
   friend class GamePlayDirector;
   friend class GamePowerUp;
   friend class GamePowerUp_ZoneBomb;
@@ -152,13 +187,12 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   void SetGamePlayDirector(GamePlayDirector* pGamePlayDirector);
   bool ResolveBoardState_PostSpawn();
   bool ResolveBoardState_PostTopple();
-  void RecordGameStateOverflowCatastrophic();
+  void RecordGameStateOverflowCatastrophic(CatastropheCase pCase);
   void RecordGameStateOverflowCataclysmic();
   void RecordGameStateOverflowApocalypse();
   void ShuffleAllTiles();
   void ApocalypseScenario();
   bool TriggerMatchedPowerUps();
-  bool HasAnyLegalMove();
   bool MatchMark(int pGridX, int pGridY);
   bool HasAnyTiles() const;
   int ActiveTileCount() const;
@@ -178,7 +212,6 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   void ResetMoveList();
   bool PushMoveCandidate(int pX, int pY, bool pHorizontal, int pDir, int pScore);
   int SelectMoveIndex();
-  void CollectSlideMoves();
   void CollectSwapMoves();
   void CollectTapMoves();
   bool EnumerateMoves();
@@ -188,8 +221,11 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   unsigned char NextTypeByte();
   void ShuffleSeedBuffer();
   void DragonAttack();
-  void RiddlerAttack();
+  void PhoenixAttack();
+  void WyvernAttack();
+  void CheckSpecialEvents();
   void ClearBoard();
+  void ClearFrozenTiles();
   void ConfigureGameByIndex(int pGameIndex);
 
   GameTile* mGrid[kGridWidth][kGridHeight];
@@ -208,6 +244,7 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   int mSuccessfulMoveCount;
   int mBrokenCount;
   int mGameIndex;
+  int mTileTypeCount;
   const char* mGameName;
 
   int mMoveListX[kMoveListCapacity];
@@ -220,6 +257,19 @@ class GameBoard : public peanutbutter::rng::Shuffler {
   int mExploreListX[kGridSize];
   int mExploreListY[kGridSize];
   int mExploreListCount;
+  int mCandidateListX[kGridSize];
+  int mCandidateListY[kGridSize];
+  int mCandidateListCount;
+  int mViolatingListX[kGridSize];
+  int mViolatingListY[kGridSize];
+  int mViolatingListCount;
+  int mToppleSearchCount;
+  unsigned char mToppleChanged[kGridSize];
+  unsigned char mToppleSearchMask[kGridSize];
+  int mCheckStackX[kGridSize];
+  int mCheckStackY[kGridSize];
+  int mCheckStackCount;
+  unsigned char mCheckVisited[kGridSize];
   int mMatchListX[kGridSize];
   int mMatchListY[kGridSize];
   int mMatchListCount;

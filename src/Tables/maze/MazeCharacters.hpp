@@ -20,13 +20,7 @@ using Cheese = MazeCheese;
 using Shark = MazeShark;
 using Dolphin = MazeDolphin;
 
-enum class PowerUpType : unsigned char {
-  kNone = 0,
-  kInvincible = 1,
-  kMagnet = 2,
-  kSuperSpeed = 3,
-  kTeleport = 4
-};
+enum class PowerUpType : unsigned char { kNone = 0, kInvincible = 1, kMagnet = 2, kTeleport = 3 };
 
 class MazeCheese {
  public:
@@ -44,10 +38,7 @@ class MazeRobot {
 
   void Reset();
   bool AssignPathAndStartWalk(const int* pPathX, const int* pPathY, int pLength);
-  bool Update(const peanutbutter::maze::MazeGrid& pMaze);
-  bool ReadPendingStep(int pIndex, int* pOutX, int* pOutY) const;
-  void ApplyPendingStep(int pIndex);
-  void FinishUpdate();
+  void Update();
   void Die();
 
   Cheese* mCheese;
@@ -57,8 +48,12 @@ class MazeRobot {
   int mPathY[peanutbutter::maze::MazeGrid::kGridSize];
   int mPathLength;
   int mPathIndex;
-  int mPowerUpTick;
-  PowerUpType mPowerUp;
+  int mInvincibleTick;
+  int mMagnetTick;
+  int mTeleportTick;
+  bool mInvincibleEnabled;
+  bool mMagnetEnabled;
+  bool mTeleportEnabled;
   bool mDeadFlag;
   bool mDidRecentlyRepath;
   bool mIsVictorious;
@@ -66,11 +61,6 @@ class MazeRobot {
 
  private:
   void ClearPath();
-  void ResetTickPlan();
-
-  int mPendingStepX[4];
-  int mPendingStepY[4];
-  int mPendingStepCount;
 };
 
 class MazeShark {

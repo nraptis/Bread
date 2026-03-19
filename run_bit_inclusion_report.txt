@@ -1,0 +1,68 @@
+[INFO] run_bit_inclusion_tests started at Thu Mar 19 17:15:13 EDT 2026
+[INFO] output file: /Users/magneto/Desktop/Codex Playground/Bread/run_bit_inclusion_report.txt
+[INFO] trials=100 blocks=100
+
+[STEP] Cleaning build directory
+[STEP] Configuring Release build
+-- The CXX compiler identification is AppleClang 17.0.0.17000604
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.3s)
+-- Generating done (0.1s)
+-- Build files have been written to: /Users/magneto/Desktop/Codex Playground/Bread/build_release
+[STEP] Building bit_inclusion_tests
+[  4%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/PeanutButter.cpp.o
+[  8%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/Tables.cpp.o
+[ 13%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/TablesHelpers.cpp.o
+[ 21%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/password_expanders/PasswordExpander.cpp.o
+[ 21%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/password_expanders/ByteTwister.cpp.o
+[ 26%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/ArchiverCompatibility.cpp.o
+[ 30%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/counters/ChaCha20Counter.cpp.o
+[ 34%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/rng/Shuffler.cpp.o
+[ 39%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/counters/AESCounter.cpp.o
+[ 43%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/TablesTiming.cpp.o
+[ 47%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/counters/ARIA256Counter.cpp.o
+[ 52%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/fast_rand/FastRand.cpp.o
+[ 52%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/maze/MazeGrid.cpp.o
+[ 56%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/maze/Maze.cpp.o
+[ 60%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/maze/MazeCharacters.cpp.o
+[ 65%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/maze/MazePolicy.cpp.o
+[ 69%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/maze/MazeSpecialEvents.cpp.o
+[ 73%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/games/GameBoard.cpp.o
+[ 78%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/maze/MazeDirector.cpp.o
+[ 82%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/games/GamePlayDirector.cpp.o
+[ 86%] Building CXX object CMakeFiles/peanutbutter_core.dir/src/Tables/games/GamePowerUp.cpp.o
+[ 91%] Linking CXX static library libpeanutbutter_core.a
+[ 91%] Built target peanutbutter_core
+[ 95%] Building CXX object CMakeFiles/bit_inclusion_tests.dir/tests_regression/BitInclusionTests.cpp.o
+[100%] Linking CXX executable bit_inclusion_tests
+[100%] Built target bit_inclusion_tests
+
+[STEP] Running bit_inclusion_tests
+[INFO] bit inclusion tests trials=100 blocks=100 block_bytes=7680 output_bytes=768000 output_bits=6144000
+[INFO] one input bit is flipped per trial; inclusion means an output bit changed at least once across sampled trials
+ExpandPassword_00    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=49.9985 min_trial_percent=49.9524 max_trial_percent=50.0476 total_bits=6144000 digest=5088947017546632026
+ExpandPassword_01    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=49.9976 min_trial_percent=49.9525 max_trial_percent=50.0380 total_bits=6144000 digest=10032541319264841119
+ExpandPassword_02    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=49.9971 min_trial_percent=49.9462 max_trial_percent=50.0553 total_bits=6144000 digest=1303908174545635777
+ExpandPassword_03    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=49.9984 min_trial_percent=49.9534 max_trial_percent=50.0466 total_bits=6144000 digest=12674811189302518309
+ExpandPassword_04    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0011 min_trial_percent=49.9431 max_trial_percent=50.0415 total_bits=6144000 digest=4059537753082636332
+ExpandPassword_05    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=49.9980 min_trial_percent=49.9297 max_trial_percent=50.0493 total_bits=6144000 digest=8161231119178722566
+ExpandPassword_06    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0011 min_trial_percent=49.9404 max_trial_percent=50.0526 total_bits=6144000 digest=4316538027215703507
+ExpandPassword_07    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0003 min_trial_percent=49.9518 max_trial_percent=50.0496 total_bits=6144000 digest=266891578137398609
+ExpandPassword_08    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=49.9983 min_trial_percent=49.9311 max_trial_percent=50.0438 total_bits=6144000 digest=8416063212956705528
+ExpandPassword_09    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0008 min_trial_percent=49.9465 max_trial_percent=50.0473 total_bits=6144000 digest=1953274078531848452
+ExpandPassword_10    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0009 min_trial_percent=49.9466 max_trial_percent=50.0431 total_bits=6144000 digest=14947011431921005102
+ExpandPassword_11    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=49.9966 min_trial_percent=49.9409 max_trial_percent=50.0416 total_bits=6144000 digest=11928309216173256017
+ExpandPassword_12    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0001 min_trial_percent=49.9236 max_trial_percent=50.0710 total_bits=6144000 digest=15668359174566331320
+ExpandPassword_13    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0031 min_trial_percent=49.9475 max_trial_percent=50.0488 total_bits=6144000 digest=13858900341529285249
+ExpandPassword_14    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=49.9970 min_trial_percent=49.9327 max_trial_percent=50.0457 total_bits=6144000 digest=7806486385411679753
+ExpandPassword_15    trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0028 min_trial_percent=49.9500 max_trial_percent=50.0508 total_bits=6144000 digest=10386308030092132319
+AESCounter           trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0025 min_trial_percent=49.9525 max_trial_percent=50.0442 total_bits=6144000 digest=5169834974866287980
+ARIA256Counter       trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0012 min_trial_percent=49.9495 max_trial_percent=50.0566 total_bits=6144000 digest=1760715199523508434
+ChaCha20Counter      trials=100 inclusion_percent=100.0000 included_bits=6144000 unincluded_bits=0 avg_trial_percent=50.0024 min_trial_percent=49.9435 max_trial_percent=50.0420 total_bits=6144000 digest=3301622920772140901
+[PASS] bit inclusion tests completed
+
+[PASS] run_bit_inclusion_tests finished at Thu Mar 19 17:16:38 EDT 2026

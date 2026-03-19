@@ -17,9 +17,47 @@ using helpers::MazeShark;
 using helpers::PowerUpType;
 
 constexpr int kMazeDolphinCount = helpers::kMaxDolphins;
+constexpr int kPowerUpSpawnDivisor = 32;
 constexpr int kMazeRespawnVictoryMinimum = 8;
 constexpr int kMazeRespawnVictoryMaximum = 16;
 constexpr int kMainLoopConsecutiveFailureThreshold = 4;
+constexpr int kMagnetDurationMinimum = 12;
+constexpr int kMagnetDurationMaximum = 16;
+constexpr int kInvincibleDurationMinimum = 32;
+constexpr int kInvincibleDurationMaximum = 42;
+constexpr int kMagnetCaptureRadius = 2;
+
+int ManhattanDistance(int pX1, int pY1, int pX2, int pY2) {
+  const int aDX = (pX1 > pX2) ? (pX1 - pX2) : (pX2 - pX1);
+  const int aDY = (pY1 > pY2) ? (pY1 - pY2) : (pY2 - pY1);
+  return aDX + aDY;
+}
+
+template <typename TGetRandomWalkable, typename TOccupied>
+bool PickUniqueWalkable(TGetRandomWalkable&& pGetRandomWalkable,
+                        TOccupied&& pIsOccupied,
+                        int* pOutX,
+                        int* pOutY) {
+  if (pOutX == nullptr || pOutY == nullptr) {
+    return false;
+  }
+
+  for (int aAttempt = 0; aAttempt < 512; ++aAttempt) {
+    int aX = -1;
+    int aY = -1;
+    if (!pGetRandomWalkable(aX, aY)) {
+      return false;
+    }
+    if (pIsOccupied(aX, aY)) {
+      continue;
+    }
+    *pOutX = aX;
+    *pOutY = aY;
+    return true;
+  }
+
+  return false;
+}
 
 }  // namespace
 
@@ -84,10 +122,7 @@ MazeDirector::ProbeStats MazeDirector::GetProbeStats() const {
 }
 
 int MazeDirector::NextIndex(int pLimit) {
-  if (pLimit <= 1) {
-    return 0;
-  }
-  return static_cast<int>(mFastRand.GetInt() % static_cast<unsigned int>(pLimit));
+  return static_cast<int>(mFastRand.NextRand(pLimit));
 }
 
 int MazeDirector::ClampConfiguredCount(int pConfiguredCount, int pMaximum) const {
@@ -211,13 +246,13 @@ bool MazeDirector::Generate() {
 
 void MazeDirector::Simulation() {
   int aStallCount = 0;
-  while (mResultBufferWriteProgress < mResultBufferLength && aStallCount < kSimulationStallThreshold) {
-    const std::uint64_t aWriteProgressBefore = mResultBufferWriteProgress;
+  while (!IsResultBufferComplete() && aStallCount < kSimulationStallThreshold) {
+    const std::uint64_t aWriteCheckpoint = ResultWriteCheckpoint();
     if (!SimulationMainLoop()) {
       break;
     }
 
-    if (mResultBufferWriteProgress != aWriteProgressBefore) {
+    if (DidResultBufferMove(aWriteCheckpoint)) {
       aStallCount = 0;
       continue;
     }
@@ -226,7 +261,7 @@ void MazeDirector::Simulation() {
     ++aStallCount;
   }
 
-  if (mResultBufferWriteProgress < mResultBufferLength) {
+  if (!IsResultBufferComplete()) {
     ++mRuntimeStats.mSimulationStallApocalypse;
     ApocalypseScenario();
   }
@@ -238,14 +273,13 @@ bool MazeDirector::SimulationMainLoop() {
   }
 
   int aConsecutiveFailureCount = 0;
-  while (aConsecutiveFailureCount < kMainLoopConsecutiveFailureThreshold &&
-         mResultBufferWriteProgress < mResultBufferLength) {
-    const std::uint64_t aWriteProgressBeforeRound = mResultBufferWriteProgress;
+  while (aConsecutiveFailureCount < kMainLoopConsecutiveFailureThreshold && !IsResultBufferComplete()) {
+    const std::uint64_t aWriteCheckpoint = ResultWriteCheckpoint();
     const int aVictoryThreshold =
         kMazeRespawnVictoryMinimum + NextIndex(kMazeRespawnVictoryMaximum - kMazeRespawnVictoryMinimum + 1);
     mMainLoopIterationVictoryCount = 0;
 
-    while (mMainLoopIterationVictoryCount < aVictoryThreshold && mResultBufferWriteProgress < mResultBufferLength) {
+    while (mMainLoopIterationVictoryCount < aVictoryThreshold && !IsResultBufferComplete()) {
       if (!PathingLoopPulse()) {
         ++mRuntimeStats.mInconsistentStateG;
         FinalizePulseStats();
@@ -253,11 +287,11 @@ bool MazeDirector::SimulationMainLoop() {
       }
     }
 
-    if (mResultBufferWriteProgress >= mResultBufferLength) {
+    if (IsResultBufferComplete()) {
       break;
     }
 
-    const bool aMadeByteProgress = (mResultBufferWriteProgress != aWriteProgressBeforeRound);
+    const bool aMadeByteProgress = DidResultBufferMove(aWriteCheckpoint);
     if (mMainLoopIterationVictoryCount >= aVictoryThreshold || aMadeByteProgress) {
       aConsecutiveFailureCount = 0;
     } else {
@@ -265,8 +299,7 @@ bool MazeDirector::SimulationMainLoop() {
     }
   }
 
-  if (aConsecutiveFailureCount >= kMainLoopConsecutiveFailureThreshold &&
-      mResultBufferWriteProgress < mResultBufferLength) {
+  if (aConsecutiveFailureCount >= kMainLoopConsecutiveFailureThreshold && !IsResultBufferComplete()) {
     ++mRuntimeStats.mInconsistentStateF;
     return false;
   }
@@ -285,6 +318,12 @@ bool MazeDirector::PathingLoopPulse() {
     return false;
   }
   if (!MoveRobots()) {
+    return false;
+  }
+  CollectPowerUps();
+  UpdateRobots();
+  ApplyPowerUpEffects();
+  if (!ResolveRobotVictories()) {
     return false;
   }
   MarkRobotSharkCollisions();
@@ -331,7 +370,7 @@ bool MazeDirector::RespawnRobot(int pRobotIndex, bool pMarkRecentlyRevived) {
 
   int aRespawnX = -1;
   int aRespawnY = -1;
-  if (!helpers::PickUniqueWalkable(
+  if (!PickUniqueWalkable(
           [&](int& pX, int& pY) { return GetRandomWalkable(pX, pY); },
           [&](int pX, int pY) { return IsTileOccupied(pX, pY, pRobotIndex, -1, -1); }, &aRespawnX, &aRespawnY)) {
     ++mRuntimeStats.mInconsistentStateI;
@@ -359,7 +398,7 @@ bool MazeDirector::RespawnCheese(int pCheeseIndex) {
 
   int aRespawnX = -1;
   int aRespawnY = -1;
-  if (!helpers::PickUniqueWalkable(
+  if (!PickUniqueWalkable(
           [&](int& pX, int& pY) { return GetRandomWalkable(pX, pY); },
           [&](int pX, int pY) { return IsTileOccupied(pX, pY, -1, pCheeseIndex, -1); }, &aRespawnX, &aRespawnY)) {
     ++mRuntimeStats.mInconsistentStateI;
@@ -391,7 +430,7 @@ bool MazeDirector::RespawnShark(int pSharkIndex, bool pMarkRecentlyRevived) {
 
   int aRespawnX = -1;
   int aRespawnY = -1;
-  if (!helpers::PickUniqueWalkable(
+  if (!PickUniqueWalkable(
           [&](int& pX, int& pY) { return GetRandomWalkable(pX, pY); },
           [&](int pX, int pY) { return IsTileOccupied(pX, pY, -1, -1, pSharkIndex); }, &aRespawnX, &aRespawnY)) {
     ++mRuntimeStats.mInconsistentStateI;
@@ -422,7 +461,7 @@ bool MazeDirector::RespawnDolphin(int pDolphinIndex, bool pMarkRecentlyRevived) 
 
   int aRespawnX = -1;
   int aRespawnY = -1;
-  if (!helpers::PickUniqueWalkable(
+  if (!PickUniqueWalkable(
           [&](int& pX, int& pY) { return GetRandomWalkable(pX, pY); },
           [&](int pX, int pY) { return IsTileOccupied(pX, pY, -1, -1, -1, pDolphinIndex); }, &aRespawnX,
           &aRespawnY)) {
@@ -478,10 +517,10 @@ bool MazeDirector::InitializePulseState() {
   for (int aIndex = 0; aIndex < mWalkableListCount; ++aIndex) {
     const int aX = mWalkableListX[aIndex];
     const int aY = mWalkableListY[aIndex];
-    if (IsTileOccupied(aX, aY) || NextIndex(helpers::kPowerUpSpawnDivisor) != 0) {
+    if (IsTileOccupied(aX, aY) || NextIndex(kPowerUpSpawnDivisor) != 0) {
       continue;
     }
-    mPowerUpType[aX][aY] = static_cast<unsigned char>(NextIndex(4) + 1);
+    mPowerUpType[aX][aY] = static_cast<unsigned char>(NextIndex(3) + 1);
   }
 
   return ResolveRobotRepaths();
@@ -514,6 +553,18 @@ int MazeDirector::FindCheeseAt(int pX, int pY) const {
     }
     if (aCheese->mX == pX && aCheese->mY == pY) {
       return aCheeseIndex;
+    }
+  }
+  return -1;
+}
+
+int MazeDirector::FindRobotIndex(const MazeRobot* pRobot) const {
+  if (pRobot == nullptr) {
+    return -1;
+  }
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    if (mRobotList[aRobotIndex] == pRobot) {
+      return aRobotIndex;
     }
   }
   return -1;
@@ -572,6 +623,14 @@ void MazeDirector::MoveDolphin(MazeDolphin& pDolphin, int pDolphinIndex) {
   if (pDolphinIndex < 0 || pDolphinIndex >= helpers::kMaxDolphins || pDolphin.mDeadFlag ||
       !InBounds(pDolphin.mX, pDolphin.mY)) {
     return;
+  }
+
+  for (int aYOffset = -1; aYOffset <= 1; ++aYOffset) {
+    for (int aXOffset = -1; aXOffset <= 1; ++aXOffset) {
+      if (FindSharkAt(pDolphin.mX + aXOffset, pDolphin.mY + aYOffset) >= 0) {
+        return;
+      }
+    }
   }
 
   int aCandidateX[4] = {};
@@ -723,6 +782,70 @@ bool MazeDirector::AssignPathableCheese(MazeRobot* pRobot, int pIgnoreCheeseInde
   return StoreRobotPath(pRobot, aCheese);
 }
 
+int MazeDirector::DurationForPowerUp(PowerUpType pType) const {
+  switch (pType) {
+    case PowerUpType::kInvincible:
+      return kInvincibleDurationMinimum +
+             const_cast<MazeDirector*>(this)->NextIndex(kInvincibleDurationMaximum - kInvincibleDurationMinimum + 1);
+    case PowerUpType::kMagnet:
+      return kMagnetDurationMinimum +
+             const_cast<MazeDirector*>(this)->NextIndex(kMagnetDurationMaximum - kMagnetDurationMinimum + 1);
+    case PowerUpType::kTeleport:
+      return 1;
+    case PowerUpType::kNone:
+    default:
+      return 0;
+  }
+}
+
+bool MazeDirector::TryTeleportRobotNearTargetCheese(MazeRobot* pRobot) {
+  if (pRobot == nullptr || pRobot->mDeadFlag || pRobot->mCheese == nullptr) {
+    return false;
+  }
+
+  const int aRobotIndex = FindRobotIndex(pRobot);
+  MazeCheese* aCheese = pRobot->mCheese;
+  constexpr int kTeleportCandidateCount = 12;
+  constexpr int kTeleportOffsetX[kTeleportCandidateCount] = {3,  -3, 0, 0, 2,  2,  -2, -2, 1, 1, -1, -1};
+  constexpr int kTeleportOffsetY[kTeleportCandidateCount] = {0,  0,  3, -3, 1, -1, 1,  -1, 2, -2, 2, -2};
+  int aCandidateX[kTeleportCandidateCount] = {};
+  int aCandidateY[kTeleportCandidateCount] = {};
+  int aCandidateCount = 0;
+
+  for (int aOffsetIndex = 0; aOffsetIndex < kTeleportCandidateCount; ++aOffsetIndex) {
+    const int aX = aCheese->mX + kTeleportOffsetX[aOffsetIndex];
+    const int aY = aCheese->mY + kTeleportOffsetY[aOffsetIndex];
+    if (!IsWalkable(aX, aY) || IsTileOccupied(aX, aY, aRobotIndex, -1, -1, -1)) {
+      continue;
+    }
+    if (!FindPath(aX, aY, aCheese->mX, aCheese->mY) || PathLength() <= 0) {
+      continue;
+    }
+
+    aCandidateX[aCandidateCount] = aX;
+    aCandidateY[aCandidateCount] = aY;
+    ++aCandidateCount;
+  }
+
+  if (aCandidateCount <= 0) {
+    return false;
+  }
+
+  const int aPick = NextIndex(aCandidateCount);
+  pRobot->mX = aCandidateX[aPick];
+  pRobot->mY = aCandidateY[aPick];
+  pRobot->mTeleportEnabled = false;
+  pRobot->mTeleportTick = 0;
+  pRobot->mNeedsRepath = false;
+  pRobot->mDidRecentlyRepath = true;
+  RepaintRobotSquare(pRobot->mX, pRobot->mY);
+  return StoreRobotPath(pRobot, aCheese);
+}
+
+bool MazeDirector::IsRobotInvincible(const MazeRobot& pRobot) const {
+  return pRobot.mInvincibleEnabled && pRobot.mInvincibleTick > 0;
+}
+
 bool MazeDirector::RepaintOrFlushTile(int pX, int pY) {
   if (IsWall(pX, pY)) {
     return false;
@@ -752,30 +875,48 @@ void MazeDirector::RepaintRobotSquare(int pCenterX, int pCenterY) {
   }
 }
 
-void MazeDirector::ApplyRobotPowerUp(int pRobotIndex) {
-  if (pRobotIndex < 0 || pRobotIndex >= mRobotListCount || mRobotList[pRobotIndex] == nullptr) {
-    return;
-  }
+void MazeDirector::ApplyPowerUpEffects() {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    if (mRobotList[aRobotIndex] == nullptr) {
+      continue;
+    }
 
-  MazeRobot& aRobot = *mRobotList[pRobotIndex];
-  if (aRobot.mDeadFlag || !InBounds(aRobot.mX, aRobot.mY)) {
-    return;
-  }
+    MazeRobot& aRobot = *mRobotList[aRobotIndex];
+    if (aRobot.mDeadFlag || aRobot.mIsVictorious || !InBounds(aRobot.mX, aRobot.mY)) {
+      continue;
+    }
 
-  for (int aY = aRobot.mY - 1; aY <= aRobot.mY + 1; ++aY) {
-    for (int aX = aRobot.mX - 1; aX <= aRobot.mX + 1; ++aX) {
-      if (!InBounds(aX, aY)) {
-        continue;
+    if (aRobot.mTeleportEnabled && aRobot.mTeleportTick > 0) {
+      if (!TryTeleportRobotNearTargetCheese(&aRobot)) {
+        aRobot.mTeleportEnabled = false;
+        aRobot.mTeleportTick = 0;
+        aRobot.mMagnetEnabled = true;
+        aRobot.mMagnetTick = DurationForPowerUp(PowerUpType::kMagnet);
       }
-      const PowerUpType aType = static_cast<PowerUpType>(mPowerUpType[aX][aY]);
-      if (aType == PowerUpType::kNone) {
-        continue;
-      }
-      mPowerUpType[aX][aY] = 0U;
-      aRobot.mPowerUp = aType;
-      aRobot.mPowerUpTick = helpers::RandomDurationFromPick(NextIndex(7));
     }
   }
+}
+
+bool MazeDirector::ResolveRobotVictories() {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    MazeRobot* aRobot = mRobotList[aRobotIndex];
+    if (aRobot == nullptr || aRobot->mDeadFlag || aRobot->mIsVictorious) {
+      continue;
+    }
+
+    bool aCaptureFailure = false;
+    if (MarkRobotVictory(aRobotIndex, &aCaptureFailure)) {
+      continue;
+    }
+    if (aCaptureFailure) {
+      return false;
+    }
+    if (aRobot->mPathLength > 0 && aRobot->mPathIndex >= aRobot->mPathLength) {
+      ++mRuntimeStats.mInconsistentStateH;
+      return false;
+    }
+  }
+  return true;
 }
 
 bool MazeDirector::MarkRobotVictory(int pRobotIndex, bool* pOutFailure) {
@@ -793,7 +934,12 @@ bool MazeDirector::MarkRobotVictory(int pRobotIndex, bool* pOutFailure) {
 
   for (int aCheeseIndex = 0; aCheeseIndex < mCheeseListCount; ++aCheeseIndex) {
     MazeCheese& aCheese = *mCheeseList[aCheeseIndex];
-    if (AbsInt(aCheese.mX - aRobot.mX) > 1 || AbsInt(aCheese.mY - aRobot.mY) > 1) {
+    if (aRobot.mMagnetEnabled && aRobot.mMagnetTick > 0) {
+      if (AbsInt(aCheese.mX - aRobot.mX) > kMagnetCaptureRadius ||
+          AbsInt(aCheese.mY - aRobot.mY) > kMagnetCaptureRadius) {
+        continue;
+      }
+    } else if (aCheese.mX != aRobot.mX || aCheese.mY != aRobot.mY) {
       continue;
     }
 
@@ -870,6 +1016,7 @@ void MazeDirector::MarkRobotAndSharkDead(int pRobotIndex, int pSharkIndex) {
 
   MazeRobot& aRobot = *mRobotList[pRobotIndex];
   MazeShark& aShark = *mSharkList[pSharkIndex];
+  const bool aRobotInvincible = IsRobotInvincible(aRobot);
   if (!aShark.mDeadFlag) {
     if (InBounds(aShark.mX, aShark.mY)) {
       mIsShark[aShark.mX][aShark.mY] = 0U;
@@ -879,7 +1026,7 @@ void MazeDirector::MarkRobotAndSharkDead(int pRobotIndex, int pSharkIndex) {
     aShark.mDeadFlag = true;
     mSharkMovesSinceKill[pSharkIndex] = 0;
   }
-  if (!aRobot.mDeadFlag) {
+  if (!aRobot.mDeadFlag && !aRobotInvincible) {
     ++mRuntimeStats.mDeaths;
     aRobot.Die();
   }
@@ -1085,6 +1232,10 @@ bool MazeDirector::ResolveRobotRepaths() {
       ++mRuntimeStats.mInconsistentStateB;
       return false;
     }
+    if (aRobot.mPathLength <= 0 || aRobot.mPathIndex >= aRobot.mPathLength) {
+      ++mRuntimeStats.mInconsistentStateB;
+      return false;
+    }
     aRobot.mNeedsRepath = false;
     aRobot.mDidRecentlyRepath = true;
     RepaintRobotSquare(aRobot.mX, aRobot.mY);
@@ -1093,58 +1244,65 @@ bool MazeDirector::ResolveRobotRepaths() {
   return true;
 }
 
+bool MazeDirector::CheckRobotConsistency(const MazeRobot& pRobot) const {
+  if (pRobot.mDeadFlag || pRobot.mIsVictorious) {
+    return true;
+  }
+  if (pRobot.mCheese == nullptr || pRobot.mPathLength <= 0 || pRobot.mPathIndex < 0 || pRobot.mPathIndex > pRobot.mPathLength) {
+    return false;
+  }
+  if (pRobot.mPathIndex <= 0) {
+    return false;
+  }
+  const int aCurrentPathIndex = pRobot.mPathIndex - 1;
+  if (aCurrentPathIndex < 0 || aCurrentPathIndex >= pRobot.mPathLength) {
+    return false;
+  }
+  return pRobot.mPathX[aCurrentPathIndex] == pRobot.mX && pRobot.mPathY[aCurrentPathIndex] == pRobot.mY;
+}
+
 bool MazeDirector::MoveRobots() {
   for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
     MazeRobot& aRobot = *mRobotList[aRobotIndex];
     if (aRobot.mDeadFlag || aRobot.mIsVictorious) {
       continue;
     }
-    if (aRobot.mCheese == nullptr || aRobot.mPathLength <= 0 || aRobot.mPathIndex < 0) {
+    if (!CheckRobotConsistency(aRobot)) {
       ++mRuntimeStats.mInconsistentStateE;
       return false;
     }
     if (aRobot.mPathIndex >= aRobot.mPathLength) {
-      bool aCaptureFailure = false;
-      if (!MarkRobotVictory(aRobotIndex, &aCaptureFailure)) {
-        if (aCaptureFailure) {
-          return false;
-        }
-        ++mRuntimeStats.mInconsistentStateH;
-        return false;
-      }
-      continue;
+      ++mRuntimeStats.mInconsistentStateJ;
+      return false;
     }
     if (aRobot.mDidRecentlyRepath) {
       aRobot.mDidRecentlyRepath = false;
       continue;
     }
 
-    if (!aRobot.Update(static_cast<const MazeGrid&>(*this))) {
+    const int aNextX = aRobot.mPathX[aRobot.mPathIndex];
+    const int aNextY = aRobot.mPathY[aRobot.mPathIndex];
+    if (!InBounds(aNextX, aNextY) || IsWall(aNextX, aNextY)) {
       ++mRuntimeStats.mInconsistentStateE;
       return false;
     }
+    if (ManhattanDistance(aRobot.mX, aRobot.mY, aNextX, aNextY) != 1) {
+      ++mRuntimeStats.mInconsistentStateE;
+      return false;
+    }
+
+    aRobot.mX = aNextX;
+    aRobot.mY = aNextY;
+    ++aRobot.mPathIndex;
+    ++mRobotWalks[aRobotIndex];
 
     bool aCaptureFailure = false;
-    int aNextX = aRobot.mX;
-    int aNextY = aRobot.mY;
-    if (!aRobot.ReadPendingStep(0, &aNextX, &aNextY)) {
-      ++mRuntimeStats.mInconsistentStateE;
-      return false;
-    }
-
-    aRobot.ApplyPendingStep(0);
-    ++mRobotWalks[aRobotIndex];
-    ApplyRobotPowerUp(aRobotIndex);
-
     if (MarkRobotVictory(aRobotIndex, &aCaptureFailure)) {
-      aRobot.FinishUpdate();
       continue;
     }
-    if (aCaptureFailure || aRobot.mDeadFlag) {
+    if (aCaptureFailure) {
       return false;
     }
-
-    aRobot.FinishUpdate();
 
     if (!aRobot.mDeadFlag && !aRobot.mIsVictorious && aRobot.mCheese != nullptr && aRobot.mPathLength > 0 &&
         aRobot.mPathIndex > aRobot.mPathLength) {
@@ -1158,6 +1316,50 @@ bool MazeDirector::MoveRobots() {
   }
 
   return true;
+}
+
+void MazeDirector::CollectPowerUps() {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    MazeRobot& aRobot = *mRobotList[aRobotIndex];
+    if (aRobot.mDeadFlag || aRobot.mIsVictorious || !InBounds(aRobot.mX, aRobot.mY)) {
+      continue;
+    }
+
+    const PowerUpType aType = static_cast<PowerUpType>(mPowerUpType[aRobot.mX][aRobot.mY]);
+    if (aType == PowerUpType::kNone) {
+      continue;
+    }
+
+    mPowerUpType[aRobot.mX][aRobot.mY] = 0U;
+    const int aDuration = DurationForPowerUp(aType);
+    switch (aType) {
+      case PowerUpType::kInvincible:
+        aRobot.mInvincibleEnabled = true;
+        aRobot.mInvincibleTick = aDuration + 1;
+        break;
+      case PowerUpType::kMagnet:
+        aRobot.mMagnetEnabled = true;
+        aRobot.mMagnetTick = aDuration + 1;
+        break;
+      case PowerUpType::kTeleport:
+        aRobot.mTeleportEnabled = true;
+        aRobot.mTeleportTick = aDuration + 1;
+        break;
+      case PowerUpType::kNone:
+      default:
+        break;
+    }
+  }
+}
+
+void MazeDirector::UpdateRobots() {
+  for (int aRobotIndex = 0; aRobotIndex < mRobotListCount; ++aRobotIndex) {
+    MazeRobot& aRobot = *mRobotList[aRobotIndex];
+    if (aRobot.mDeadFlag) {
+      continue;
+    }
+    aRobot.Update();
+  }
 }
 
 void MazeDirector::Build() {

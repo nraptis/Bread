@@ -1,3388 +1,3517 @@
 #include "ByteTwister.hpp"
 
-#if defined(__ARM_NEON) && !defined(PB_FORCE_SOFTWARE_MODE)
-#include <arm_neon.h>
-#elif defined(__SSE2__) && !defined(PB_FORCE_SOFTWARE_MODE)
-#include <emmintrin.h>
-#endif
+#undef PASSWORD_EXPANDED_SIZE
+#define PASSWORD_EXPANDED_SIZE kPasswordExpandedSize
 
-#include <algorithm>
 #include <array>
 #include <cstdlib>
-#include <cstdint>
-#include <cstring>
+
+namespace twist {
+
+// Exported from shard sources for ByteTwister compatibility
+// selected_candidate_ids=224,340,420,631,682,737,748,750,786,802,872,1093,1170,1200,1266,1301
+
+// Candidate 224: TwistCandidate_0224
+// family=mechanical_loops op_budget=3 loop_shapes=1x0/3x2/3x0
+// mechanical_loops[l1=1x0; l2=3x2; l3=3x0; key_rot=27; twiddle=0xdd5a874a]
+static void TwistCandidate_0224_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 26u + (-3739)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 16u + (-1620)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 242u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0224_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 8u + (2281)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 11u + (1270)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 8u + static_cast<unsigned int>(242u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 184u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0224_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0xDD5A874Au ^ (pRound * 60u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-3739), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x48F02208u ^ static_cast<std::uint32_t>(3097u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (4268), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 15u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 21u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 14u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t d = (((a) ^ (a) ^ (salt_byte ^ 12u) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((((d + (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) + 7u) ^ ((a >> 2u) & 0xFFu)) & 0xFFu) ^ ((key_byte + 25u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 64u), 5u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 14u), 13u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x86EB5CD0u ^ static_cast<std::uint32_t>(3375u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-1184), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 3u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 17u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 17u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (2526), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const int index3 = WrapRange(i + (2033), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pDest[index3]);
+      const std::uint32_t d = ((((a * 3u) & 0xFFu) ^ (b + 15u + (salt_byte ^ 11u)) ^ ((c >> 4u) & 0xFFu) ^ (twiddle_byte) ^ ((feedback_byte + 3u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = (((c) + (a ^ 23u ^ (key_byte)) ^ (b) + ((feedback_byte + 3u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (key_byte) + ((feedback_byte + 3u) & 0xFFu)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 6u), 10u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 170u, 5u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xD6ED1620u ^ static_cast<std::uint32_t>(698u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-1451), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 2u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 6u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 26u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-2391), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (4540), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = ((a + 25u + (salt_byte ^ 23u)) ^ ((b << 3u) & 0xFFu) ^ ((c * 3u) & 0xFFu) ^ (key_byte) ^ ((feedback_byte + 16u) & 0xFFu));
+      const std::uint32_t e = ((c) ^ (b + 12u + (twiddle_byte)) ^ (a) ^ (salt_byte ^ 23u) ^ (((feedback_byte + 16u) & 0xFFu) >> 1U));
+      const std::uint32_t value = ((d ^ e) + a + c + (twiddle_byte) + ((feedback_byte + 16u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(pDest[i] + static_cast<std::uint8_t>(value));
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 214u, 7u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 135u), 13u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0224_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 4u + (-5695)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 26u + (1387)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 7u + (6770)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 4u + static_cast<unsigned int>(27u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(17u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 6u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 184u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0224(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0224_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0224_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0224_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0224_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 340: TwistCandidate_0340
+// family=mechanical_loops op_budget=3 loop_shapes=3x0/2x1/3x1
+// mechanical_loops[l1=3x0; l2=2x1; l3=3x1; key_rot=29; twiddle=0x269edadd]
+static void TwistCandidate_0340_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 11u + (3631)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 24u + (-1900)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 230u) ^ ((b << 7u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0340_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 22u + (-3040)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 14u + (-4797)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 22u + static_cast<unsigned int>(230u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 17u) ^ ((b << 7u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0340_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x269EDADDu ^ (pRound * 45u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (3631), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x71BD7E78u ^ static_cast<std::uint32_t>(7188u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (607), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 5u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 10u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 16u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-6852), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const int index3 = WrapRange(i + (-943), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = ((a + 20u + (salt_byte ^ 6u)) ^ (b) ^ ((c * 5u) & 0xFFu) ^ ((key_byte + 1u) & 0xFFu) ^ ((feedback_byte + 8u) & 0xFFu));
+      const std::uint32_t e = ((c) ^ (b + 31u + (twiddle_byte)) ^ (a) ^ (salt_byte ^ 6u) ^ (((feedback_byte + 8u) & 0xFFu) >> 1U));
+      const std::uint32_t value = ((((d ^ e) + a + c + (twiddle_byte) + ((feedback_byte + 8u) & 0xFFu)) & 0xFFu) ^ ((key_byte + 1u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 61u), 11u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 152u, 13u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xFF4E58E1u ^ static_cast<std::uint32_t>(3424u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (2749), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 15u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 23u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 29u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (1032), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a + 18u + ((key_byte + 24u) & 0xFFu)) ^ ((b << 1u) & 0xFFu) ^ (salt_byte) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = ((((b * 5u) & 0xFFu) ^ (a + 19u + (((twiddle_byte << 1u) | (twiddle_byte >> 7u)) & 0xFFu)) ^ ((a >> 5u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (feedback_byte)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 8u), 10u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 49u, 9u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x505C7BAAu ^ static_cast<std::uint32_t>(8971u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-4617), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 3u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 5u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 15u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (7593), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (5995), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = (((a) + (c) + (salt_byte ^ 20u)) & 0xFFu);
+      const std::uint32_t e = ((((b * 5u) & 0xFFu) ^ (c) ^ ((a >> 1u) & 0xFFu) ^ ((key_byte + 7u) & 0xFFu) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((d + e) ^ b ^ c ^ (salt_byte ^ 20u) ^ (feedback_byte)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 19u), 4u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 170u), 1u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0340_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 25u + (1738)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 2u + (7361)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 18u + (-7212)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 25u + static_cast<unsigned int>(29u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(3u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 4u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 17u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0340(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0340_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0340_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0340_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0340_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 420: TwistCandidate_0420
+// family=mechanical_loops op_budget=3 loop_shapes=3x0/2x2/3x0
+// mechanical_loops[l1=3x0; l2=2x2; l3=3x0; key_rot=24; twiddle=0x657883f2]
+static void TwistCandidate_0420_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 10u + (7019)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 15u + (-236)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 120u) ^ ((b << 3u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0420_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 2u + (-4145)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 19u + (6629)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 2u + static_cast<unsigned int>(120u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 166u) ^ ((b << 3u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0420_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x657883F2u ^ (pRound * 19u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (7019), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x1C0F863Bu ^ static_cast<std::uint32_t>(355u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (3049), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 6u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 7u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 23u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-1962), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const int index3 = WrapRange(i + (-1442), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = ((a + 17u + (salt_byte ^ 11u)) ^ ((b << 3u) & 0xFFu) ^ (c) ^ ((key_byte + 7u) & 0xFFu) ^ (feedback_byte));
+      const std::uint32_t e = (((c >> 5u) & 0xFFu) ^ (b + 25u + (twiddle_byte)) ^ ((a * 5u) & 0xFFu) ^ (salt_byte ^ 11u) ^ ((feedback_byte) >> 1U));
+      const std::uint32_t value = ((((d ^ e) + a + c + (twiddle_byte) + (feedback_byte)) & 0xFFu) ^ ((key_byte + 7u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 56u, 6u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 66u), 2u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x77C8649Bu ^ static_cast<std::uint32_t>(2653u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (2984), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 1u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 16u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 28u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (5620) + static_cast<int>(a), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a) ^ ((b << 5u) & 0xFFu) ^ (salt_byte) ^ ((feedback_byte + 6u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (a + 30u + (((twiddle_byte << 1u) | (twiddle_byte >> 7u)) & 0xFFu)) ^ ((a >> 1u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + ((feedback_byte + 6u) & 0xFFu)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 115u), 7u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 117u), 9u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x78C976F2u ^ static_cast<std::uint32_t>(3619u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-346), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 1u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 4u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 7u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-641), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-2632), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pWorker[index3]);
+      const std::uint32_t d = ((a) ^ ((b << 2u) & 0xFFu) ^ ((c * 3u) & 0xFFu) ^ (key_byte) ^ ((feedback_byte + 9u) & 0xFFu));
+      const std::uint32_t e = (((c >> 3u) & 0xFFu) ^ (b) ^ ((a * 3u) & 0xFFu) ^ (salt_byte ^ 10u) ^ (((feedback_byte + 9u) & 0xFFu) >> 1U));
+      const std::uint32_t value = ((d ^ e) + a + c + (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) + ((feedback_byte + 9u) & 0xFFu)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 253u, 7u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 191u), 6u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0420_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 3u + (2642)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 4u + (-4966)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 19u + (-4264)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 3u + static_cast<unsigned int>(24u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(15u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 15u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 166u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0420(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0420_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0420_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0420_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0420_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 631: TwistCandidate_0631
+// family=mechanical_loops op_budget=3 loop_shapes=2x1/2x3/3x2
+// mechanical_loops[l1=2x1; l2=2x3; l3=3x2; key_rot=29; twiddle=0x9b5f0c2c]
+static void TwistCandidate_0631_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 16u + (-4145)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 26u + (2332)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 45u) ^ ((b << 5u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0631_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 8u + (5604)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 10u + (7300)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 8u + static_cast<unsigned int>(45u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 237u) ^ ((b << 5u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0631_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x9B5F0C2Cu ^ (pRound * 12u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-4145), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x61B26EEDu ^ static_cast<std::uint32_t>(5673u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (3189), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 15u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 19u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 6u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-3786), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const std::uint32_t d = (((a + 30u + ((key_byte + 2u) & 0xFFu)) ^ ((b << 1u) & 0xFFu) ^ (salt_byte ^ 16u) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = ((((b * 5u) & 0xFFu) ^ (a + 5u + (((twiddle_byte << 1u) | (twiddle_byte >> 7u)) & 0xFFu)) ^ (a)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + (feedback_byte)) & 0xFFu) ^ ((key_byte + 2u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 29u), 8u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 151u), 13u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xCB0588AEu ^ static_cast<std::uint32_t>(15343u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-2214), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 10u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 7u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 2u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-5745) + static_cast<int>(a), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a) ^ (b) ^ (salt_byte ^ 28u) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = ((((b * 3u) & 0xFFu) ^ (a + 4u + (twiddle_byte)) ^ ((a >> 3u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (feedback_byte)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 11u, 8u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 116u, 13u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x3D175841u ^ static_cast<std::uint32_t>(4887u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-6571), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 1u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 7u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 11u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-3717), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (5401), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = (((a) ^ (b) ^ ((c >> 4u) & 0xFFu) ^ (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = (((c) + (a ^ 20u ^ (key_byte)) ^ ((b << 3u) & 0xFFu) + (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (key_byte) + (feedback_byte)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 219u, 10u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 34u), 4u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0631_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 25u + (-1874)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 25u + (-7518)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 27u + (1182)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 25u + static_cast<unsigned int>(29u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(23u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 10u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 237u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0631(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0631_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0631_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0631_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0631_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 682: TwistCandidate_0682
+// family=mechanical_loops op_budget=3 loop_shapes=1x2/2x2/3x0
+// mechanical_loops[l1=1x2; l2=2x2; l3=3x0; key_rot=1; twiddle=0xf501def0]
+static void TwistCandidate_0682_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 1u + (-5580)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 5u + (-1189)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 135u) ^ ((b << 4u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0682_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 8u + (-5217)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 20u + (-6955)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 8u + static_cast<unsigned int>(135u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 63u) ^ ((b << 4u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0682_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0xF501DEF0u ^ (pRound * 62u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-5580), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x75243503u ^ static_cast<std::uint32_t>(4521u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (3994), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 1u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 25u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 20u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t d = (((a) ^ ((a << 5u) & 0xFFu) ^ (salt_byte) ^ ((feedback_byte + 18u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d + (twiddle_byte) + 3u) ^ (a)) & 0xFFu) ^ ((key_byte + 31u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 76u), 7u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 159u), 1u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x3770BA34u ^ static_cast<std::uint32_t>(10357u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (1232), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 2u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 9u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 6u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (6343) + static_cast<int>(a), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a) ^ (b) ^ (salt_byte ^ 25u) ^ ((feedback_byte + 24u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (a) ^ (a)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + ((feedback_byte + 24u) & 0xFFu)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 149u, 7u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 63u), 4u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x33A1E464u ^ static_cast<std::uint32_t>(721u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (4073), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 11u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 30u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 29u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-574), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-2778), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = ((a + 17u + (salt_byte ^ 11u)) ^ (b) ^ (c) ^ (key_byte) ^ (feedback_byte));
+      const std::uint32_t e = ((c) ^ (b) ^ (a) ^ (salt_byte ^ 11u) ^ ((feedback_byte) >> 1U));
+      const std::uint32_t value = ((d ^ e) + a + c + (((twiddle_byte << 2u) | (twiddle_byte >> 6u)) & 0xFFu) + (feedback_byte)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 52u), 1u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 165u, 3u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0682_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 29u + (3385)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 3u + (-7158)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 5u + (-4357)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 29u + static_cast<unsigned int>(1u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(5u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 7u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 63u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0682(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0682_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0682_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0682_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0682_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 737: TwistCandidate_0737
+// family=mechanical_loops op_budget=3 loop_shapes=2x2/3x3/3x2
+// mechanical_loops[l1=2x2; l2=3x3; l3=3x2; key_rot=10; twiddle=0x3d425df6]
+static void TwistCandidate_0737_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 24u + (-2013)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 1u + (1739)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 21u) ^ ((b << 2u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0737_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 26u + (6767)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 23u + (-1723)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 26u + static_cast<unsigned int>(21u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 50u) ^ ((b << 2u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0737_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x3D425DF6u ^ (pRound * 17u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-2013), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x32452BDFu ^ static_cast<std::uint32_t>(14666u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-2430), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 0u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 12u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 31u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-4812), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const std::uint32_t d = (((a) ^ ((b << 5u) & 0xFFu) ^ (salt_byte ^ 12u) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (a) ^ (a)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + (feedback_byte)) & 0xFFu) ^ ((key_byte + 16u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 186u), 3u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 30u), 3u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xAA3FD809u ^ static_cast<std::uint32_t>(18497u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-5249), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 7u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 14u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 15u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-7363), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const int index3 = WrapRange(i + (-5885), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pDest[index3]);
+      const std::uint32_t d = (((a + 17u + ((key_byte + 22u) & 0xFFu)) ^ (c + 15u + (salt_byte ^ 31u)) ^ (b) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = ((((b >> 5u) & 0xFFu) ^ (a) ^ ((c * 5u) & 0xFFu) ^ (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = (((d + e) ^ c ^ a ^ ((key_byte + 22u) & 0xFFu) ^ (feedback_byte)) & 0xFFu);
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 36u), 5u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 234u), 12u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x1135E5B3u ^ static_cast<std::uint32_t>(4877u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-761), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 15u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 16u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 26u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-2298), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-1818), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = ((((a * 3u) & 0xFFu) ^ (b) ^ (c) ^ (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = ((((c * 5u) & 0xFFu) + (a ^ 24u ^ (key_byte)) ^ (b) + (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (key_byte) + (feedback_byte)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(pDest[i] + static_cast<std::uint8_t>(value));
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 167u), 3u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 127u), 9u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0737_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 5u + (-6661)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 25u + (6326)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 2u + (4196)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 5u + static_cast<unsigned int>(10u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(11u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 0u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 50u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a + b + salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    pNextRoundKeyBuffer[aKeyIndex2] ^= static_cast<unsigned char>((c ^ key_byte) & 0xFFu);
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0737(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0737_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0737_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0737_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0737_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 748: TwistCandidate_0748
+// family=mechanical_loops op_budget=3 loop_shapes=2x1/3x0/3x2
+// mechanical_loops[l1=2x1; l2=3x0; l3=3x2; key_rot=3; twiddle=0xc2dfbc35]
+static void TwistCandidate_0748_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 29u + (2994)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 18u + (2607)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 51u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0748_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 8u + (-6954)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 4u + (889)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 8u + static_cast<unsigned int>(51u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 219u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0748_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0xC2DFBC35u ^ (pRound * 54u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (2994), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x9394680Eu ^ static_cast<std::uint32_t>(2285u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-1389), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 1u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 31u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 2u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (3348), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const std::uint32_t d = (((a + 15u + (key_byte)) ^ (b) ^ (salt_byte) ^ ((feedback_byte + 2u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((b * 5u) & 0xFFu) ^ (a + 21u + (twiddle_byte)) ^ ((a >> 4u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + ((feedback_byte + 2u) & 0xFFu)) & 0xFFu) ^ (key_byte)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 62u), 11u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 95u), 2u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x95A78531u ^ static_cast<std::uint32_t>(9034u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-2320), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 0u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 30u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 7u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-3893), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const int index3 = WrapRange(i + (-2821), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pDest[index3]);
+      const std::uint32_t d = ((a) ^ (b) ^ ((c * 5u) & 0xFFu) ^ ((key_byte + 5u) & 0xFFu) ^ (feedback_byte));
+      const std::uint32_t e = (((c >> 1u) & 0xFFu) ^ (b) ^ ((a * 5u) & 0xFFu) ^ (salt_byte ^ 25u) ^ ((feedback_byte) >> 1U));
+      const std::uint32_t value = ((d ^ e) + a + c + (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) + (feedback_byte)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 140u), 9u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 138u, 11u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xAB1CC1D6u ^ static_cast<std::uint32_t>(10704u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (6394), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 5u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 1u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 28u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-525), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (4835), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pWorker[index3]);
+      const std::uint32_t d = ((((a * 3u) & 0xFFu) ^ (b + 3u + (salt_byte ^ 13u)) ^ ((c >> 2u) & 0xFFu) ^ (twiddle_byte) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = ((((c * 5u) & 0xFFu) + (a ^ 20u ^ (key_byte)) ^ (b) + (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (key_byte) + (feedback_byte)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 215u, 4u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 167u), 3u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0748_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 20u + (-6965)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 18u + (-1846)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 14u + (226)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 20u + static_cast<unsigned int>(3u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(27u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 5u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 219u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0748(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0748_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0748_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0748_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0748_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 750: TwistCandidate_0750
+// family=mechanical_loops op_budget=3 loop_shapes=2x3/2x1/3x2
+// mechanical_loops[l1=2x3; l2=2x1; l3=3x2; key_rot=10; twiddle=0x4868d40e]
+static void TwistCandidate_0750_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 7u + (-6241)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 13u + (1500)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 42u) ^ ((b << 7u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0750_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 26u + (-5546)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 23u + (-6451)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 26u + static_cast<unsigned int>(42u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 69u) ^ ((b << 7u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0750_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x4868D40Eu ^ (pRound * 25u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-6241), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xE0192B1Fu ^ static_cast<std::uint32_t>(1612u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (3817), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 4u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 10u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 23u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-5152), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const std::uint32_t d = (((a + 28u + (key_byte)) ^ ((b << 1u) & 0xFFu) ^ (salt_byte ^ 13u) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = ((((b * 3u) & 0xFFu) ^ (a + 15u + (twiddle_byte)) ^ ((a >> 4u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + (feedback_byte)) & 0xFFu) ^ (key_byte)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 103u, 10u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 247u), 7u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x0BEB7C64u ^ static_cast<std::uint32_t>(3509u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (6543), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 14u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 28u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 9u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-4936) + static_cast<int>(a), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a + 25u + (key_byte)) ^ ((b << 2u) & 0xFFu) ^ (salt_byte ^ 21u) ^ ((feedback_byte + 19u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((b * 3u) & 0xFFu) ^ (a + 3u + (twiddle_byte)) ^ ((a >> 2u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + ((feedback_byte + 19u) & 0xFFu)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 173u), 1u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 216u), 5u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xB3DBC34Eu ^ static_cast<std::uint32_t>(6262u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-5592), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 15u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 24u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 26u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (3433), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-4103), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = (((a) ^ (b) ^ ((c >> 1u) & 0xFFu) ^ (((twiddle_byte << 1u) | (twiddle_byte >> 7u)) & 0xFFu) ^ ((feedback_byte + 12u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = (((c) + (a ^ 10u ^ ((key_byte + 17u) & 0xFFu)) ^ (b) + ((feedback_byte + 12u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + ((key_byte + 17u) & 0xFFu) + ((feedback_byte + 12u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(pDest[i] + static_cast<std::uint8_t>(value));
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 36u, 6u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 162u), 11u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0750_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 20u + (-324)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 24u + (5141)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 28u + (4500)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 20u + static_cast<unsigned int>(10u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(29u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 4u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 69u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a + b + salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    pNextRoundKeyBuffer[aKeyIndex2] ^= static_cast<unsigned char>((c ^ key_byte) & 0xFFu);
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0750(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0750_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0750_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0750_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0750_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 786: TwistCandidate_0786
+// family=mechanical_loops op_budget=3 loop_shapes=1x0/2x2/3x3
+// mechanical_loops[l1=1x0; l2=2x2; l3=3x3; key_rot=6; twiddle=0x367b02ea]
+static void TwistCandidate_0786_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 5u + (7587)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 24u + (6208)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 13u) ^ ((b << 2u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0786_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 21u + (-3192)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 16u + (-2018)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 21u + static_cast<unsigned int>(13u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 167u) ^ ((b << 2u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0786_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x367B02EAu ^ (pRound * 31u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (7587), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xF1F53D91u ^ static_cast<std::uint32_t>(5916u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-2031), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 3u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 17u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 28u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t d = (((a) ^ (a) ^ (salt_byte) ^ ((feedback_byte + 10u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d + (twiddle_byte) + 8u) ^ ((a >> 5u) & 0xFFu)) & 0xFFu) ^ ((key_byte + 2u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 125u, 2u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 70u), 12u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xDDEC8833u ^ static_cast<std::uint32_t>(1424u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-4777), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 5u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 1u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 14u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (4132), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a + 7u + ((key_byte + 25u) & 0xFFu)) ^ (b) ^ (salt_byte ^ 7u) ^ ((feedback_byte + 15u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (a + 26u + (((twiddle_byte << 2u) | (twiddle_byte >> 6u)) & 0xFFu)) ^ (a)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + ((feedback_byte + 15u) & 0xFFu)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 170u, 9u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 149u), 13u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x08F9C9E0u ^ static_cast<std::uint32_t>(7679u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-6421), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 0u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 16u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 18u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (753), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-2011), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = (((a + 30u + (key_byte)) ^ (c + 23u + (salt_byte ^ 7u)) ^ (b) ^ ((feedback_byte + 5u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((b >> 2u) & 0xFFu) ^ ((a << 4u) & 0xFFu) ^ (c) ^ (((twiddle_byte << 2u) | (twiddle_byte >> 6u)) & 0xFFu) ^ ((feedback_byte + 5u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = (((d + e) ^ c ^ a ^ (key_byte) ^ ((feedback_byte + 5u) & 0xFFu)) & 0xFFu);
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 241u, 3u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 48u), 12u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0786_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 21u + (-6543)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 20u + (-1014)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 22u + (-4980)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 21u + static_cast<unsigned int>(6u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(11u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 11u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 167u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0786(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0786_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0786_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0786_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0786_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 802: TwistCandidate_0802
+// family=mechanical_loops op_budget=3 loop_shapes=3x1/3x0/3x2
+// mechanical_loops[l1=3x1; l2=3x0; l3=3x2; key_rot=1; twiddle=0x30cea67a]
+static void TwistCandidate_0802_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 20u + (5919)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 9u + (854)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 216u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0802_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 16u + (3630)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 23u + (-4193)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 16u + static_cast<unsigned int>(216u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 102u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0802_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x30CEA67Au ^ (pRound * 53u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (5919), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x2EE4412Du ^ static_cast<std::uint32_t>(9528u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (5768), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 3u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 17u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 26u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-3844), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const int index3 = WrapRange(i + (7604), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = (((a ^ (b + 1u + (key_byte) + (feedback_byte))) + (c) + (salt_byte ^ 15u)) & 0xFFu);
+      const std::uint32_t e = ((((b * 3u) & 0xFFu) ^ (c) ^ ((a >> 5u) & 0xFFu) ^ (key_byte) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((((d + e) ^ b ^ c ^ (salt_byte ^ 15u) ^ (feedback_byte)) & 0xFFu) ^ (key_byte)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 72u), 6u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 76u, 8u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x02CEB679u ^ static_cast<std::uint32_t>(8161u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-7040), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 14u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 5u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 29u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (811), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const int index3 = WrapRange(i + (-1932), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pDest[index3]);
+      const std::uint32_t d = ((a + 31u + (salt_byte)) ^ ((b << 1u) & 0xFFu) ^ ((c * 5u) & 0xFFu) ^ ((key_byte + 10u) & 0xFFu) ^ ((feedback_byte + 10u) & 0xFFu));
+      const std::uint32_t e = (((c >> 3u) & 0xFFu) ^ (b) ^ ((a * 3u) & 0xFFu) ^ (salt_byte) ^ (((feedback_byte + 10u) & 0xFFu) >> 1U));
+      const std::uint32_t value = ((d ^ e) + a + c + (twiddle_byte) + ((feedback_byte + 10u) & 0xFFu)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 127u), 7u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 152u, 4u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x0AD751DAu ^ static_cast<std::uint32_t>(3638u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-6006), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 9u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 26u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 21u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-485), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (2853), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pWorker[index3]);
+      const std::uint32_t d = (((a) ^ (b) ^ (c) ^ (((twiddle_byte << 2u) | (twiddle_byte >> 6u)) & 0xFFu) ^ ((feedback_byte + 11u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((c * 5u) & 0xFFu) + (a) ^ ((b << 5u) & 0xFFu) + ((feedback_byte + 11u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (key_byte) + ((feedback_byte + 11u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(pDest[i] + static_cast<std::uint8_t>(value));
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 203u, 4u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 130u), 9u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0802_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 9u + (-3698)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 18u + (3092)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 28u + (-1194)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 9u + static_cast<unsigned int>(1u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(19u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 7u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 102u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a + b + salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    pNextRoundKeyBuffer[aKeyIndex2] ^= static_cast<unsigned char>((c ^ key_byte) & 0xFFu);
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0802(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0802_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0802_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0802_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0802_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 872: TwistCandidate_0872
+// family=mechanical_loops op_budget=3 loop_shapes=3x2/3x1/3x1
+// mechanical_loops[l1=3x2; l2=3x1; l3=3x1; key_rot=30; twiddle=0xe25b3345]
+static void TwistCandidate_0872_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 25u + (-657)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 27u + (3578)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 230u) ^ ((b << 7u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_0872_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 25u + (-5601)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 12u + (1435)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 25u + static_cast<unsigned int>(230u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 162u) ^ ((b << 7u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_0872_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0xE25B3345u ^ (pRound * 63u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-657), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x93C4C345u ^ static_cast<std::uint32_t>(1352u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (4033), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 3u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 16u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 10u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-5612), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const int index3 = WrapRange(i + (2931), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = ((((a * 5u) & 0xFFu) ^ (b) ^ ((c >> 3u) & 0xFFu) ^ (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) ^ ((feedback_byte + 4u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((c * 3u) & 0xFFu) + (a ^ 4u ^ ((key_byte + 12u) & 0xFFu)) ^ ((b << 4u) & 0xFFu) + ((feedback_byte + 4u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + ((key_byte + 12u) & 0xFFu) + ((feedback_byte + 4u) & 0xFFu)) & 0xFFu) ^ ((key_byte + 12u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 158u), 7u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 73u), 10u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x4B6999CDu ^ static_cast<std::uint32_t>(4929u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (136), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 11u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 15u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 3u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-3413) + static_cast<int>(a), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const int index3 = WrapRange(i + (-1652) - static_cast<int>(b), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pDest[index3]);
+      const std::uint32_t d = (((a ^ (b + 25u + ((key_byte + 19u) & 0xFFu) + (feedback_byte))) + ((c << 5u) & 0xFFu) + (salt_byte ^ 3u)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (c + 25u + (twiddle_byte)) ^ ((a >> 3u) & 0xFFu) ^ ((key_byte + 19u) & 0xFFu) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((d + e) ^ b ^ c ^ (salt_byte ^ 3u) ^ (feedback_byte)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 3u), 7u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 38u), 7u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x9EF2B03Du ^ static_cast<std::uint32_t>(9608u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (6492), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 5u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 22u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 20u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-4562), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (7678), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = (((a) + (c) + (salt_byte ^ 23u)) & 0xFFu);
+      const std::uint32_t e = ((((b * 3u) & 0xFFu) ^ (c + 23u + (((twiddle_byte << 2u) | (twiddle_byte >> 6u)) & 0xFFu)) ^ ((a >> 3u) & 0xFFu) ^ ((key_byte + 19u) & 0xFFu) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((d + e) ^ b ^ c ^ (salt_byte ^ 23u) ^ (feedback_byte)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 173u), 11u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 60u), 4u);
+    }
+  }
+
+}
+
+static void TwistCandidate_0872_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 24u + (-7427)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 14u + (-2212)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 18u + (2548)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 24u + static_cast<unsigned int>(30u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(5u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 8u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 162u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_0872(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_0872_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_0872_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_0872_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_0872_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 1093: TwistCandidate_1093
+// family=mechanical_loops op_budget=3 loop_shapes=3x2/3x0/3x1
+// mechanical_loops[l1=3x2; l2=3x0; l3=3x1; key_rot=19; twiddle=0x02acde28]
+static void TwistCandidate_1093_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 19u + (6360)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 21u + (5130)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 215u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_1093_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 21u + (-2938)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 22u + (1751)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 21u + static_cast<unsigned int>(215u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 227u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_1093_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x02ACDE28u ^ (pRound * 61u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (6360), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x0A1DEE55u ^ static_cast<std::uint32_t>(12972u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (2535), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 4u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 6u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 19u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (6291), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const int index3 = WrapRange(i + (4146), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = (((a) ^ (b + 12u + (salt_byte ^ 4u)) ^ ((c >> 5u) & 0xFFu) ^ (((twiddle_byte << 1u) | (twiddle_byte >> 7u)) & 0xFFu) ^ ((feedback_byte + 23u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((c * 5u) & 0xFFu) + (a ^ 29u ^ (key_byte)) ^ ((b << 2u) & 0xFFu) + ((feedback_byte + 23u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + (key_byte) + ((feedback_byte + 23u) & 0xFFu)) & 0xFFu) ^ (key_byte)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 171u, 3u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 147u), 13u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x587E8C2Du ^ static_cast<std::uint32_t>(2792u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-119), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 11u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 11u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 4u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (5874), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const int index3 = WrapRange(i + (-2963), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pDest[index3]);
+      const std::uint32_t d = ((a + 18u + (salt_byte)) ^ ((b << 5u) & 0xFFu) ^ (c) ^ ((key_byte + 12u) & 0xFFu) ^ ((feedback_byte + 28u) & 0xFFu));
+      const std::uint32_t e = (((c >> 4u) & 0xFFu) ^ (b) ^ (a) ^ (salt_byte) ^ (((feedback_byte + 28u) & 0xFFu) >> 1U));
+      const std::uint32_t value = ((d ^ e) + a + c + (twiddle_byte) + ((feedback_byte + 28u) & 0xFFu)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 25u, 9u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 208u, 4u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xCCFBF5F9u ^ static_cast<std::uint32_t>(4726u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-6579), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 14u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 15u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 8u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (5434), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-3581), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = (((a ^ (b + 8u + ((key_byte + 28u) & 0xFFu) + ((feedback_byte + 26u) & 0xFFu))) + (c) + (salt_byte ^ 21u)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (c) ^ ((a >> 3u) & 0xFFu) ^ ((key_byte + 28u) & 0xFFu) ^ ((feedback_byte + 26u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d + e) ^ b ^ c ^ (salt_byte ^ 21u) ^ ((feedback_byte + 26u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(pDest[i] + static_cast<std::uint8_t>(value));
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 141u), 8u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 125u, 5u);
+    }
+  }
+
+}
+
+static void TwistCandidate_1093_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 22u + (3081)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 20u + (6986)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 23u + (-5532)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 22u + static_cast<unsigned int>(19u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(23u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 7u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 227u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_1093(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_1093_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_1093_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_1093_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_1093_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 1170: TwistCandidate_1170
+// family=mechanical_loops op_budget=3 loop_shapes=1x2/3x3/3x2
+// mechanical_loops[l1=1x2; l2=3x3; l3=3x2; key_rot=11; twiddle=0xe3c02aa4]
+static void TwistCandidate_1170_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 4u + (-151)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 4u + (-2642)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 61u) ^ ((b << 5u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] = static_cast<unsigned char>(pKeyStack[aKeyPlaneIndex][aKeyIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_1170_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 12u + (5781)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 29u + (888)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 12u + static_cast<unsigned int>(61u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 223u) ^ ((b << 5u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] = static_cast<unsigned char>(pSalt[aSaltIndex] + static_cast<unsigned char>(mix_value));
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_1170_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0xE3C02AA4u ^ (pRound * 62u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-151), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xEC3ADB6Au ^ static_cast<std::uint32_t>(9131u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-4625), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 14u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 1u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 13u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t d = (((a + 3u + ((key_byte + 3u) & 0xFFu)) ^ ((a << 2u) & 0xFFu) ^ (salt_byte ^ 6u) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t value = ((((d + (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) + 14u) ^ ((a >> 2u) & 0xFFu)) & 0xFFu) ^ ((key_byte + 3u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 32u), 8u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 216u, 11u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xC203C31Eu ^ static_cast<std::uint32_t>(15542u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (2920), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 10u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 17u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 13u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (7152), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const int index3 = WrapRange(i + (5470), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pDest[index3]);
+      const std::uint32_t d = (((a + 18u + (key_byte)) ^ (c + 1u + (salt_byte)) ^ ((b * 5u) & 0xFFu) ^ ((feedback_byte + 30u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((b >> 3u) & 0xFFu) ^ (a) ^ ((c * 5u) & 0xFFu) ^ (((twiddle_byte << 2u) | (twiddle_byte >> 6u)) & 0xFFu) ^ ((feedback_byte + 30u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = (((d + e) ^ c ^ a ^ (key_byte) ^ ((feedback_byte + 30u) & 0xFFu)) & 0xFFu);
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 217u, 11u);
+      lane_state = RotateLeft32(lane_state + (value ^ key_byte ^ 109u), 11u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xE3692BF6u ^ static_cast<std::uint32_t>(7363u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-6126), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 10u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 27u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 28u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (4141), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-5378), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pSource[index3]);
+      const std::uint32_t d = ((((a * 5u) & 0xFFu) ^ (b + 28u + (salt_byte ^ 6u)) ^ ((c >> 1u) & 0xFFu) ^ (twiddle_byte) ^ ((feedback_byte + 12u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = (((c) + (a) ^ (b) + ((feedback_byte + 12u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (key_byte) + ((feedback_byte + 12u) & 0xFFu)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 164u), 11u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 83u), 1u);
+    }
+  }
+
+}
+
+static void TwistCandidate_1170_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 7u + (2878)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 7u + (5151)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 29u + (-2160)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 7u + static_cast<unsigned int>(11u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(15u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 11u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 223u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a + b + salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    pNextRoundKeyBuffer[aKeyIndex2] ^= static_cast<unsigned char>((c ^ key_byte) & 0xFFu);
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_1170(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_1170_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_1170_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_1170_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_1170_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 1200: TwistCandidate_1200
+// family=mechanical_loops op_budget=3 loop_shapes=2x2/2x3/3x1
+// mechanical_loops[l1=2x2; l2=2x3; l3=3x1; key_rot=29; twiddle=0xf28a26b7]
+static void TwistCandidate_1200_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 30u + (1026)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 31u + (6672)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 192u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_1200_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 29u + (1146)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 16u + (-5822)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 29u + static_cast<unsigned int>(192u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 216u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_1200_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0xF28A26B7u ^ (pRound * 36u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (1026), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x41167C87u ^ static_cast<std::uint32_t>(3581u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-3214), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 1u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 8u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 9u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (5559), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const std::uint32_t d = (((a) ^ (b) ^ (salt_byte ^ 30u) ^ ((feedback_byte + 26u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((b * 3u) & 0xFFu) ^ (a) ^ ((a >> 5u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + ((feedback_byte + 26u) & 0xFFu)) & 0xFFu) ^ (key_byte)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 238u), 5u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 16u, 10u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xC4B2AD13u ^ static_cast<std::uint32_t>(8760u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-7427), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 10u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 16u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 7u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (728), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a) ^ (b) ^ (salt_byte ^ 13u) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (a + 5u + (twiddle_byte)) ^ ((a >> 5u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (feedback_byte)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 248u), 1u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 148u), 9u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xB645E4A3u ^ static_cast<std::uint32_t>(10195u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-2105), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 9u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 2u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 0u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (6631), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (5669), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pWorker[index3]);
+      const std::uint32_t d = (((a) + ((c << 2u) & 0xFFu) + (salt_byte)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (c + 22u + (((twiddle_byte << 1u) | (twiddle_byte >> 7u)) & 0xFFu)) ^ ((a >> 1u) & 0xFFu) ^ ((key_byte + 7u) & 0xFFu) ^ ((feedback_byte + 29u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d + e) ^ b ^ c ^ (salt_byte) ^ ((feedback_byte + 29u) & 0xFFu)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 95u, 1u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 45u), 5u);
+    }
+  }
+
+}
+
+static void TwistCandidate_1200_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 31u + (-3986)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 8u + (72)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 31u + (-3089)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 31u + static_cast<unsigned int>(29u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(15u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 4u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 216u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a + b + salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    pNextRoundKeyBuffer[aKeyIndex2] ^= static_cast<unsigned char>((c ^ key_byte) & 0xFFu);
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_1200(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_1200_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_1200_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_1200_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_1200_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 1266: TwistCandidate_1266
+// family=mechanical_loops op_budget=3 loop_shapes=2x0/2x0/3x0
+// mechanical_loops[l1=2x0; l2=2x0; l3=3x0; key_rot=28; twiddle=0x137ae7a7]
+static void TwistCandidate_1266_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 16u + (-4795)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 4u + (-6045)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 18u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_1266_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 4u + (-5310)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 16u + (3530)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 4u + static_cast<unsigned int>(18u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 84u) ^ ((b << 1u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_1266_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x137AE7A7u ^ (pRound * 41u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-4795), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x575B1950u ^ static_cast<std::uint32_t>(2283u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (4538), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 3u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 8u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 31u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (3237), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const std::uint32_t d = (((a + 6u + ((key_byte + 14u) & 0xFFu)) ^ (b) ^ (salt_byte ^ 27u) ^ ((feedback_byte + 5u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((b * 3u) & 0xFFu) ^ (a + 29u + (twiddle_byte)) ^ ((a >> 1u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + ((feedback_byte + 5u) & 0xFFu)) & 0xFFu) ^ ((key_byte + 14u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 17u, 6u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 29u, 5u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x6D6EC951u ^ static_cast<std::uint32_t>(10608u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (1635), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 2u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 1u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 9u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-5884) + static_cast<int>(a), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a + 28u + (key_byte)) ^ (b) ^ (salt_byte ^ 11u) ^ ((feedback_byte + 19u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((b * 3u) & 0xFFu) ^ (a + 26u + (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu)) ^ (a)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + ((feedback_byte + 19u) & 0xFFu)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32((aTwiddle ^ (value + key_byte)) + (salt_byte << 8U) + 174u, 5u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 59u), 6u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x428FF329u ^ static_cast<std::uint32_t>(10790u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-1569), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 4u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 15u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 27u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-5197), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-4024), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pWorker[index3]);
+      const std::uint32_t d = ((a + 17u + (salt_byte ^ 20u)) ^ (b) ^ ((c * 5u) & 0xFFu) ^ (key_byte) ^ (feedback_byte));
+      const std::uint32_t e = ((c) ^ (b + 20u + (((twiddle_byte << 1u) | (twiddle_byte >> 7u)) & 0xFFu)) ^ (a) ^ (salt_byte ^ 20u) ^ ((feedback_byte) >> 1U));
+      const std::uint32_t value = ((d ^ e) + a + c + (((twiddle_byte << 1u) | (twiddle_byte >> 7u)) & 0xFFu) + (feedback_byte)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(pDest[i] + static_cast<std::uint8_t>(value));
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 80u), 3u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 243u), 7u);
+    }
+  }
+
+}
+
+static void TwistCandidate_1266_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 27u + (-2246)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 12u + (-5232)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 8u + (2143)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 27u + static_cast<unsigned int>(28u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(25u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 4u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 84u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a + b + salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    pNextRoundKeyBuffer[aKeyIndex2] ^= static_cast<unsigned char>((c ^ key_byte) & 0xFFu);
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_1266(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_1266_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_1266_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_1266_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_1266_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+// Candidate 1301: TwistCandidate_1301
+// family=mechanical_loops op_budget=3 loop_shapes=2x2/2x3/3x2
+// mechanical_loops[l1=2x2; l2=2x3; l3=3x2; key_rot=31; twiddle=0x7e08eb3d]
+static void TwistCandidate_1301_KeySeed(
+    unsigned char* pSource,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pKeyStack, 0, kRoundKeyStackDepth * kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  unsigned int aKeyIndex = 0U;
+  unsigned int aKeyPlaneIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 4u + (-1498)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 1u + (-3128)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 215u) ^ ((b << 2u) & 0xFFu)) & 0xFFu));
+    pKeyStack[aKeyPlaneIndex][aKeyIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+    ++aKeyIndex;
+    if (aKeyIndex >= kRoundKeyBytes) {
+      aKeyIndex = 0U;
+      ++aKeyPlaneIndex;
+      if (aKeyPlaneIndex >= kRoundKeyStackDepth) {
+        aKeyPlaneIndex = 0U;
+      }
+    }
+  }
+}
+
+static void TwistCandidate_1301_SaltSeed(
+    unsigned char* pSource,
+    unsigned char (&pSalt)[kSaltBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pSalt, 0, kSaltBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 22u + (7280)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 24u + (-1021)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aSaltIndex = (aSourceIndex * 22u + static_cast<unsigned int>(215u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pSource[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pSource[idx1]);
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((((a + 196u) ^ ((b << 2u) & 0xFFu)) & 0xFFu));
+    pSalt[aSaltIndex] ^= static_cast<unsigned char>(mix_value);
+    ++aSourceIndex;
+  }
+}
+
+static void TwistCandidate_1301_TwistBlock(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned int pRound,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pSource == nullptr || pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::uint32_t aTwiddle = 0xBEEFBEEFu ^ 0x7E08EB3Du ^ (pRound * 36u);
+  aTwiddle ^= static_cast<std::uint32_t>(pSource[WrapRange(static_cast<int>(pRound) + (-1498), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE))]) << 8U;
+  aTwiddle ^= static_cast<std::uint32_t>(pSalt[pRound & 31U]) << 16U;
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xCD4B3BEEu ^ static_cast<std::uint32_t>(8821u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (1685), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 1u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 20u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 0u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-3332), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pSource[index2]);
+      const std::uint32_t d = (((a) ^ ((b << 4u) & 0xFFu) ^ (salt_byte) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (a + 16u + (((twiddle_byte << 2u) | (twiddle_byte >> 6u)) & 0xFFu)) ^ ((a >> 1u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((((d ^ e) + a + b + (feedback_byte)) & 0xFFu) ^ ((key_byte + 3u) & 0xFFu)) & 0xFFu;
+      pDest[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle + (value ^ twiddle_byte ^ 100u), 1u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 53u), 6u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0x46BB7905u ^ static_cast<std::uint32_t>(8856u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (3848), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pDest[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 4u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 20u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 13u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (2949), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pDest[index2]);
+      const std::uint32_t d = (((a + 26u + (key_byte)) ^ ((b << 1u) & 0xFFu) ^ (salt_byte ^ 4u) ^ (feedback_byte)) & 0xFFu);
+      const std::uint32_t e = (((b) ^ (a + 25u + (twiddle_byte)) ^ ((a >> 2u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + (feedback_byte)) & 0xFFu;
+      pWorker[i] = static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 29u), 3u);
+      lane_state = RotateLeft32(lane_state ^ (value + twiddle_byte + 70u), 10u);
+    }
+  }
+
+  {
+    const int start = 0;
+    const int end = static_cast<int>(PASSWORD_EXPANDED_SIZE);
+    std::uint32_t lane_state = aTwiddle ^ 0xDE06FD79u ^ static_cast<std::uint32_t>(11277u);
+    for (int i = start; i < end; ++i) {
+      const int index1 = WrapRange(i + (-5779), start, end);
+      const std::uint32_t a = static_cast<std::uint32_t>(pSource[index1]);
+      const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+          pKeyStack,
+          static_cast<std::size_t>((pRound + 4u + static_cast<unsigned int>(i)) & 15U),
+          static_cast<std::size_t>(i + 9u)));
+      const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[(static_cast<unsigned int>(i) + 11u) & 31U]);
+      const std::uint32_t twiddle_byte = static_cast<std::uint32_t>(          (aTwiddle >> (((static_cast<unsigned int>(i) + pRound) & 3U) * 8U)) & 0xFFu);
+      const std::uint32_t feedback_byte = static_cast<std::uint32_t>(          (lane_state >> (((static_cast<unsigned int>(i) ^ pRound) & 3U) * 8U)) & 0xFFu);
+      const int index2 = WrapRange(i + (-1513), start, end);
+      const std::uint32_t b = static_cast<std::uint32_t>(pWorker[index2]);
+      const int index3 = WrapRange(i + (-3985), start, end);
+      const std::uint32_t c = static_cast<std::uint32_t>(pWorker[index3]);
+      const std::uint32_t d = (((a) ^ (b) ^ (c) ^ (((twiddle_byte << 3u) | (twiddle_byte >> 5u)) & 0xFFu) ^ ((feedback_byte + 28u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t e = ((((c * 5u) & 0xFFu) + (a ^ 25u ^ ((key_byte + 25u) & 0xFFu)) ^ (b) + ((feedback_byte + 28u) & 0xFFu)) & 0xFFu);
+      const std::uint32_t value = ((d ^ e) + a + b + ((key_byte + 25u) & 0xFFu) + ((feedback_byte + 28u) & 0xFFu)) & 0xFFu;
+      pDest[i] ^= static_cast<std::uint8_t>(value);
+      aTwiddle = RotateLeft32(aTwiddle ^ (value + key_byte + salt_byte + 218u), 3u);
+      lane_state = RotateLeft32((lane_state ^ (value + feedback_byte)) + (salt_byte << 8U) + 61u, 4u);
+    }
+  }
+
+}
+
+static void TwistCandidate_1301_PushKeyRound(
+    unsigned char* pDest,
+    const unsigned char (&pSalt)[kSaltBytes],
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pDest == nullptr || pLength < PASSWORD_EXPANDED_SIZE) {
+    return;
+  }
+  std::memset(pNextRoundKeyBuffer, 0, kRoundKeyBytes);
+  unsigned int aSourceIndex = 0U;
+  while (aSourceIndex < PASSWORD_EXPANDED_SIZE) {
+    const int idx0 = WrapRange(static_cast<int>(aSourceIndex * 15u + (2685)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx1 = WrapRange(static_cast<int>(aSourceIndex * 28u + (-32)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const int idx2 = WrapRange(static_cast<int>(aSourceIndex * 28u + (3881)), 0, static_cast<int>(PASSWORD_EXPANDED_SIZE));
+    const unsigned int aKeyIndex = (aSourceIndex * 15u + static_cast<unsigned int>(31u)) & 31U;
+    const unsigned int aKeyIndex2 = (aKeyIndex + static_cast<unsigned int>(23u)) & 31U;
+    const std::uint32_t a = static_cast<std::uint32_t>(pDest[idx0]);
+    const std::uint32_t b = static_cast<std::uint32_t>(pDest[idx1]);
+    const std::uint32_t c = static_cast<std::uint32_t>(pDest[idx2]);
+    const std::uint32_t salt_byte = static_cast<std::uint32_t>(pSalt[aSourceIndex & 31U]);
+    const std::uint32_t key_byte = static_cast<std::uint32_t>(KeyStackByte(
+        pKeyStack,
+        static_cast<std::size_t>((aSourceIndex + 15u) & 15U),
+        static_cast<std::size_t>(aSourceIndex + 196u)));
+    const std::uint32_t mix_value = static_cast<std::uint32_t>((a ^ b ^ salt_byte) & 0xFFu);
+    pNextRoundKeyBuffer[aKeyIndex] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex] + static_cast<unsigned char>(mix_value));
+    pNextRoundKeyBuffer[aKeyIndex2] = static_cast<unsigned char>(pNextRoundKeyBuffer[aKeyIndex2] + static_cast<unsigned char>((c ^ key_byte) & 0xFFu));
+    ++aSourceIndex;
+  }
+  RotateKeyStack(pKeyStack, pNextRoundKeyBuffer);
+}
+
+void TwistCandidate_1301(
+    unsigned char* pSource,
+    unsigned char* pWorker,
+    unsigned char* pDest,
+    unsigned char (&pKeyStack)[kRoundKeyStackDepth][kRoundKeyBytes],
+    unsigned char (&pNextRoundKeyBuffer)[kRoundKeyBytes],
+    unsigned int pLength) {
+  if (pLength == 0U) {
+    return;
+  }
+  if ((pLength % PASSWORD_EXPANDED_SIZE) != 0U) {
+    return;
+  }
+  unsigned char aSalt[kSaltBytes]{};
+  TwistCandidate_1301_KeySeed(pSource, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  TwistCandidate_1301_SaltSeed(pSource, aSalt, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  unsigned int aRound = 0U;
+  for (unsigned int offset = 0U; offset < pLength; offset += PASSWORD_EXPANDED_SIZE, ++aRound) {
+    unsigned char* aRoundSource = (aRound == 0U)
+        ? pSource
+        : (pDest + offset - PASSWORD_EXPANDED_SIZE);
+    unsigned char* aRoundDest = pDest + offset;
+    TwistCandidate_1301_TwistBlock(aRoundSource, pWorker, aRoundDest, aRound, aSalt, pKeyStack, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+    TwistCandidate_1301_PushKeyRound(aRoundDest, aSalt, pKeyStack, pNextRoundKeyBuffer, static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE));
+  }
+}
+
+}  // namespace twist
 
 namespace peanutbutter::expansion::key_expansion {
-namespace {
-
-constexpr int kMatrixSize = 16;
-constexpr int kChunkBytes = 32;
-
-#if defined(__ARM_NEON) && !defined(PB_FORCE_SOFTWARE_MODE)
-inline void BlockXorInPlace(unsigned char* pDestination, const unsigned char* pSource) {
-    vst1q_u8(pDestination, veorq_u8(vld1q_u8(pDestination), vld1q_u8(pSource)));
-}
-
-inline void BlockAddInPlace(unsigned char* pDestination, const unsigned char* pSource) {
-    vst1q_u8(pDestination, vaddq_u8(vld1q_u8(pDestination), vld1q_u8(pSource)));
-}
-#elif defined(__SSE2__) && !defined(PB_FORCE_SOFTWARE_MODE)
-inline void BlockXorInPlace(unsigned char* pDestination, const unsigned char* pSource) {
-    const __m128i aLeft = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pDestination));
-    const __m128i aRight = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pSource));
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(pDestination), _mm_xor_si128(aLeft, aRight));
-}
-
-inline void BlockAddInPlace(unsigned char* pDestination, const unsigned char* pSource) {
-    const __m128i aLeft = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pDestination));
-    const __m128i aRight = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pSource));
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(pDestination), _mm_add_epi8(aLeft, aRight));
-}
-#else
-inline void BlockXorInPlace(unsigned char* pDestination, const unsigned char* pSource) {
-    for (int i = 0; i < kMatrixSize; ++i) {
-        pDestination[i] = static_cast<unsigned char>(pDestination[i] ^ pSource[i]);
-    }
-}
-
-inline void BlockAddInPlace(unsigned char* pDestination, const unsigned char* pSource) {
-    for (int i = 0; i < kMatrixSize; ++i) {
-        pDestination[i] = static_cast<unsigned char>(pDestination[i] + pSource[i]);
-    }
-}
-#endif
-
-inline int WrapIndex(int pIndex) {
-    int aWrapped = pIndex % PASSWORD_EXPANDED_SIZE;
-    if (aWrapped < 0) {
-        aWrapped += PASSWORD_EXPANDED_SIZE;
-    }
-    return aWrapped;
-}
-
-inline void CopyBlock16(const unsigned char* pSource, unsigned char* pDestination) {
-    std::memcpy(pDestination, pSource, kMatrixSize);
-}
-
-inline void LoadWrappedBlock16(const unsigned char* pSource, int pIndex, unsigned char* pDestination) {
-    const int aStart = WrapIndex(pIndex);
-    if (aStart <= (PASSWORD_EXPANDED_SIZE - kMatrixSize)) {
-        std::memcpy(pDestination, pSource + aStart, kMatrixSize);
-        return;
-    }
-    for (int i = 0; i < kMatrixSize; ++i) {
-        pDestination[i] = pSource[WrapIndex(aStart + i)];
-    }
-}
-
-inline void StoreBlock16(unsigned char* pDestination, int pIndex, const unsigned char* pSource) {
-    std::memcpy(pDestination + pIndex, pSource, kMatrixSize);
-}
-
-inline unsigned char& MatrixAt(unsigned char* pMatrix, int pRow, int pColumn) {
-    return pMatrix[((pRow & 3) * 4) + (pColumn & 3)];
-}
-
-inline void XorWithBlock(unsigned char* pDestination, const unsigned char* pSource) {
-    BlockXorInPlace(pDestination, pSource);
-}
-
-inline void AddWithBlock(unsigned char* pDestination, const unsigned char* pSource) {
-    BlockAddInPlace(pDestination, pSource);
-}
-
-inline void InjectXorShifted(unsigned char* pDestination, const unsigned char* pSource, unsigned char pStart) {
-    alignas(16) unsigned char aScratch[kMatrixSize];
-    for (int i = 0; i < kMatrixSize; ++i) {
-        aScratch[i] = pSource[(static_cast<int>(pStart) + i) & 15];
-    }
-    BlockXorInPlace(pDestination, aScratch);
-}
-
-inline void InjectAddShifted(unsigned char* pDestination, const unsigned char* pSource, unsigned char pStart) {
-    alignas(16) unsigned char aScratch[kMatrixSize];
-    for (int i = 0; i < kMatrixSize; ++i) {
-        aScratch[i] = pSource[(static_cast<int>(pStart) + i) & 15];
-    }
-    BlockAddInPlace(pDestination, aScratch);
-}
-
-inline unsigned char FoldXor(const unsigned char* pMatrix) {
-    unsigned char aValue = 0u;
-    for (int i = 0; i < kMatrixSize; ++i) {
-        aValue = static_cast<unsigned char>(aValue ^ pMatrix[i]);
-    }
-    return aValue;
-}
-
-inline unsigned char FoldAdd(const unsigned char* pMatrix) {
-    unsigned char aValue = 0u;
-    for (int i = 0; i < kMatrixSize; ++i) {
-        aValue = static_cast<unsigned char>(aValue + pMatrix[i]);
-    }
-    return aValue;
-}
-
-inline void RotateRowLeft(unsigned char* pMatrix, unsigned char pRow, unsigned char pAmount) {
-    const int aRow = pRow & 3;
-    const int aShift = pAmount & 3;
-    if (aShift == 0) {
-        return;
-    }
-    unsigned char aScratch[4] = {
-        MatrixAt(pMatrix, aRow, 0), MatrixAt(pMatrix, aRow, 1), MatrixAt(pMatrix, aRow, 2), MatrixAt(pMatrix, aRow, 3)};
-    for (int i = 0; i < 4; ++i) {
-        MatrixAt(pMatrix, aRow, i) = aScratch[(i + aShift) & 3];
-    }
-}
-
-inline void RotateColumnDown(unsigned char* pMatrix, unsigned char pColumn, unsigned char pAmount) {
-    const int aColumn = pColumn & 3;
-    const int aShift = pAmount & 3;
-    if (aShift == 0) {
-        return;
-    }
-    unsigned char aScratch[4] = {
-        MatrixAt(pMatrix, 0, aColumn), MatrixAt(pMatrix, 1, aColumn), MatrixAt(pMatrix, 2, aColumn), MatrixAt(pMatrix, 3, aColumn)};
-    for (int i = 0; i < 4; ++i) {
-        MatrixAt(pMatrix, (i + aShift) & 3, aColumn) = aScratch[i];
-    }
-}
-
-inline void SwapRows(unsigned char* pMatrix, unsigned char pRowA, unsigned char pRowB) {
-    const int aRowA = pRowA & 3;
-    const int aRowB = pRowB & 3;
-    if (aRowA == aRowB) {
-        return;
-    }
-    for (int i = 0; i < 4; ++i) {
-        std::swap(MatrixAt(pMatrix, aRowA, i), MatrixAt(pMatrix, aRowB, i));
-    }
-}
-
-inline void XorRowIntoRow(unsigned char* pMatrix, unsigned char pDstRow, unsigned char pSrcRow) {
-    const int aDst = pDstRow & 3;
-    const int aSrc = pSrcRow & 3;
-    if (aDst == aSrc) {
-        RotateRowLeft(pMatrix, static_cast<unsigned char>(aDst), 1u);
-        return;
-    }
-    for (int i = 0; i < 4; ++i) {
-        MatrixAt(pMatrix, aDst, i) = static_cast<unsigned char>(MatrixAt(pMatrix, aDst, i) ^ MatrixAt(pMatrix, aSrc, i));
-    }
-}
-
-inline void AddColumnIntoColumn(unsigned char* pMatrix, unsigned char pDstColumn, unsigned char pSrcColumn) {
-    const int aDst = pDstColumn & 3;
-    const int aSrc = pSrcColumn & 3;
-    if (aDst == aSrc) {
-        RotateColumnDown(pMatrix, static_cast<unsigned char>(aDst), 1u);
-        return;
-    }
-    for (int i = 0; i < 4; ++i) {
-        MatrixAt(pMatrix, i, aDst) = static_cast<unsigned char>(MatrixAt(pMatrix, i, aDst) + MatrixAt(pMatrix, i, aSrc));
-    }
-}
-
-inline void WeaveRows(unsigned char* pMatrix, unsigned char pRowA, unsigned char pRowB) {
-    const int aRowA = pRowA & 3;
-    const int aRowB = pRowB & 3;
-    if (aRowA == aRowB) {
-        return;
-    }
-    std::swap(MatrixAt(pMatrix, aRowA, 1), MatrixAt(pMatrix, aRowB, 1));
-    std::swap(MatrixAt(pMatrix, aRowA, 3), MatrixAt(pMatrix, aRowB, 3));
-}
-
-void TwistBytes_00(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_01(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_02(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_03(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_04(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_05(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_06(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_07(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_08(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_09(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_10(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_11(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_12(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_13(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_14(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-void TwistBytes_15(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace);
-
-void TwistSingleBlock(unsigned char pType,
-                      unsigned char* pSource,
-                      unsigned char* pWorkspace,
-                      unsigned char* pDestination) {
-    switch (pType & 15U) {
-        case 0:
-            TwistBytes_00(pSource, pDestination, pWorkspace);
-            break;
-        case 1:
-            TwistBytes_01(pSource, pDestination, pWorkspace);
-            break;
-        case 2:
-            TwistBytes_02(pSource, pDestination, pWorkspace);
-            break;
-        case 3:
-            TwistBytes_03(pSource, pDestination, pWorkspace);
-            break;
-        case 4:
-            TwistBytes_04(pSource, pDestination, pWorkspace);
-            break;
-        case 5:
-            TwistBytes_05(pSource, pDestination, pWorkspace);
-            break;
-        case 6:
-            TwistBytes_06(pSource, pDestination, pWorkspace);
-            break;
-        case 7:
-            TwistBytes_07(pSource, pDestination, pWorkspace);
-            break;
-        case 8:
-            TwistBytes_08(pSource, pDestination, pWorkspace);
-            break;
-        case 9:
-            TwistBytes_09(pSource, pDestination, pWorkspace);
-            break;
-        case 10:
-            TwistBytes_10(pSource, pDestination, pWorkspace);
-            break;
-        case 11:
-            TwistBytes_11(pSource, pDestination, pWorkspace);
-            break;
-        case 12:
-            TwistBytes_12(pSource, pDestination, pWorkspace);
-            break;
-        case 13:
-            TwistBytes_13(pSource, pDestination, pWorkspace);
-            break;
-        case 14:
-            TwistBytes_14(pSource, pDestination, pWorkspace);
-            break;
-        case 15:
-        default:
-            TwistBytes_15(pSource, pDestination, pWorkspace);
-            break;
-    }
-}
-// Derived from Test Candidate 2192
-// Final grade: A+ (98.776450)
-void TwistBytes_00(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0xA8u, 0x3Du, 0x69u, 0xA6u, 0xDBu, 0x15u, 0x98u, 0xF9u, 0x62u, 0xABu, 0x24u, 0x28u, 0xEAu, 0xD3u, 0xC4u, 0xB7u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x06u, 0xB5u, 0x12u, 0x4Bu, 0x40u, 0x91u, 0xD0u, 0xC5u, 0x9Cu, 0xC3u, 0x8Au, 0x54u, 0x9Fu, 0x91u, 0xEEu, 0xF5u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x98u, 0xC8u, 0x35u, 0x52u, 0x7Fu, 0x78u, 0xEDu, 0x50u, 0xB6u, 0xEEu, 0x21u, 0x50u, 0xACu, 0xA7u, 0xC6u, 0x25u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0xF8u, 0xE9u, 0x37u, 0x55u, 0xABu, 0xE5u, 0x7Bu, 0x40u, 0x5Bu, 0x62u, 0x83u, 0x68u, 0xF9u, 0x59u, 0xD3u, 0x78u};
-    constexpr int kPhase1SourceOffset1 = 1696;
-    constexpr int kPhase1ControlOffset = 5072;
-    constexpr int kPhase1FeedbackOffset = 592;
-    constexpr unsigned char kPhase1SaltBias = 121u;
-    constexpr unsigned char kPhase1SaltStride = 11u;
-    constexpr int kPhase2SourceOffset1 = 6352;
-    constexpr int kPhase2ControlOffset = 3360;
-    constexpr int kPhase2FeedbackOffset = 2768;
-    constexpr unsigned char kPhase2SaltBias = 113u;
-    constexpr unsigned char kPhase2SaltStride = 9u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        SwapRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[4] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[5] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        XorRowIntoRow(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        RotateColumnDown(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 7) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 7) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        WeaveRows(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectXorShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        RotateColumnDown(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectXorShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] + aPhase2LaneMix0 + aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] + aPhase2LaneMix1 + aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        XorRowIntoRow(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        AddColumnIntoColumn(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 4074
-// Final grade: A+ (98.772737)
-void TwistBytes_01(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0xB9u, 0x50u, 0x1Au, 0x1Au, 0xFAu, 0xBCu, 0x0Cu, 0xE1u, 0xABu, 0x31u, 0x9Au, 0x85u, 0xCEu, 0x93u, 0xB1u, 0xE8u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x35u, 0x86u, 0xFFu, 0x35u, 0x31u, 0x82u, 0xA5u, 0x78u, 0xB1u, 0x6Du, 0xD5u, 0xCAu, 0x3Bu, 0x07u, 0x00u, 0xAFu};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x29u, 0x1Du, 0xC1u, 0x3Cu, 0xE4u, 0x02u, 0x77u, 0xE5u, 0x0Du, 0x7Fu, 0x50u, 0x3Eu, 0x39u, 0xD5u, 0x21u, 0x38u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x2Cu, 0x45u, 0x67u, 0x8Fu, 0x8Eu, 0xBEu, 0xBFu, 0xFDu, 0x48u, 0xC6u, 0x32u, 0x67u, 0x5Au, 0x52u, 0x40u, 0xF6u};
-    constexpr int kPhase1SourceOffset1 = 3072;
-    constexpr int kPhase1ControlOffset = 5232;
-    constexpr int kPhase1FeedbackOffset = 912;
-    constexpr unsigned char kPhase1SaltBias = 43u;
-    constexpr unsigned char kPhase1SaltStride = 29u;
-    constexpr int kPhase2SourceOffset1 = 6128;
-    constexpr int kPhase2ControlOffset = 1760;
-    constexpr int kPhase2FeedbackOffset = 5184;
-    constexpr unsigned char kPhase2SaltBias = 175u;
-    constexpr unsigned char kPhase2SaltStride = 5u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        SwapRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectAddShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        RotateRowLeft(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[9] ^ aPhase1Salt[10]), static_cast<unsigned char>(aPhase1ControlB[12] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        AddWithBlock(aPhase1Matrix0, aPhase1Matrix1);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 7) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 5) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        RotateRowLeft(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        SwapRows(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectAddShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectAddShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        SwapRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] + aPhase2LaneMix0 + aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 5) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] + aPhase2LaneMix1 + aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        AddColumnIntoColumn(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectAddShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        XorRowIntoRow(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 3893
-// Final grade: A+ (98.761656)
-void TwistBytes_02(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0xDEu, 0xF7u, 0x64u, 0x1Fu, 0xC6u, 0x2Fu, 0x3Au, 0x3Bu, 0x4Eu, 0xEBu, 0x19u, 0x68u, 0xD2u, 0x21u, 0x07u, 0x76u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0xDBu, 0x98u, 0xD1u, 0x6Eu, 0xCCu, 0xD7u, 0xC2u, 0x13u, 0xE0u, 0x8Bu, 0x00u, 0x53u, 0x6Fu, 0xDDu, 0x36u, 0xACu};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x3Eu, 0x60u, 0xC9u, 0x03u, 0x5Cu, 0xB2u, 0x95u, 0xCEu, 0xD7u, 0xBBu, 0x21u, 0x56u, 0x76u, 0x80u, 0xB2u, 0x52u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x67u, 0x51u, 0x69u, 0x54u, 0x9Cu, 0x7Du, 0xFEu, 0xE4u, 0x15u, 0x70u, 0xC6u, 0x2Fu, 0x0Au, 0x48u, 0x29u, 0xDCu};
-    constexpr int kPhase1SourceOffset1 = 5488;
-    constexpr int kPhase1ControlOffset = 5392;
-    constexpr int kPhase1FeedbackOffset = 4400;
-    constexpr unsigned char kPhase1SaltBias = 63u;
-    constexpr unsigned char kPhase1SaltStride = 7u;
-    constexpr int kPhase2SourceOffset1 = 6480;
-    constexpr int kPhase2ControlOffset = 4464;
-    constexpr int kPhase2FeedbackOffset = 6192;
-    constexpr unsigned char kPhase2SaltBias = 101u;
-    constexpr unsigned char kPhase2SaltStride = 19u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        SwapRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[4] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[5] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        RotateColumnDown(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        WeaveRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 3) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 5) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        RotateRowLeft(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        WeaveRows(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectXorShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        RotateColumnDown(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 3) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] ^ aPhase2LaneMix0 ^ aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 5) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] ^ aPhase2LaneMix1 ^ aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        RotateColumnDown(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        AddColumnIntoColumn(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectXorShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 918
-// Final grade: A+ (98.757395)
-void TwistBytes_03(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0xE4u, 0x21u, 0xC1u, 0x05u, 0x20u, 0xCDu, 0xB7u, 0xC0u, 0x0Du, 0x3Au, 0x8Au, 0xE7u, 0x5Bu, 0x00u, 0xE0u, 0x89u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x61u, 0x6Du, 0x42u, 0x77u, 0xAFu, 0xF8u, 0x2Du, 0xCDu, 0xC4u, 0x3Au, 0x4Du, 0x2Au, 0x1Au, 0x02u, 0x4Bu, 0xE2u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x6Eu, 0x66u, 0x23u, 0x67u, 0x5Fu, 0x27u, 0x2Cu, 0x7Cu, 0x79u, 0x32u, 0x8Eu, 0xC6u, 0x74u, 0x83u, 0x95u, 0x27u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x0Fu, 0xD8u, 0xD8u, 0x96u, 0xBDu, 0x96u, 0xEBu, 0x8Fu, 0x0Eu, 0xB4u, 0x25u, 0xC9u, 0xDAu, 0x09u, 0x0Bu, 0xD4u};
-    constexpr int kPhase1SourceOffset1 = 6912;
-    constexpr int kPhase1ControlOffset = 3600;
-    constexpr int kPhase1FeedbackOffset = 3744;
-    constexpr unsigned char kPhase1SaltBias = 153u;
-    constexpr unsigned char kPhase1SaltStride = 17u;
-    constexpr int kPhase2SourceOffset1 = 2400;
-    constexpr int kPhase2ControlOffset = 3616;
-    constexpr int kPhase2FeedbackOffset = 3312;
-    constexpr unsigned char kPhase2SaltBias = 107u;
-    constexpr unsigned char kPhase2SaltStride = 19u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        RotateColumnDown(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        RotateColumnDown(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        SwapRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectAddShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        RotateRowLeft(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        RotateColumnDown(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        AddWithBlock(aPhase1Matrix0, aPhase1Matrix1);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 7) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 13) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        SwapRows(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectXorShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        RotateColumnDown(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectAddShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectAddShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] + aPhase2LaneMix0 + aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 13) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] + aPhase2LaneMix1 + aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        RotateRowLeft(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectAddShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        XorRowIntoRow(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectXorShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 2871
-// Final grade: A+ (98.746495)
-void TwistBytes_04(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x71u, 0x5Bu, 0x4Du, 0x7Cu, 0xBCu, 0xE0u, 0xBFu, 0xDBu, 0x93u, 0xD8u, 0x35u, 0xE2u, 0x87u, 0x94u, 0xCAu, 0x51u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x97u, 0x74u, 0x56u, 0xDFu, 0x3Du, 0xECu, 0x8Du, 0x2Eu, 0xF6u, 0x3Cu, 0x37u, 0x9Cu, 0x5Bu, 0xCCu, 0x74u, 0x07u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0xD6u, 0x10u, 0x33u, 0xDAu, 0x1Du, 0x26u, 0x15u, 0xA3u, 0x15u, 0x7Cu, 0x62u, 0xD4u, 0x23u, 0x93u, 0xFCu, 0xCAu};
-    static constexpr unsigned char kPhase2Seed1[16] = {0xCAu, 0x23u, 0xF6u, 0x5Au, 0xA2u, 0x7Bu, 0xA6u, 0xC6u, 0x59u, 0xDFu, 0x1Eu, 0xC1u, 0x20u, 0xEAu, 0xCAu, 0xEFu};
-    constexpr int kPhase1SourceOffset1 = 1136;
-    constexpr int kPhase1ControlOffset = 2720;
-    constexpr int kPhase1FeedbackOffset = 7552;
-    constexpr unsigned char kPhase1SaltBias = 161u;
-    constexpr unsigned char kPhase1SaltStride = 13u;
-    constexpr int kPhase2SourceOffset1 = 5712;
-    constexpr int kPhase2ControlOffset = 3664;
-    constexpr int kPhase2FeedbackOffset = 4400;
-    constexpr unsigned char kPhase2SaltBias = 219u;
-    constexpr unsigned char kPhase2SaltStride = 3u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        SwapRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        AddColumnIntoColumn(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        RotateColumnDown(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        RotateColumnDown(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[4] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[5] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectAddShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 1) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 7) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        RotateColumnDown(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        AddColumnIntoColumn(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectAddShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectAddShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        SwapRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        WeaveRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        AddWithBlock(aPhase2Matrix0, aPhase2Matrix1);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 1) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] ^ aPhase2LaneMix0 ^ aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] ^ aPhase2LaneMix1 ^ aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        RotateRowLeft(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectAddShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        SwapRows(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectXorShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 1204
-// Final grade: A+ (98.743252)
-void TwistBytes_05(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x32u, 0xDFu, 0x37u, 0x92u, 0xB6u, 0xF8u, 0xB1u, 0xF5u, 0x05u, 0xB3u, 0xEDu, 0xBAu, 0x64u, 0xB5u, 0x81u, 0x72u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x7Du, 0xF3u, 0xC9u, 0x54u, 0x30u, 0xC3u, 0x0Fu, 0x47u, 0x5Au, 0x11u, 0xABu, 0xE1u, 0x89u, 0xE8u, 0xBBu, 0x6Au};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x13u, 0xD4u, 0xC0u, 0xA6u, 0xB1u, 0xDCu, 0x09u, 0x10u, 0x02u, 0x53u, 0x80u, 0x67u, 0x52u, 0xA2u, 0x52u, 0xC2u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x5Au, 0xCBu, 0x78u, 0xA0u, 0xB6u, 0xDDu, 0x8Fu, 0xC2u, 0x74u, 0x9Fu, 0xC5u, 0xF3u, 0xDFu, 0xE9u, 0x27u, 0xA2u};
-    constexpr int kPhase1SourceOffset1 = 6704;
-    constexpr int kPhase1ControlOffset = 3440;
-    constexpr int kPhase1FeedbackOffset = 816;
-    constexpr unsigned char kPhase1SaltBias = 39u;
-    constexpr unsigned char kPhase1SaltStride = 19u;
-    constexpr int kPhase2SourceOffset1 = 6000;
-    constexpr int kPhase2ControlOffset = 1872;
-    constexpr int kPhase2FeedbackOffset = 7216;
-    constexpr unsigned char kPhase2SaltBias = 29u;
-    constexpr unsigned char kPhase2SaltStride = 9u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        RotateColumnDown(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        XorRowIntoRow(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        AddWithBlock(aPhase1Matrix0, aPhase1Matrix1);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 5) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 11) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        RotateColumnDown(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectXorShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        SwapRows(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectXorShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[6] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[8] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        WeaveRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        AddWithBlock(aPhase2Matrix0, aPhase2Matrix1);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 5) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] + aPhase2LaneMix0 + aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 11) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] + aPhase2LaneMix1 + aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        AddColumnIntoColumn(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        AddColumnIntoColumn(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectXorShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 1569
-// Final grade: A+ (98.760368)
-void TwistBytes_06(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0xBFu, 0x85u, 0x19u, 0x70u, 0xBDu, 0xF1u, 0xCDu, 0x88u, 0xA3u, 0x18u, 0xBDu, 0x93u, 0xC1u, 0x4Au, 0x7Du, 0x6Au};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x00u, 0xA8u, 0x85u, 0x5Au, 0x49u, 0xB0u, 0xEEu, 0x4Fu, 0x82u, 0xE3u, 0xF9u, 0x23u, 0x5Du, 0x92u, 0x3Du, 0x0Eu};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x14u, 0xDAu, 0x63u, 0xA5u, 0xEEu, 0x6Du, 0xD1u, 0xF0u, 0x6Cu, 0x93u, 0x63u, 0xCCu, 0x90u, 0xECu, 0x83u, 0xDAu};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x2Au, 0x40u, 0xE0u, 0x2Cu, 0xF5u, 0x77u, 0x65u, 0x7Au, 0xBCu, 0xD2u, 0x60u, 0x7Eu, 0x21u, 0x76u, 0x37u, 0xF7u};
-    constexpr int kPhase1SourceOffset1 = 5616;
-    constexpr int kPhase1ControlOffset = 4896;
-    constexpr int kPhase1FeedbackOffset = 3104;
-    constexpr unsigned char kPhase1SaltBias = 99u;
-    constexpr unsigned char kPhase1SaltStride = 17u;
-    constexpr int kPhase2SourceOffset1 = 1056;
-    constexpr int kPhase2ControlOffset = 1968;
-    constexpr int kPhase2FeedbackOffset = 3888;
-    constexpr unsigned char kPhase2SaltBias = 145u;
-    constexpr unsigned char kPhase2SaltStride = 3u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        XorRowIntoRow(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        RotateColumnDown(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[4] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[5] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectAddShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        XorRowIntoRow(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        WeaveRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        WeaveRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        RotateColumnDown(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[9] ^ aPhase1Salt[10]), static_cast<unsigned char>(aPhase1ControlB[12] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 3) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 7) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        WeaveRows(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectXorShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        RotateColumnDown(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectAddShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[6] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[8] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        WeaveRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 3) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] ^ aPhase2LaneMix0 ^ aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] ^ aPhase2LaneMix1 ^ aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        WeaveRows(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        XorRowIntoRow(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 3399
-// Final grade: A+ (98.750104)
-void TwistBytes_07(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x82u, 0x15u, 0x28u, 0xDBu, 0x3Eu, 0xBAu, 0x52u, 0xD3u, 0x0Cu, 0x7Eu, 0x48u, 0x26u, 0x1Du, 0x7Eu, 0x35u, 0x0Cu};
-    static constexpr unsigned char kPhase1Seed1[16] = {0xE6u, 0x15u, 0xF6u, 0xB7u, 0x61u, 0xA9u, 0x1Eu, 0x40u, 0xE3u, 0xBAu, 0xAFu, 0x70u, 0xF2u, 0x7Cu, 0x2Au, 0xF7u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0xD6u, 0x86u, 0x56u, 0x25u, 0xF5u, 0xDCu, 0xC6u, 0xE2u, 0xB8u, 0x04u, 0x08u, 0xFCu, 0xE4u, 0x95u, 0x13u, 0xC5u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x7Au, 0x8Bu, 0x64u, 0x7Du, 0xBEu, 0xD8u, 0x41u, 0x08u, 0x19u, 0xE8u, 0x9Fu, 0x50u, 0x68u, 0x42u, 0xAFu, 0xE0u};
-    constexpr int kPhase1SourceOffset1 = 5488;
-    constexpr int kPhase1ControlOffset = 4272;
-    constexpr int kPhase1FeedbackOffset = 1280;
-    constexpr unsigned char kPhase1SaltBias = 131u;
-    constexpr unsigned char kPhase1SaltStride = 9u;
-    constexpr int kPhase2SourceOffset1 = 4432;
-    constexpr int kPhase2ControlOffset = 5408;
-    constexpr int kPhase2FeedbackOffset = 608;
-    constexpr unsigned char kPhase2SaltBias = 219u;
-    constexpr unsigned char kPhase2SaltStride = 29u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        SwapRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectAddShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        RotateRowLeft(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        WeaveRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[9] ^ aPhase1Salt[10]), static_cast<unsigned char>(aPhase1ControlB[12] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        AddWithBlock(aPhase1Matrix0, aPhase1Matrix1);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 1) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 5) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        RotateRowLeft(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        AddColumnIntoColumn(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectAddShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[6] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[8] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        SwapRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 1) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] ^ aPhase2LaneMix0 ^ aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 5) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] ^ aPhase2LaneMix1 ^ aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        SwapRows(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        RotateColumnDown(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectXorShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 4198
-// Final grade: A+ (98.788632)
-void TwistBytes_08(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x8Du, 0xA6u, 0x89u, 0x4Au, 0xA0u, 0x14u, 0x7Du, 0x96u, 0x6Au, 0x42u, 0x01u, 0xBCu, 0xC8u, 0x4Fu, 0x3Du, 0x4Cu};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x70u, 0x93u, 0x4Bu, 0x8Cu, 0x9Fu, 0x10u, 0x72u, 0x02u, 0xCCu, 0x90u, 0x03u, 0x0Du, 0xFEu, 0x23u, 0xE1u, 0xF8u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0xA4u, 0x69u, 0xBDu, 0x91u, 0x88u, 0x11u, 0x91u, 0x1Cu, 0x5Bu, 0x71u, 0xE3u, 0xACu, 0x0Du, 0x71u, 0x44u, 0x59u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0xB8u, 0x0Cu, 0xC4u, 0x0Au, 0x0Au, 0xC8u, 0xE5u, 0xAEu, 0x17u, 0x63u, 0x77u, 0x97u, 0x81u, 0x0Au, 0x2Bu, 0xBDu};
-    constexpr int kPhase1SourceOffset1 = 144;
-    constexpr int kPhase1ControlOffset = 7120;
-    constexpr int kPhase1FeedbackOffset = 1776;
-    constexpr unsigned char kPhase1SaltBias = 237u;
-    constexpr unsigned char kPhase1SaltStride = 5u;
-    constexpr int kPhase2SourceOffset1 = 6160;
-    constexpr int kPhase2ControlOffset = 5424;
-    constexpr int kPhase2FeedbackOffset = 3232;
-    constexpr unsigned char kPhase2SaltBias = 149u;
-    constexpr unsigned char kPhase2SaltStride = 11u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        XorRowIntoRow(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        AddColumnIntoColumn(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        WeaveRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        RotateColumnDown(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        WeaveRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[9] ^ aPhase1Salt[10]), static_cast<unsigned char>(aPhase1ControlB[12] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 1) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 1) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        AddColumnIntoColumn(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        WeaveRows(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectXorShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectAddShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        SwapRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        SwapRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        AddWithBlock(aPhase2Matrix0, aPhase2Matrix1);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 1) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] + aPhase2LaneMix0 + aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 1) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] + aPhase2LaneMix1 + aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        WeaveRows(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectAddShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        SwapRows(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectXorShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 2191
-// Final grade: A+ (98.775218)
-void TwistBytes_09(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0xA7u, 0x19u, 0xB6u, 0xC7u, 0x3Cu, 0x5Au, 0xF0u, 0x1Cu, 0x53u, 0xABu, 0x89u, 0x39u, 0x7Fu, 0xABu, 0x0Cu, 0x35u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x63u, 0x32u, 0xA4u, 0x02u, 0xB8u, 0x6Cu, 0x81u, 0x9Cu, 0x7Fu, 0x7Cu, 0xE9u, 0xA1u, 0xE8u, 0xFCu, 0x91u, 0x11u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0xBCu, 0xA8u, 0x99u, 0xA3u, 0x88u, 0x79u, 0x55u, 0x44u, 0x27u, 0x3Du, 0x3Au, 0x30u, 0x9Bu, 0x29u, 0x9Du, 0xA8u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x10u, 0x2Eu, 0x5Au, 0x60u, 0xD4u, 0x01u, 0x19u, 0x98u, 0x86u, 0x15u, 0xE8u, 0xD6u, 0xD2u, 0x46u, 0x29u, 0x76u};
-    constexpr int kPhase1SourceOffset1 = 3184;
-    constexpr int kPhase1ControlOffset = 3888;
-    constexpr int kPhase1FeedbackOffset = 5120;
-    constexpr unsigned char kPhase1SaltBias = 245u;
-    constexpr unsigned char kPhase1SaltStride = 5u;
-    constexpr int kPhase2SourceOffset1 = 5312;
-    constexpr int kPhase2ControlOffset = 4368;
-    constexpr int kPhase2FeedbackOffset = 432;
-    constexpr unsigned char kPhase2SaltBias = 29u;
-    constexpr unsigned char kPhase2SaltStride = 3u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        AddColumnIntoColumn(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        RotateColumnDown(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[4] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[5] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        WeaveRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 3) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 5) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        RotateColumnDown(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        SwapRows(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectXorShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectAddShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        RotateColumnDown(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[6] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[8] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        SwapRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        SwapRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 3) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] ^ aPhase2LaneMix0 ^ aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 5) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] ^ aPhase2LaneMix1 ^ aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        RotateRowLeft(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectAddShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        SwapRows(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 3786
-// Final grade: A+ (98.739052)
-void TwistBytes_10(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x11u, 0xE7u, 0xD1u, 0x99u, 0x20u, 0xE0u, 0x17u, 0xE7u, 0xA0u, 0xBCu, 0x3Du, 0xB6u, 0x06u, 0xADu, 0x62u, 0x12u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0xDEu, 0x74u, 0x27u, 0xCAu, 0xA2u, 0x49u, 0x0Cu, 0xA9u, 0x7Fu, 0x2Cu, 0xA2u, 0x46u, 0x43u, 0xAEu, 0x9Du, 0x54u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x0Bu, 0x9Eu, 0x47u, 0xEBu, 0xBEu, 0xFFu, 0x40u, 0x1Bu, 0x47u, 0x92u, 0x93u, 0x1Au, 0x62u, 0x7Cu, 0x80u, 0xD5u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0xCFu, 0xACu, 0x4Au, 0x6Fu, 0xFFu, 0xCFu, 0x44u, 0xC0u, 0x1Eu, 0x76u, 0xB1u, 0xB9u, 0x3Cu, 0x7Bu, 0x7Bu, 0x3Au};
-    constexpr int kPhase1SourceOffset1 = 6656;
-    constexpr int kPhase1ControlOffset = 0;
-    constexpr int kPhase1FeedbackOffset = 2368;
-    constexpr unsigned char kPhase1SaltBias = 101u;
-    constexpr unsigned char kPhase1SaltStride = 17u;
-    constexpr int kPhase2SourceOffset1 = 4608;
-    constexpr int kPhase2ControlOffset = 1072;
-    constexpr int kPhase2FeedbackOffset = 3472;
-    constexpr unsigned char kPhase2SaltBias = 17u;
-    constexpr unsigned char kPhase2SaltStride = 11u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        XorRowIntoRow(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        SwapRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        RotateColumnDown(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        XorRowIntoRow(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 13) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 7) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        WeaveRows(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectXorShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        XorRowIntoRow(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectXorShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 13) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] + aPhase2LaneMix0 + aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] + aPhase2LaneMix1 + aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        SwapRows(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        RotateColumnDown(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectXorShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 3713
-// Final grade: A+ (98.751766)
-void TwistBytes_11(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x07u, 0xA4u, 0x70u, 0x84u, 0xC4u, 0x1Eu, 0xB5u, 0x98u, 0x63u, 0x4Fu, 0x27u, 0x18u, 0x82u, 0x33u, 0x86u, 0x3Au};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x10u, 0x66u, 0x7Eu, 0xE5u, 0x9Fu, 0x3Fu, 0xE3u, 0x7Eu, 0x92u, 0x2Au, 0x10u, 0xEDu, 0xF8u, 0xDBu, 0x32u, 0x15u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x81u, 0x35u, 0x04u, 0xCAu, 0x7Eu, 0x89u, 0x53u, 0x32u, 0xF0u, 0x9Cu, 0x95u, 0x6Fu, 0x0Du, 0x51u, 0x53u, 0xB1u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x40u, 0x32u, 0x60u, 0x13u, 0xFDu, 0x50u, 0xAFu, 0xEAu, 0x12u, 0x99u, 0xBFu, 0x6Eu, 0x33u, 0xC6u, 0x6Eu, 0x46u};
-    constexpr int kPhase1SourceOffset1 = 6560;
-    constexpr int kPhase1ControlOffset = 624;
-    constexpr int kPhase1FeedbackOffset = 3584;
-    constexpr unsigned char kPhase1SaltBias = 13u;
-    constexpr unsigned char kPhase1SaltStride = 11u;
-    constexpr int kPhase2SourceOffset1 = 5392;
-    constexpr int kPhase2ControlOffset = 7072;
-    constexpr int kPhase2FeedbackOffset = 4368;
-    constexpr unsigned char kPhase2SaltBias = 159u;
-    constexpr unsigned char kPhase2SaltStride = 13u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        AddColumnIntoColumn(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectAddShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        WeaveRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        AddWithBlock(aPhase1Matrix0, aPhase1Matrix1);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 3) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 7) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        AddColumnIntoColumn(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        SwapRows(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectAddShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 3) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] ^ aPhase2LaneMix0 ^ aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] ^ aPhase2LaneMix1 ^ aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        WeaveRows(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        AddColumnIntoColumn(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 4271
-// Final grade: A+ (98.778181)
-void TwistBytes_12(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x16u, 0x6Fu, 0x73u, 0xE6u, 0xD6u, 0x1Bu, 0x21u, 0x18u, 0x3Eu, 0x1Cu, 0xDBu, 0x54u, 0x44u, 0xD1u, 0x52u, 0x91u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x53u, 0xBEu, 0x9Bu, 0x10u, 0xB8u, 0x4Au, 0x5Fu, 0x9Du, 0xF5u, 0x02u, 0x3Au, 0x67u, 0xFBu, 0x7Du, 0xCEu, 0x45u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x52u, 0xF4u, 0x31u, 0x9Cu, 0x2Eu, 0x70u, 0xEFu, 0xD3u, 0xA8u, 0x75u, 0x99u, 0x35u, 0xF2u, 0xE9u, 0xB5u, 0x24u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x5Du, 0xA4u, 0xD2u, 0x71u, 0x5Cu, 0x30u, 0x69u, 0x99u, 0xC7u, 0x87u, 0xD6u, 0x37u, 0x4Bu, 0xA7u, 0xD2u, 0xA8u};
-    constexpr int kPhase1SourceOffset1 = 1776;
-    constexpr int kPhase1ControlOffset = 3808;
-    constexpr int kPhase1FeedbackOffset = 4336;
-    constexpr unsigned char kPhase1SaltBias = 249u;
-    constexpr unsigned char kPhase1SaltStride = 19u;
-    constexpr int kPhase2SourceOffset1 = 1808;
-    constexpr int kPhase2ControlOffset = 4864;
-    constexpr int kPhase2FeedbackOffset = 2752;
-    constexpr unsigned char kPhase2SaltBias = 91u;
-    constexpr unsigned char kPhase2SaltStride = 3u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        SwapRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[4] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[5] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectAddShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        RotateRowLeft(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        XorRowIntoRow(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 13) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 11) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        WeaveRows(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        AddColumnIntoColumn(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectAddShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 13) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] ^ aPhase2LaneMix0 ^ aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 11) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] ^ aPhase2LaneMix1 ^ aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        WeaveRows(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        RotateColumnDown(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 874
-// Final grade: A+ (98.752764)
-void TwistBytes_13(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0xBDu, 0xD3u, 0xECu, 0x34u, 0xBBu, 0x64u, 0x24u, 0x33u, 0xE7u, 0x63u, 0x2Eu, 0xA3u, 0x31u, 0x14u, 0x76u, 0x7Au};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x2Bu, 0xF0u, 0xEDu, 0x28u, 0xE7u, 0x2Du, 0xD5u, 0x0Au, 0x03u, 0x76u, 0xCBu, 0x29u, 0xFDu, 0xE2u, 0xA7u, 0x77u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x97u, 0x75u, 0xDDu, 0x59u, 0xDEu, 0x59u, 0xE1u, 0xE2u, 0xA0u, 0x7Du, 0xEBu, 0xDEu, 0x90u, 0x1Au, 0xDDu, 0x66u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x41u, 0x9Bu, 0x11u, 0x01u, 0xD0u, 0xE3u, 0x40u, 0x4Bu, 0x2Cu, 0xC9u, 0xBEu, 0x1Cu, 0x25u, 0x46u, 0x08u, 0x60u};
-    constexpr int kPhase1SourceOffset1 = 6544;
-    constexpr int kPhase1ControlOffset = 3952;
-    constexpr int kPhase1FeedbackOffset = 2400;
-    constexpr unsigned char kPhase1SaltBias = 255u;
-    constexpr unsigned char kPhase1SaltStride = 13u;
-    constexpr int kPhase2SourceOffset1 = 5200;
-    constexpr int kPhase2ControlOffset = 4496;
-    constexpr int kPhase2FeedbackOffset = 6432;
-    constexpr unsigned char kPhase2SaltBias = 223u;
-    constexpr unsigned char kPhase2SaltStride = 19u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        AddColumnIntoColumn(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        AddColumnIntoColumn(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        WeaveRows(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[4] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[5] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectAddShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        XorRowIntoRow(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        XorRowIntoRow(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[9] ^ aPhase1Salt[10]), static_cast<unsigned char>(aPhase1ControlB[12] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 1) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 7) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        WeaveRows(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        XorRowIntoRow(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectAddShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectAddShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        RotateColumnDown(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        SwapRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        XorWithBlock(aPhase2Matrix1, aPhase2Matrix0);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry1);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 1) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] + aPhase2LaneMix0 + aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] + aPhase2LaneMix1 + aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        SwapRows(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectAddShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        RotateRowLeft(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 1563
-// Final grade: A+ (98.754374)
-void TwistBytes_14(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x99u, 0x21u, 0x4Eu, 0xC2u, 0xF6u, 0x17u, 0x06u, 0x30u, 0x1Eu, 0xE6u, 0x06u, 0x01u, 0xC6u, 0x72u, 0x2Fu, 0xC8u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0x51u, 0x77u, 0x12u, 0xDAu, 0xEAu, 0xA1u, 0x45u, 0x8Fu, 0x9Du, 0x70u, 0xF9u, 0x5Fu, 0xE6u, 0xF1u, 0x65u, 0x96u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0x4Fu, 0x1Cu, 0x70u, 0x47u, 0x9Cu, 0xC9u, 0x0Bu, 0x20u, 0x0Fu, 0x64u, 0x59u, 0x14u, 0x31u, 0x47u, 0xDCu, 0xE2u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x35u, 0xACu, 0xB9u, 0x31u, 0x80u, 0x7Eu, 0x85u, 0x63u, 0xC2u, 0x8Fu, 0x17u, 0x8Fu, 0xB2u, 0xEAu, 0x06u, 0xB7u};
-    constexpr int kPhase1SourceOffset1 = 128;
-    constexpr int kPhase1ControlOffset = 4016;
-    constexpr int kPhase1FeedbackOffset = 5680;
-    constexpr unsigned char kPhase1SaltBias = 21u;
-    constexpr unsigned char kPhase1SaltStride = 5u;
-    constexpr int kPhase2SourceOffset1 = 3600;
-    constexpr int kPhase2ControlOffset = 144;
-    constexpr int kPhase2FeedbackOffset = 7360;
-    constexpr unsigned char kPhase2SaltBias = 167u;
-    constexpr unsigned char kPhase2SaltStride = 11u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectAddShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        XorRowIntoRow(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        RotateRowLeft(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        RotateColumnDown(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[3] ^ aPhase1Salt[6]), static_cast<unsigned char>(aPhase1ControlB[4] + FoldAdd(aPhase1Carry1)));
-        AddColumnIntoColumn(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[4] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[5] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        RotateRowLeft(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        SwapRows(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        AddWithBlock(aPhase1Matrix1, aPhase1Carry0);
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 7) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 9) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        AddColumnIntoColumn(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectAddShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        SwapRows(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectXorShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        XorWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        XorRowIntoRow(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        RotateRowLeft(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        XorRowIntoRow(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        RotateRowLeft(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        AddWithBlock(aPhase2Matrix0, aPhase2Matrix1);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 7) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] ^ aPhase2LaneMix0 ^ aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 9) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] ^ aPhase2LaneMix1 ^ aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        XorRowIntoRow(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectXorShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        XorRowIntoRow(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-
-// Derived from Test Candidate 2128
-// Final grade: A+ (98.762483)
-void TwistBytes_15(const unsigned char* pSource, unsigned char* pDestination, unsigned char* pWorkspace) {
-    static constexpr unsigned char kPhase1Seed0[16] = {0x09u, 0xB8u, 0xD6u, 0x20u, 0x81u, 0x84u, 0xA6u, 0x84u, 0x8Cu, 0x6Du, 0xD8u, 0x12u, 0xACu, 0x85u, 0x21u, 0xB6u};
-    static constexpr unsigned char kPhase1Seed1[16] = {0xFDu, 0xE6u, 0x8Cu, 0x07u, 0x15u, 0x4Fu, 0xFAu, 0xE8u, 0x6Bu, 0x00u, 0xE6u, 0xADu, 0x76u, 0xAFu, 0x68u, 0x69u};
-    static constexpr unsigned char kPhase2Seed0[16] = {0xD1u, 0x4Au, 0x7Bu, 0x39u, 0x66u, 0x21u, 0xC1u, 0x4Cu, 0x88u, 0x39u, 0x57u, 0x5Eu, 0x7Fu, 0x0Eu, 0xD0u, 0xE9u};
-    static constexpr unsigned char kPhase2Seed1[16] = {0x8Bu, 0x18u, 0x77u, 0x37u, 0xC4u, 0x38u, 0x59u, 0x57u, 0x4Du, 0xD2u, 0xF1u, 0x01u, 0x51u, 0x51u, 0x1Au, 0xD1u};
-    constexpr int kPhase1SourceOffset1 = 7024;
-    constexpr int kPhase1ControlOffset = 3104;
-    constexpr int kPhase1FeedbackOffset = 2752;
-    constexpr unsigned char kPhase1SaltBias = 89u;
-    constexpr unsigned char kPhase1SaltStride = 7u;
-    constexpr int kPhase2SourceOffset1 = 6816;
-    constexpr int kPhase2ControlOffset = 2368;
-    constexpr int kPhase2FeedbackOffset = 3904;
-    constexpr unsigned char kPhase2SaltBias = 235u;
-    constexpr unsigned char kPhase2SaltStride = 29u;
-    
-    alignas(16) unsigned char aPhase1Carry0[16];
-    alignas(16) unsigned char aPhase1Carry1[16];
-    CopyBlock16(kPhase1Seed0, aPhase1Carry0);
-    CopyBlock16(kPhase1Seed1, aPhase1Carry1);
-    
-    int aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 1: source -> worker
-        alignas(16) unsigned char aPhase1ControlA[16];
-        alignas(16) unsigned char aPhase1ControlB[16];
-        alignas(16) unsigned char aPhase1Salt[16];
-        alignas(16) unsigned char aPhase1Matrix0[16];
-        alignas(16) unsigned char aPhase1Matrix1[16];
-        alignas(16) unsigned char aPhase1Store0[16];
-        alignas(16) unsigned char aPhase1Store1[16];
-        alignas(16) unsigned char aPhase1Emit0[16];
-        alignas(16) unsigned char aPhase1Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase1ControlOffset, aPhase1ControlA);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1FeedbackOffset, aPhase1ControlB);
-        
-        const unsigned char aPhase1Fold = static_cast<unsigned char>(FoldXor(aPhase1Carry0) + FoldAdd(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase1Fold +
-                                                            kPhase1SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase1SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase1SaltStride + 2u)));
-        }
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase1Matrix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase1SourceOffset1, aPhase1Matrix1);
-        
-        InjectAddShifted(aPhase1Matrix0, aPhase1Salt, 3u);
-        XorWithBlock(aPhase1Matrix0, aPhase1Carry0);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlA, 5u);
-        InjectXorShifted(aPhase1Matrix0, aPhase1ControlB, 7u);
-        XorRowIntoRow(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[1] ^ aPhase1Salt[4]), static_cast<unsigned char>(aPhase1ControlB[2] + FoldAdd(aPhase1Carry1)));
-        XorRowIntoRow(aPhase1Matrix0, static_cast<unsigned char>(aPhase1ControlA[2] ^ aPhase1Salt[5]), static_cast<unsigned char>(aPhase1ControlB[3] + FoldAdd(aPhase1Carry1)));
-        
-        InjectAddShifted(aPhase1Matrix1, aPhase1Salt, 6u);
-        XorWithBlock(aPhase1Matrix1, aPhase1Carry1);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlA, 10u);
-        InjectXorShifted(aPhase1Matrix1, aPhase1ControlB, 14u);
-        AddColumnIntoColumn(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[6] ^ aPhase1Salt[7]), static_cast<unsigned char>(aPhase1ControlB[9] + FoldAdd(aPhase1Carry0)));
-        RotateColumnDown(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[7] ^ aPhase1Salt[8]), static_cast<unsigned char>(aPhase1ControlB[10] + FoldAdd(aPhase1Carry0)));
-        RotateRowLeft(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[8] ^ aPhase1Salt[9]), static_cast<unsigned char>(aPhase1ControlB[11] + FoldAdd(aPhase1Carry0)));
-        RotateRowLeft(aPhase1Matrix1, static_cast<unsigned char>(aPhase1ControlA[9] ^ aPhase1Salt[10]), static_cast<unsigned char>(aPhase1ControlB[12] + FoldAdd(aPhase1Carry0)));
-        
-        // Phase 1 bridge
-        XorWithBlock(aPhase1Matrix1, aPhase1Matrix0);
-        AddWithBlock(aPhase1Matrix0, aPhase1Carry1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Store0);
-        const unsigned char aPhase1EmitFold0 = static_cast<unsigned char>(FoldXor(aPhase1Matrix0) + FoldAdd(aPhase1Carry0) + FoldXor(aPhase1Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit0[aLane] = static_cast<unsigned char>(aPhase1Store0[(aLane + 9) & 15] ^ aPhase1ControlA[(aLane + 1) & 15] ^ aPhase1Salt[(aLane + 3) & 15] ^ aPhase1EmitFold0);
-        }
-        StoreBlock16(pWorkspace, aIndex, aPhase1Emit0);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Store1);
-        const unsigned char aPhase1EmitFold1 = static_cast<unsigned char>(FoldXor(aPhase1Matrix1) + FoldAdd(aPhase1Carry1) + FoldXor(aPhase1Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase1Emit1[aLane] = static_cast<unsigned char>(aPhase1Store1[(aLane + 13) & 15] + aPhase1ControlB[(aLane + 9) & 15] + aPhase1Salt[(aLane + 8) & 15] + aPhase1EmitFold1);
-        }
-        StoreBlock16(pWorkspace, aIndex + 16, aPhase1Emit1);
-        
-        CopyBlock16(aPhase1Matrix0, aPhase1Carry0);
-        XorRowIntoRow(aPhase1Carry0, aPhase1ControlB[9], aPhase1ControlA[11]);
-        InjectAddShifted(aPhase1Carry0, aPhase1Salt, 9u);
-        InjectXorShifted(aPhase1Carry0, aPhase1ControlB, 11u);
-        
-        CopyBlock16(aPhase1Matrix1, aPhase1Carry1);
-        RotateRowLeft(aPhase1Carry1, aPhase1ControlB[14], aPhase1ControlA[14]);
-        InjectAddShifted(aPhase1Carry1, aPhase1Salt, 2u);
-        InjectXorShifted(aPhase1Carry1, aPhase1ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-    
-    alignas(16) unsigned char aPhase2Carry0[16];
-    alignas(16) unsigned char aPhase2Carry1[16];
-    CopyBlock16(kPhase2Seed0, aPhase2Carry0);
-    CopyBlock16(kPhase2Seed1, aPhase2Carry1);
-    
-    aIndex = 0;
-    while (aIndex < PASSWORD_EXPANDED_SIZE) {
-        // Phase 2: worker -> destination
-        alignas(16) unsigned char aPhase2ControlA[16];
-        alignas(16) unsigned char aPhase2ControlB[16];
-        alignas(16) unsigned char aPhase2Salt[16];
-        alignas(16) unsigned char aPhase2Matrix0[16];
-        alignas(16) unsigned char aPhase2Matrix1[16];
-        alignas(16) unsigned char aPhase2Store0[16];
-        alignas(16) unsigned char aPhase2Store1[16];
-        alignas(16) unsigned char aPhase2SourceMix0[16];
-        alignas(16) unsigned char aPhase2SourceMix1[16];
-        alignas(16) unsigned char aPhase2FinalSource0[16];
-        alignas(16) unsigned char aPhase2FinalSource1[16];
-        alignas(16) unsigned char aPhase2Emit0[16];
-        alignas(16) unsigned char aPhase2Emit1[16];
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2ControlOffset, aPhase2ControlA);
-        LoadWrappedBlock16(pWorkspace, aIndex + kPhase2FeedbackOffset, aPhase2ControlB);
-        
-        const unsigned char aPhase2Fold = static_cast<unsigned char>(FoldAdd(aPhase2Carry0) + FoldXor(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            aPhase2Salt[aLane] = static_cast<unsigned char>(
-                                                            aPhase2Fold +
-                                                            kPhase2SaltBias +
-                                                            static_cast<unsigned char>(aLane * kPhase2SaltStride) +
-                                                            static_cast<unsigned char>(((aIndex / 16) + aLane) * (kPhase2SaltStride + 4u)));
-        }
-        
-        LoadWrappedBlock16(pWorkspace, aIndex, aPhase2Matrix0);
-        LoadWrappedBlock16(pWorkspace, aIndex + 16, aPhase2Matrix1);
-        LoadWrappedBlock16(pSource, aIndex, aPhase2SourceMix0);
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2SourceMix1);
-        
-        InjectAddShifted(aPhase2Matrix0, aPhase2SourceMix0, 3u);
-        AddWithBlock(aPhase2Matrix0, aPhase2Carry0);
-        InjectAddShifted(aPhase2Matrix0, aPhase2ControlA, 5u);
-        InjectAddShifted(aPhase2Matrix0, aPhase2Salt, 7u);
-        InjectXorShifted(aPhase2Matrix0, aPhase2ControlB, 9u);
-        SwapRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[3] ^ aPhase2Salt[6]), static_cast<unsigned char>(aPhase2ControlB[5] + FoldAdd(aPhase2Carry1)));
-        AddColumnIntoColumn(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[4] ^ aPhase2Salt[7]), static_cast<unsigned char>(aPhase2ControlB[6] + FoldAdd(aPhase2Carry1)));
-        WeaveRows(aPhase2Matrix0, static_cast<unsigned char>(aPhase2ControlA[5] ^ aPhase2Salt[8]), static_cast<unsigned char>(aPhase2ControlB[7] + FoldAdd(aPhase2Carry1)));
-        
-        InjectAddShifted(aPhase2Matrix1, aPhase2SourceMix1, 6u);
-        AddWithBlock(aPhase2Matrix1, aPhase2Carry1);
-        InjectAddShifted(aPhase2Matrix1, aPhase2ControlA, 10u);
-        InjectAddShifted(aPhase2Matrix1, aPhase2Salt, 14u);
-        InjectXorShifted(aPhase2Matrix1, aPhase2ControlB, 2u);
-        AddColumnIntoColumn(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[8] ^ aPhase2Salt[9]), static_cast<unsigned char>(aPhase2ControlB[12] + FoldAdd(aPhase2Carry0)));
-        WeaveRows(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[9] ^ aPhase2Salt[10]), static_cast<unsigned char>(aPhase2ControlB[13] + FoldAdd(aPhase2Carry0)));
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[10] ^ aPhase2Salt[11]), static_cast<unsigned char>(aPhase2ControlB[14] + FoldAdd(aPhase2Carry0)));
-        RotateColumnDown(aPhase2Matrix1, static_cast<unsigned char>(aPhase2ControlA[11] ^ aPhase2Salt[12]), static_cast<unsigned char>(aPhase2ControlB[15] + FoldAdd(aPhase2Carry0)));
-        
-        // Phase 2 bridge
-        AddWithBlock(aPhase2Matrix0, aPhase2Matrix1);
-        XorWithBlock(aPhase2Matrix1, aPhase2Carry0);
-        
-        LoadWrappedBlock16(pSource, aIndex, aPhase2FinalSource0);
-        CopyBlock16(aPhase2Matrix0, aPhase2Store0);
-        const unsigned char aPhase2FoldX0 = static_cast<unsigned char>(FoldXor(aPhase2Matrix0) ^ FoldXor(aPhase2Carry1));
-        const unsigned char aPhase2FoldA0 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix0) + FoldAdd(aPhase2Carry0));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix0 = static_cast<unsigned char>(aPhase2Store0[(aLane + 9) & 15] + aPhase2ControlA[(aLane + 7) & 15] + aPhase2ControlB[(aLane + 9) & 15] + aPhase2Salt[(aLane + 11) & 15] + aPhase2FoldA0);
-            aPhase2Emit0[aLane] = static_cast<unsigned char>(aPhase2FinalSource0[aLane] + aPhase2LaneMix0 + aPhase2FoldX0);
-        }
-        StoreBlock16(pDestination, aIndex, aPhase2Emit0);
-        
-        LoadWrappedBlock16(pSource, aIndex + kPhase2SourceOffset1, aPhase2FinalSource1);
-        CopyBlock16(aPhase2Matrix1, aPhase2Store1);
-        const unsigned char aPhase2FoldX1 = static_cast<unsigned char>(FoldXor(aPhase2Matrix1) ^ FoldXor(aPhase2Carry0));
-        const unsigned char aPhase2FoldA1 = static_cast<unsigned char>(FoldAdd(aPhase2Matrix1) + FoldAdd(aPhase2Carry1));
-        for (int aLane = 0; aLane < 16; ++aLane) {
-            const unsigned char aPhase2LaneMix1 = static_cast<unsigned char>(aPhase2Store1[(aLane + 13) & 15] + aPhase2ControlA[(aLane + 10) & 15] + aPhase2ControlB[(aLane + 14) & 15] + aPhase2Salt[(aLane + 2) & 15] + aPhase2FoldA1);
-            aPhase2Emit1[aLane] = static_cast<unsigned char>(aPhase2FinalSource1[aLane] + aPhase2LaneMix1 + aPhase2FoldX1);
-        }
-        StoreBlock16(pDestination, aIndex + 16, aPhase2Emit1);
-        
-        CopyBlock16(aPhase2Matrix0, aPhase2Carry0);
-        SwapRows(aPhase2Carry0, aPhase2ControlA[13], aPhase2ControlB[10]);
-        InjectAddShifted(aPhase2Carry0, aPhase2Emit0, 13u);
-        InjectAddShifted(aPhase2Carry0, aPhase2ControlB, 11u);
-        
-        CopyBlock16(aPhase2Matrix1, aPhase2Carry1);
-        AddColumnIntoColumn(aPhase2Carry1, aPhase2ControlA[2], aPhase2ControlB[13]);
-        InjectAddShifted(aPhase2Carry1, aPhase2Emit1, 10u);
-        InjectAddShifted(aPhase2Carry1, aPhase2ControlB, 6u);
-        
-        aIndex += kChunkBytes;
-    }
-}
-}  // namespace
 
 void ByteTwister::Get(unsigned char* pSource,
                       unsigned char* pWorker,
                       unsigned char* pDestination,
                       unsigned int pLength) {
-    TwistBytes(mType, pSource, pWorker, pDestination, pLength);
+  TwistBytes(mType, pSource, pWorker, pDestination, pLength);
+}
+
+void ByteTwister::SeedKey(Type pType,
+                          unsigned char* pSource,
+                          unsigned char (&pKeyStack)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+                          unsigned int pLength) {
+  SeedKeyByIndex(static_cast<unsigned char>(pType), pSource, pKeyStack, pLength);
+}
+
+void ByteTwister::SeedKeyByIndex(unsigned char pType,
+                                 unsigned char* pSource,
+                                 unsigned char (&pKeyStack)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+                                 unsigned int pLength) {
+  if (pSource == nullptr || pLength < static_cast<unsigned int>(twist::PASSWORD_EXPANDED_SIZE)) {
+    return;
+  }
+  switch (pType % static_cast<unsigned char>(kTypeCount)) {
+    case 0u: twist::TwistCandidate_0224_KeySeed(pSource, pKeyStack, pLength); break;
+    case 1u: twist::TwistCandidate_0340_KeySeed(pSource, pKeyStack, pLength); break;
+    case 2u: twist::TwistCandidate_0420_KeySeed(pSource, pKeyStack, pLength); break;
+    case 3u: twist::TwistCandidate_0631_KeySeed(pSource, pKeyStack, pLength); break;
+    case 4u: twist::TwistCandidate_0682_KeySeed(pSource, pKeyStack, pLength); break;
+    case 5u: twist::TwistCandidate_0737_KeySeed(pSource, pKeyStack, pLength); break;
+    case 6u: twist::TwistCandidate_0748_KeySeed(pSource, pKeyStack, pLength); break;
+    case 7u: twist::TwistCandidate_0750_KeySeed(pSource, pKeyStack, pLength); break;
+    case 8u: twist::TwistCandidate_0786_KeySeed(pSource, pKeyStack, pLength); break;
+    case 9u: twist::TwistCandidate_0802_KeySeed(pSource, pKeyStack, pLength); break;
+    case 10u: twist::TwistCandidate_0872_KeySeed(pSource, pKeyStack, pLength); break;
+    case 11u: twist::TwistCandidate_1093_KeySeed(pSource, pKeyStack, pLength); break;
+    case 12u: twist::TwistCandidate_1170_KeySeed(pSource, pKeyStack, pLength); break;
+    case 13u: twist::TwistCandidate_1200_KeySeed(pSource, pKeyStack, pLength); break;
+    case 14u: twist::TwistCandidate_1266_KeySeed(pSource, pKeyStack, pLength); break;
+    case 15u: twist::TwistCandidate_1301_KeySeed(pSource, pKeyStack, pLength); break;
+    default: std::abort();
+  }
+}
+
+void ByteTwister::SeedSalt(Type pType,
+                           unsigned char* pSource,
+                           unsigned char (&pSaltBuffer)[twist::kSaltBytes],
+                           unsigned int pLength) {
+  SeedSaltByIndex(static_cast<unsigned char>(pType), pSource, pSaltBuffer, pLength);
+}
+
+void ByteTwister::SeedSaltByIndex(unsigned char pType,
+                                  unsigned char* pSource,
+                                  unsigned char (&pSaltBuffer)[twist::kSaltBytes],
+                                  unsigned int pLength) {
+  if (pSource == nullptr || pLength < static_cast<unsigned int>(twist::PASSWORD_EXPANDED_SIZE)) {
+    return;
+  }
+  switch (pType % static_cast<unsigned char>(kTypeCount)) {
+    case 0u: twist::TwistCandidate_0224_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 1u: twist::TwistCandidate_0340_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 2u: twist::TwistCandidate_0420_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 3u: twist::TwistCandidate_0631_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 4u: twist::TwistCandidate_0682_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 5u: twist::TwistCandidate_0737_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 6u: twist::TwistCandidate_0748_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 7u: twist::TwistCandidate_0750_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 8u: twist::TwistCandidate_0786_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 9u: twist::TwistCandidate_0802_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 10u: twist::TwistCandidate_0872_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 11u: twist::TwistCandidate_1093_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 12u: twist::TwistCandidate_1170_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 13u: twist::TwistCandidate_1200_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 14u: twist::TwistCandidate_1266_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    case 15u: twist::TwistCandidate_1301_SaltSeed(pSource, pSaltBuffer, pLength); break;
+    default: std::abort();
+  }
+}
+
+void ByteTwister::TwistBlock(Type pType,
+                             unsigned char* pSource,
+                             unsigned char* pWorker,
+                             unsigned char* pDestination,
+                             unsigned int pRound,
+                             const unsigned char (&pSaltBuffer)[twist::kSaltBytes],
+                             unsigned char (&pKeyStack)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+                             unsigned int pLength) {
+  TwistBlockByIndex(static_cast<unsigned char>(pType), pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength);
+}
+
+void ByteTwister::TwistBlockByIndex(unsigned char pType,
+                                    unsigned char* pSource,
+                                    unsigned char* pWorker,
+                                    unsigned char* pDestination,
+                                    unsigned int pRound,
+                                    const unsigned char (&pSaltBuffer)[twist::kSaltBytes],
+                                    unsigned char (&pKeyStack)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+                                    unsigned int pLength) {
+  if (pSource == nullptr || pDestination == nullptr || pLength < static_cast<unsigned int>(twist::PASSWORD_EXPANDED_SIZE)) {
+    return;
+  }
+  switch (pType % static_cast<unsigned char>(kTypeCount)) {
+    case 0u: twist::TwistCandidate_0224_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 1u: twist::TwistCandidate_0340_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 2u: twist::TwistCandidate_0420_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 3u: twist::TwistCandidate_0631_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 4u: twist::TwistCandidate_0682_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 5u: twist::TwistCandidate_0737_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 6u: twist::TwistCandidate_0748_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 7u: twist::TwistCandidate_0750_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 8u: twist::TwistCandidate_0786_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 9u: twist::TwistCandidate_0802_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 10u: twist::TwistCandidate_0872_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 11u: twist::TwistCandidate_1093_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 12u: twist::TwistCandidate_1170_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 13u: twist::TwistCandidate_1200_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 14u: twist::TwistCandidate_1266_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    case 15u: twist::TwistCandidate_1301_TwistBlock(pSource, pWorker, pDestination, pRound, pSaltBuffer, pKeyStack, pLength); break;
+    default: std::abort();
+  }
+}
+
+void ByteTwister::PushKeyRound(Type pType,
+                               unsigned char* pDestination,
+                               const unsigned char (&pSaltBuffer)[twist::kSaltBytes],
+                               unsigned char (&pKeyStack)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+                               unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+                               unsigned int pLength) {
+  PushKeyRoundByIndex(static_cast<unsigned char>(pType), pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength);
+}
+
+void ByteTwister::PushKeyRoundByIndex(unsigned char pType,
+                                      unsigned char* pDestination,
+                                      const unsigned char (&pSaltBuffer)[twist::kSaltBytes],
+                                      unsigned char (&pKeyStack)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+                                      unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+                                      unsigned int pLength) {
+  if (pDestination == nullptr || pLength < static_cast<unsigned int>(twist::PASSWORD_EXPANDED_SIZE)) {
+    return;
+  }
+  switch (pType % static_cast<unsigned char>(kTypeCount)) {
+    case 0u: twist::TwistCandidate_0224_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 1u: twist::TwistCandidate_0340_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 2u: twist::TwistCandidate_0420_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 3u: twist::TwistCandidate_0631_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 4u: twist::TwistCandidate_0682_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 5u: twist::TwistCandidate_0737_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 6u: twist::TwistCandidate_0748_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 7u: twist::TwistCandidate_0750_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 8u: twist::TwistCandidate_0786_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 9u: twist::TwistCandidate_0802_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 10u: twist::TwistCandidate_0872_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 11u: twist::TwistCandidate_1093_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 12u: twist::TwistCandidate_1170_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 13u: twist::TwistCandidate_1200_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 14u: twist::TwistCandidate_1266_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    case 15u: twist::TwistCandidate_1301_PushKeyRound(pDestination, pSaltBuffer, pKeyStack, pNextRoundKeyBuffer, pLength); break;
+    default: std::abort();
+  }
 }
 
 void ByteTwister::TwistBytes(Type pType,
@@ -3390,7 +3519,19 @@ void ByteTwister::TwistBytes(Type pType,
                              unsigned char* pWorker,
                              unsigned char* pDestination,
                              unsigned int pLength) {
-    TwistBytesByIndex(static_cast<unsigned char>(pType), pSource, pWorker, pDestination, pLength);
+  unsigned char aKeyBuffer[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes]{};
+  unsigned char aNextRoundKeyBuffer[twist::kRoundKeyBytes]{};
+  TwistBytes(pType, pSource, pWorker, pDestination, aKeyBuffer, aNextRoundKeyBuffer, pLength);
+}
+
+void ByteTwister::TwistBytes(Type pType,
+                             unsigned char* pSource,
+                             unsigned char* pWorker,
+                             unsigned char* pDestination,
+                             unsigned char (&pKeyStack)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+                             unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+                             unsigned int pLength) {
+  TwistBytesByIndex(static_cast<unsigned char>(pType), pSource, pWorker, pDestination, pKeyStack, pNextRoundKeyBuffer, pLength);
 }
 
 void ByteTwister::TwistBytesByIndex(unsigned char pType,
@@ -3398,20 +3539,40 @@ void ByteTwister::TwistBytesByIndex(unsigned char pType,
                                     unsigned char* pWorker,
                                     unsigned char* pDestination,
                                     unsigned int pLength) {
-    if (pSource == nullptr || pDestination == nullptr) {
-        return;
-    }
-    constexpr unsigned int kBlockLength = static_cast<unsigned int>(PASSWORD_EXPANDED_SIZE);
-    if (pLength == 0U || (pLength % kBlockLength) != 0U) {
-        std::abort();
-    }
-    
-    std::array<unsigned char, PASSWORD_EXPANDED_SIZE> aWorkspace{};
-    unsigned char* aWorkspaceBuffer = (pWorker != nullptr) ? pWorker : aWorkspace.data();
-    
-    for (unsigned int aOffset = 0U; aOffset < pLength; aOffset += kBlockLength) {
-        TwistSingleBlock(pType, pSource + aOffset, aWorkspaceBuffer, pDestination + aOffset);
-    }
+  unsigned char aKeyBuffer[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes]{};
+  unsigned char aNextRoundKeyBuffer[twist::kRoundKeyBytes]{};
+  TwistBytesByIndex(pType, pSource, pWorker, pDestination, aKeyBuffer, aNextRoundKeyBuffer, pLength);
+}
+
+void ByteTwister::TwistBytesByIndex(unsigned char pType,
+                                    unsigned char* pSource,
+                                    unsigned char* pWorker,
+                                    unsigned char* pDestination,
+                                    unsigned char (&pKeyStack)[twist::kRoundKeyStackDepth][twist::kRoundKeyBytes],
+                                    unsigned char (&pNextRoundKeyBuffer)[twist::kRoundKeyBytes],
+                                    unsigned int pLength) {
+  if (pSource == nullptr || pDestination == nullptr) {
+    return;
+  }
+  constexpr unsigned int kBlockLength = static_cast<unsigned int>(twist::PASSWORD_EXPANDED_SIZE);
+  if (pLength == 0U || (pLength % kBlockLength) != 0U) {
+    std::abort();
+  }
+
+  std::array<unsigned char, twist::PASSWORD_EXPANDED_SIZE> aWorkspace{};
+  unsigned char* aWorkspaceBuffer = (pWorker != nullptr) ? pWorker : aWorkspace.data();
+  unsigned char aSaltBuffer[twist::kSaltBytes]{};
+
+  SeedKeyByIndex(pType, pSource, pKeyStack, kBlockLength);
+  SeedSaltByIndex(pType, pSource, aSaltBuffer, kBlockLength);
+  for (unsigned int offset = 0U, round = 0U; offset < pLength; offset += kBlockLength, ++round) {
+    unsigned char* aRoundSource = (round == 0U) ? pSource : (pDestination + offset - kBlockLength);
+    unsigned char* aRoundDestination = pDestination + offset;
+    TwistBlockByIndex(pType, aRoundSource, aWorkspaceBuffer, aRoundDestination, round, aSaltBuffer, pKeyStack, kBlockLength);
+    PushKeyRoundByIndex(pType, aRoundDestination, aSaltBuffer, pKeyStack, pNextRoundKeyBuffer, kBlockLength);
+  }
 }
 
 }  // namespace peanutbutter::expansion::key_expansion
+
+#undef PASSWORD_EXPANDED_SIZE

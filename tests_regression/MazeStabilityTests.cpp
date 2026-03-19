@@ -46,6 +46,7 @@ struct StabilityAggregate {
   std::uint64_t mInconsistentStateG = 0U;
   std::uint64_t mInconsistentStateH = 0U;
   std::uint64_t mInconsistentStateI = 0U;
+  std::uint64_t mInconsistentStateJ = 0U;
   std::uint64_t mSimulationStallCataclysmic = 0U;
   std::uint64_t mSimulationStallApocalypse = 0U;
   std::uint64_t mStarBurst = 0U;
@@ -134,6 +135,7 @@ std::uint64_t HashRuntimeStats(const peanutbutter::maze::Maze::RuntimeStats& pSt
   aDigest = HashMix(aDigest, pStats.mInconsistentStateG);
   aDigest = HashMix(aDigest, pStats.mInconsistentStateH);
   aDigest = HashMix(aDigest, pStats.mInconsistentStateI);
+  aDigest = HashMix(aDigest, pStats.mInconsistentStateJ);
   aDigest = HashMix(aDigest, pStats.mSimulationStallCataclysmic);
   aDigest = HashMix(aDigest, pStats.mSimulationStallApocalypse);
   aDigest = HashMix(aDigest, pStats.mStarBurst);
@@ -172,6 +174,7 @@ bool RuntimeStatsEqual(const peanutbutter::maze::Maze::RuntimeStats& pA,
          pA.mInconsistentStateG == pB.mInconsistentStateG &&
          pA.mInconsistentStateH == pB.mInconsistentStateH &&
          pA.mInconsistentStateI == pB.mInconsistentStateI &&
+         pA.mInconsistentStateJ == pB.mInconsistentStateJ &&
          pA.mSimulationStallCataclysmic == pB.mSimulationStallCataclysmic &&
          pA.mSimulationStallApocalypse == pB.mSimulationStallApocalypse &&
          pA.mStarBurst == pB.mStarBurst &&
@@ -273,6 +276,7 @@ void Accumulate(StabilityAggregate* pAggregate,
   pAggregate->mInconsistentStateG += pStats.mInconsistentStateG;
   pAggregate->mInconsistentStateH += pStats.mInconsistentStateH;
   pAggregate->mInconsistentStateI += pStats.mInconsistentStateI;
+  pAggregate->mInconsistentStateJ += pStats.mInconsistentStateJ;
   pAggregate->mSimulationStallCataclysmic += pStats.mSimulationStallCataclysmic;
   pAggregate->mSimulationStallApocalypse += pStats.mSimulationStallApocalypse;
   pAggregate->mStarBurst += pStats.mStarBurst;
@@ -308,6 +312,23 @@ double SafeAverage(std::uint64_t pTotal, std::uint64_t pCount) {
   return static_cast<double>(pTotal) / static_cast<double>(pCount);
 }
 
+std::uint32_t InconsistentFlags(const StabilityAggregate& pAggregate) {
+  std::uint32_t aFlags = 0U;
+  if (pAggregate.mInconsistentStateA > 0U) aFlags |= (1U << 0U);
+  if (pAggregate.mInconsistentStateB > 0U) aFlags |= (1U << 1U);
+  if (pAggregate.mInconsistentStateC > 0U) aFlags |= (1U << 2U);
+  if (pAggregate.mInconsistentStateD > 0U) aFlags |= (1U << 3U);
+  if (pAggregate.mInconsistentStateE > 0U) aFlags |= (1U << 4U);
+  if (pAggregate.mInconsistentStateF > 0U) aFlags |= (1U << 5U);
+  if (pAggregate.mInconsistentStateG > 0U) aFlags |= (1U << 6U);
+  if (pAggregate.mInconsistentStateH > 0U) aFlags |= (1U << 7U);
+  if (pAggregate.mInconsistentStateI > 0U) aFlags |= (1U << 8U);
+  if (pAggregate.mInconsistentStateJ > 0U) aFlags |= (1U << 9U);
+  if (pAggregate.mSimulationStallCataclysmic > 0U) aFlags |= (1U << 10U);
+  if (pAggregate.mSimulationStallApocalypse > 0U) aFlags |= (1U << 11U);
+  return aFlags;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -333,14 +354,16 @@ int main(int argc, char** argv) {
     for (int aRun = 0; aRun < aRuns; ++aRun) {
       std::vector<unsigned char> aInput(64U, 0U);
       FillInput(&aInput, aRun, aGameIndex);
-      const std::vector<unsigned char> aSeed = peanutbutter::tests::BuildCounterSeedBuffer<ChaCha20Counter>(
+      const std::vector<unsigned char> aSeedBase = peanutbutter::tests::BuildCounterSeedBuffer<ChaCha20Counter>(
           aInput.data(), static_cast<int>(aInput.size()), peanutbutter::maze::Maze::kSeedBufferCapacity);
-      const Histogram256 aSeedHistogram = BuildHistogram(aSeed);
+      const Histogram256 aSeedHistogram = BuildHistogram(aSeedBase);
+      std::vector<unsigned char> aSeedA = aSeedBase;
+      std::vector<unsigned char> aSeedB = aSeedBase;
 
       peanutbutter::maze::MazeDirector aMazeA;
       aMazeA.SetGame(aGameIndex);
-      aMazeA.Seed(const_cast<unsigned char*>(aSeed.data()), static_cast<int>(aSeed.size()));
-      std::vector<unsigned char> aOutputA(aSeed.size(), 0U);
+      aMazeA.Seed(aSeedA.data(), static_cast<int>(aSeedA.size()));
+      std::vector<unsigned char> aOutputA(aSeedA.size(), 0U);
       aMazeA.Get(aOutputA.data(), static_cast<int>(aOutputA.size()));
       const Histogram256 aOutputHistogramA = BuildHistogram(aOutputA);
       const peanutbutter::maze::Maze::RuntimeStats aStatsA = aMazeA.GetRuntimeStats();
@@ -355,8 +378,8 @@ int main(int argc, char** argv) {
 
       peanutbutter::maze::MazeDirector aMazeB;
       aMazeB.SetGame(aGameIndex);
-      aMazeB.Seed(const_cast<unsigned char*>(aSeed.data()), static_cast<int>(aSeed.size()));
-      std::vector<unsigned char> aOutputB(aSeed.size(), 0U);
+      aMazeB.Seed(aSeedB.data(), static_cast<int>(aSeedB.size()));
+      std::vector<unsigned char> aOutputB(aSeedB.size(), 0U);
       aMazeB.Get(aOutputB.data(), static_cast<int>(aOutputB.size()));
       const Histogram256 aOutputHistogramB = BuildHistogram(aOutputB);
       const peanutbutter::maze::Maze::RuntimeStats aStatsB = aMazeB.GetRuntimeStats();
@@ -426,8 +449,11 @@ int main(int argc, char** argv) {
               << " inconsistent_g=" << aAggregate.mInconsistentStateG
               << " inconsistent_h=" << aAggregate.mInconsistentStateH
               << " inconsistent_i=" << aAggregate.mInconsistentStateI
+              << " inconsistent_j=" << aAggregate.mInconsistentStateJ
               << " stall_cataclysmic=" << aAggregate.mSimulationStallCataclysmic
               << " stall_apocalypse=" << aAggregate.mSimulationStallApocalypse << "\n";
+    std::cout << "  inconsistent_flags=0x" << std::hex << std::uppercase << InconsistentFlags(aAggregate)
+              << std::dec << std::nouppercase << "\n";
     std::cout << "  star_burst=" << aAggregate.mStarBurst
               << " chaos_storm=" << aAggregate.mChaosStorm
               << " comet_horizontal=" << aAggregate.mCometTrailsHorizontal

@@ -40,6 +40,7 @@ class Maze : public peanutbutter::rng::Shuffler, protected MazeGrid {
     std::uint64_t mInconsistentStateG = 0U;
     std::uint64_t mInconsistentStateH = 0U;
     std::uint64_t mInconsistentStateI = 0U;
+    std::uint64_t mInconsistentStateJ = 0U;
     std::uint64_t mSimulationStallCataclysmic = 0U;
     std::uint64_t mSimulationStallApocalypse = 0U;
     std::uint64_t mStarBurst = 0U;
